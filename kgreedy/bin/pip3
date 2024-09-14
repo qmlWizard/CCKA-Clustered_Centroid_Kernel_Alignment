@@ -1,4 +1,4 @@
-#!/Users/digvijay/Developer/MasterThesis/greedy_kernel_alignment/kgreedy/bin/python3.12
+#!/home/digvijay/Documents/developer/greedy_kernel_alignment/kgreedy/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
