@@ -1,8 +1,9 @@
 import pennylane as qml
 from pennylane import numpy as np
 from utils.kernel import initialize_kernel, kernel
-from utils.classification_data import checkerboard_data
+from utils.classification_data import checkerboard_data, linear_data, hidden_manifold_data, power_line_data
 from utils.train_kernel import target_alignment
+from utils.sampling import subset_sampling
 import sys
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
@@ -12,19 +13,28 @@ print("-------------------------------------------------------------------------
 #read configurations from the command line
 try:
     dataset = sys.argv[1]
-    subset_size = int(sys.argv[2])
+    sampling = sys.argv[2]
+    subset_size = int(sys.argv[3])
     print("Reading Dataset...")
 except:
     print("Error ! While Execution")
-    print("USAGE: python <dataset> <subset_size>")
+    print("USAGE: python <dataset> <sampling> <subset_size>")
 
 print("----------------------------------------------------------------------------------------------------------------------------------------------")
+
+n_feat = 6
+n_sam = 100
 
 
 ##Get the dataset 
 if dataset == 'checkerboard':
-	data = checkerboard_data(5, 50)
-
+	data = checkerboard_data(n_feat, n_sam)
+elif dataset == 'linear':
+	data = linear_data(n_feat, n_sam)
+elif dataset == 'hidden_manifold':
+	data = hidden_manifold_data(n_feat, n_sam)
+elif dataset == 'powerline':
+	data = power_line_data()
 
 print("Done..!")
 print("Sample: ", data.head(1))
@@ -54,7 +64,7 @@ x1 = features[0]
 x2 = features[1]
 
 distance = kernel(x1, x2, params)
-
+print(qml.draw(kernel)(x1, x2, params))
 print("Distance between x1 and x2: ", distance)
 
 print("-------------------------------------------------------------------------------------------------------------------------")
@@ -70,10 +80,21 @@ print("-------------------------------------------------------------------------
 
 opt = qml.GradientDescentOptimizer(0.2)
 
-for i in range(500):
+f_kernel = lambda x1, x2: kernel(x1, x2, params)
+get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel) 
+
+if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
+	kernel_matrix = get_kernel_matrix(x_train, x_train)
+	svm_model = SVC(kernel='precomputed', probability = True).fit(kernel_matrix, y_train)
+
+
+for i in range(50):
     
     # Choose subset of datapoints to compute the KTA on.
-    subset = np.random.choice(list(range(len(x_train))), 4)
+    if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
+    	subset = subset_sampling(kernel_matrix, model = svm_model, sampling = sampling, subset_size = subset_size)
+    else:
+    	subset = subset_sampling(x_train, sampling = sampling, subset_size = subset_size)
     
     # Define the cost function for optimization
     cost = lambda _params: -qml.kernels.target_alignment(
@@ -95,21 +116,27 @@ for i in range(500):
             lambda x1, x2: kernel(x1, x2, params),
             assume_normalized_kernel=False,
         )
-        print(current_alignment)
+        print(f"Epoch: {i + 1} Current Kernel Alignment: {current_alignment}")
 
+
+    if sampling == 'greedy_inc':
+        km = get_kernel_matrix(x_train[subset], x_train[subset])
+        kernel_matrix[np.ix_(subset, subset)] = km 
+        svm_model = SVC(kernel='precomputed', probability = True).fit(kernel_matrix, y_train)
+	
+		
 
 trained_kernel = lambda x1, x2: kernel(x1, x2, params)
-trained_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, trained_kernel)
+trained_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, trained_kernel) 
 svm_trained = SVC(kernel=trained_kernel_matrix).fit(x_train, y_train)
+
 
 y_pred = svm_trained.predict(x_train)
 train_acc = accuracy_score(y_train, y_pred)
-
 print("Training Accuracy: ", train_acc)
 
 y_pred = svm_trained.predict(x_test)
 accuracy = accuracy_score(y_test, y_pred)
-
 print("Testing Accuracy: ", accuracy)
 
 
