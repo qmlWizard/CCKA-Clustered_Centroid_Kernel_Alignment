@@ -1,2 +1,4 @@
 .kgreedy/
 data/
+kgreedy/
+.venv/
