@@ -8,6 +8,7 @@ num_qubits = 6  # Adjust the number as needed
 dev = qml.device("default.qubit", wires=num_qubits, shots=None)
 wires = dev.wires.tolist()
 layers = 1
+circuit_executions = 0
 
 def initialize_kernel(num_qubits, variational_circuit, variational_layers):
     global dev

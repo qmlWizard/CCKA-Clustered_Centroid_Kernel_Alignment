@@ -3,7 +3,7 @@ from pennylane import numpy as np
 from utils.kernel import initialize_kernel, kernel
 from utils.classification_data import checkerboard_data, linear_data, hidden_manifold_data, power_line_data
 from utils.train_kernel import target_alignment
-from utils.sampling import subset_sampling
+from utils.sampling import subset_sampling, subset_sampling_test
 import sys
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
@@ -79,16 +79,16 @@ opt = qml.GradientDescentOptimizer(0.2)
 f_kernel = lambda x1, x2: kernel(x1, x2, params)
 get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel) 
 
-if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
-    kernel_matrix = get_kernel_matrix(x_train, x_train)
-    print("Created Kernel Matrix Training SVM now")
-    svm_model = SVC(kernel='precomputed', probability=True).fit(kernel_matrix, y_train)
-    print("Model trained")
+#if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
+#    kernel_matrix = get_kernel_matrix(x_train, x_train)
+#    print("Created Kernel Matrix Training SVM now")
+#    svm_model = SVC(kernel='precomputed', probability=True).fit(kernel_matrix, y_train)
+#    print("Model trained")
 
 for i in range(50):
     # Choose subset of datapoints to compute the KTA on.
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
-        subset = subset_sampling(kernel_matrix, model=svm_model, sampling=sampling, subset_size=subset_size)
+        subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
     else:
         subset = subset_sampling(x_train, sampling=sampling, subset_size=subset_size)
 
