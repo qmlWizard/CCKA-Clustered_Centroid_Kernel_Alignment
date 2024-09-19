@@ -1,7 +1,9 @@
 #!/bin/bash
 
+source ./kgreedy/bin/activate
+
 # Array of strategies and arguments
-strategies=("random" "greedy" "probabilistic")
+strategies=("random" "greedy")
 args=(4 6 8 10 12 18 24)
 
 # Run the Python script in parallel with different strategies and arguments
