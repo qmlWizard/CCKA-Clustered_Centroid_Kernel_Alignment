@@ -1,6 +1,6 @@
 import pennylane as qml
 from pennylane import numpy as np
-from utils.kernel import initialize_kernel, kernel
+from utils.kernel import initialize_kernel, kernel, get_circuit_executions
 from utils.classification_data import checkerboard_data, linear_data, hidden_manifold_data, power_line_data
 from utils.train_kernel import target_alignment
 from utils.sampling import subset_sampling, subset_sampling_test
@@ -60,9 +60,11 @@ params = np.random.random(size=param_shape, requires_grad=True)
 x1 = features[0]
 x2 = features[1]
 
+print("Before: ", get_circuit_executions())
 distance = kernel(x1, x2, params)
 print(qml.draw(kernel)(x1, x2, params))
 print("Distance between x1 and x2: ", distance)
+print("After: ", get_circuit_executions())
 
 print("-------------------------------------------------------------------------------------------------------------------------")
 print("Dividing Testing and Training dataset")
@@ -126,6 +128,6 @@ y_pred = svm_trained.predict(x_train)
 train_acc = accuracy_score(y_train, y_pred)
 print("Training Accuracy: ", train_acc)
 
-y_pred = svm_trained.predict(x_test)
+
 accuracy = accuracy_score(y_test, y_pred)
 print("Testing Accuracy: ", accuracy)

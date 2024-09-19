@@ -41,5 +41,11 @@ def kernel_circuit(x1, x2, params):
     return qml.probs(wires=wires)
 
 def kernel(x1, x2, params):
+    global circuit_executions
+    circuit_executions += 1
     return kernel_circuit(x1, x2, params)[0]
 
+def get_circuit_executions():
+    global circuit_executions
+
+    return circuit_executions
