@@ -81,16 +81,17 @@ opt = qml.GradientDescentOptimizer(0.2)
 f_kernel = lambda x1, x2: kernel(x1, x2, params)
 get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel) 
 
-#if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
-#    kernel_matrix = get_kernel_matrix(x_train, x_train)
-#    print("Created Kernel Matrix Training SVM now")
-#    svm_model = SVC(kernel='precomputed', probability=True).fit(kernel_matrix, y_train)
-#    print("Model trained")
+if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
+    kernel_matrix = get_kernel_matrix(x_train, x_train)
+    print("Created Kernel Matrix Training SVM now")
+    svm_model = SVC(kernel='precomputed', probability=True).fit(kernel_matrix, y_train)
+    print("Model trained")
 
 for i in range(50):
     # Choose subset of datapoints to compute the KTA on.
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
-        subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
+        #subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
+        subset = subset_sampling(x_train, svm_model, sampling, subset_size)
     else:
         subset = subset_sampling(x_train, sampling=sampling, subset_size=subset_size)
 
@@ -131,3 +132,19 @@ print("Training Accuracy: ", train_acc)
 
 accuracy = accuracy_score(y_test, y_pred)
 print("Testing Accuracy: ", accuracy)
+
+
+d = {
+	'algorithm': [samling],
+	'subset': [subset_size],
+	'dataset': [dataset],
+	'Training Accuracy':[train_acc],
+	'Testing Accuracy': [accuracy]
+
+}
+
+
+df = pd.DataFrame(d)
+file = sampling + '_' + str(subset_size) + '_' + dataset + '.csv'
+df.to_csv(f'results/{file}')
+
