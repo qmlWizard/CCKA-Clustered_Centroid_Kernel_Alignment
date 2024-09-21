@@ -1,5 +1,6 @@
 import pennylane as qml
 from pennylane import numpy as np
+import pandas as pd
 from utils.kernel import initialize_kernel, kernel, get_circuit_executions
 from utils.classification_data import checkerboard_data, linear_data, hidden_manifold_data, power_line_data
 from utils.train_kernel import target_alignment
@@ -22,8 +23,8 @@ except:
 
 print("----------------------------------------------------------------------------------------------------------------------------------------------")
 
-n_feat = 5
-n_sam = 10
+n_feat = 3
+n_sam = 50
 
 circuit_executions = 0
 # Get the dataset 
@@ -84,10 +85,12 @@ get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
 if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
     kernel_matrix = get_kernel_matrix(x_train, x_train)
     print("Created Kernel Matrix Training SVM now")
-    svm_model = SVC(kernel='precomputed', probability=True).fit(kernel_matrix, y_train)
+    svm_model = SVC(kernel= 'precomputed', probability=True).fit(kernel_matrix, y_train)
     print("Model trained")
 
-for i in range(50):
+alignment_per_epoch = []
+
+for i in range(100):
     # Choose subset of datapoints to compute the KTA on.
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
         #subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
@@ -114,6 +117,7 @@ for i in range(50):
             lambda x1, x2: kernel(x1, x2, params),
             assume_normalized_kernel=False,
         )
+        alignment_per_epoch.append(current_alignment)
         print(f"Epoch: {i + 1} Current Kernel Alignment: {current_alignment}")
 
     if sampling == 'greedy_inc':
@@ -130,12 +134,13 @@ train_acc = accuracy_score(y_train, y_pred)
 print("Training Accuracy: ", train_acc)
 
 
+y_pred = svm_trained.predict(x_test)
 accuracy = accuracy_score(y_test, y_pred)
 print("Testing Accuracy: ", accuracy)
 
 
 d = {
-	'algorithm': [samling],
+	'algorithm': [sampling],
 	'subset': [subset_size],
 	'dataset': [dataset],
 	'Training Accuracy':[train_acc],
@@ -148,3 +153,8 @@ df = pd.DataFrame(d)
 file = sampling + '_' + str(subset_size) + '_' + dataset + '.csv'
 df.to_csv(f'results/{file}')
 
+
+cost = {'cost': alignment_per_epoch}
+
+file = sampling + '_' + str(subset_size) + '_' + dataset + '.npy'
+np.save(file, cost)

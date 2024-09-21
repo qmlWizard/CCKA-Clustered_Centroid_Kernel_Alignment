@@ -23,7 +23,7 @@ except:
 print("----------------------------------------------------------------------------------------------------------------------------------------------")
 
 n_feat = 5
-n_sam = 10
+n_sam = 40
 
 circuit_executions = 0
 # Get the dataset 
@@ -76,20 +76,21 @@ print("Test Size: ", len(x_test))
 
 print("------------------------------------------------------------------------------------------------------------------------")
 
-opt = qml.GradientDescentOptimizer(0.2)
+opt = qml.GradientDescentOptimizer(0.5)
 
-kernel_matrix = generate_origin_kernel_matrix(x_train, kernel, params)
+#kernel_matrix = generate_origin_kernel_matrix(x_train, kernel, params)
 
-print(kernel_matrix)
+#print(kernel_matrix)
 
 
 #Training  Loop:
-for epoch in range(100):
+for epoch in range(1000):
 
     cost = lambda _params: -target_alignment_towards_origin(
-        kernel_matrix,
+        x_train,
         y_train,
         lambda x1, x2: kernel(x1, x2, _params),
+	_params,
         assume_normalized_kernel=True,
     )
 
@@ -105,11 +106,12 @@ for epoch in range(100):
         )
         print(f"Epoch: {epoch + 1} Current Kernel Alignment: {current_alignment}")
 
-    kernel_matrix = generate_origin_kernel_matrix(x_train, kernel, params)
+    #kernel_matrix = generate_origin_kernel_matrix(x_train, kernel, params)
 
 #model = SVC(probability=True).fit(kernel_matrix, y_train)
+kernel_matrix = generate_origin_kernel_matrix(x_train, lambda x1, x2: kernel(x1, x2, params))
 model = SVC(probability=True).fit(kernel_matrix, y_train)
-kernel_matrix_test = generate_origin_kernel_matrix(x_test, kernel, params)
+kernel_matrix_test = generate_origin_kernel_matrix(x_test, lambda x1, x2: kernel(x1, x2, params))
 y_pred = model.predict(kernel_matrix_test)
 accuracy = accuracy_score(y_test, y_pred)
 print("Accuracy on test set:", accuracy)

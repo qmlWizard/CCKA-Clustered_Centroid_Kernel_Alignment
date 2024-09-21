@@ -3,9 +3,10 @@
 source ./kgreedy/bin/activate
 
 # Array of strategies and arguments
-strategies=("random" "greedy")
-args=(4 6 8 10 12 18 24)
+dataset=("checkerboard" "linear")
+strategies=("random")
+args=(1 2 4 6 8 10 12)
 
 # Run the Python script in parallel with different strategies and arguments
-parallel python3 main.py checkerboard {1} {2} ::: "${strategies[@]}" ::: "${args[@]}"
+parallel python3 main.py {1} {2} {3} ::: "${dataset[@]}"  ::: "${strategies[@]}" ::: "${args[@]}"
 

@@ -14,7 +14,7 @@ def checkerboard_data(n_features, n_samples):
         return df
     else:
         # Initialize random data points for n_features features
-        X = np.random.uniform(-10, 10, size=(n_samples, n_features))
+        X = np.random.uniform(-100, 100, size=(n_samples, n_features))
 
         # Define the checkerboard pattern based on the first two features
         y = np.floor(X[:, 0]) + np.floor(X[:, 1])
@@ -36,7 +36,7 @@ def linear_data(n_features, n_samples):
         df = pd.read_csv(data_path)
         return df
     else:
-        X = np.random.uniform(-10, 10, size=(n_samples, n_features))
+        X = np.random.uniform(-100, 100, size=(n_samples, n_features))
 
         # Define the linear decision boundary based on the first two features
         # We will create a linear combination of the features to define the boundary
@@ -71,7 +71,7 @@ def hidden_manifold_data(n_features, n_samples):
     else:
 
         # Generate points along a hidden manifold
-        t = np.random.uniform(-10, 10, n_samples)  # Parameter t for the manifold
+        t = np.random.uniform(-100, 100, n_samples)  # Parameter t for the manifold
         X = np.zeros((n_samples, n_features))
 
         # Map t to higher dimensions

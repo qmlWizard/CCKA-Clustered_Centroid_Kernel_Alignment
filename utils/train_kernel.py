@@ -46,11 +46,12 @@ def target_alignment_towards_origin(
     X,
     Y,
     kernel,
+    params,
     assume_normalized_kernel=False,
     rescale_class_labels=True,
 ):
     
-    K = generate_origin_kernel_matrix(X, kernel)
+    kernel_matrix = generate_origin_kernel_matrix(X, kernel)
 
     if rescale_class_labels:
         nplus = np.count_nonzero(np.array(Y) == 1)
@@ -60,13 +61,18 @@ def target_alignment_towards_origin(
         _Y = np.array(Y)
 
 
-    numerator = np.sum(Y * np.array(K))
-    denominator = np.sqrt(np.sum(K) * np.sum(Y**2))
+    #numerator = np.sum(_Y * np.array(K))
+    #denominator = np.sqrt(np.sum(K) * np.sum(_Y**2))
 
 
     T = np.outer(_Y, _Y)
     inner_product = np.sum(kernel_matrix * T)
     norm = np.sqrt(np.sum(kernel_matrix * kernel_matrix) * np.sum(T * T))
     inner_product = inner_product / norm
+    
+    #ta = numerator / denominator
 
+    #kao = ta + 0.1 + np.linalg.norm(params)**2
+
+    #return kao
     return inner_product
