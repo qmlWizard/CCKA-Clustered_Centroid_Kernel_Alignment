@@ -2,7 +2,7 @@ import pennylane as qml
 from pennylane import numpy as np
 from utils.kernel import initialize_kernel, kernel, get_circuit_executions
 from utils.classification_data import checkerboard_data, linear_data, hidden_manifold_data, power_line_data
-from utils.train_kernel import target_alignment
+from utils.train_kernel import target_alignment, generate_origin_kernel_matrix, target_alignment_towards_origin
 from utils.sampling import subset_sampling, subset_sampling_test
 import sys
 from sklearn.model_selection import train_test_split
@@ -78,73 +78,38 @@ print("-------------------------------------------------------------------------
 
 opt = qml.GradientDescentOptimizer(0.2)
 
-f_kernel = lambda x1, x2: kernel(x1, x2, params)
-get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel) 
+kernel_matrix = generate_origin_kernel_matrix(x_train, kernel, params)
 
-if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
-    kernel_matrix = get_kernel_matrix(x_train, x_train)
-    print("Created Kernel Matrix Training SVM now")
-    svm_model = SVC(kernel='precomputed', probability=True).fit(kernel_matrix, y_train)
-    print("Model trained")
+print(kernel_matrix)
 
-for i in range(50):
-    # Choose subset of datapoints to compute the KTA on.
-    if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
-        #subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
-        subset = subset_sampling(kernel_matrix, svm_model, sampling, subset_size)
-    else:
-        subset = subset_sampling(x_train, sampling=sampling, subset_size=subset_size)
 
-    # Define the cost function for optimization
-    cost = lambda _params: -qml.kernels.target_alignment(
-        x_train[subset],
-        y_train[subset],
+#Training  Loop:
+for epoch in range(100):
+
+    cost = lambda _params: -target_alignment_towards_origin(
+        kernel_matrix,
+        y_train,
         lambda x1, x2: kernel(x1, x2, _params),
         assume_normalized_kernel=True,
     )
 
-    # Optimization step
     params = opt.step(cost, params)
 
     # Report the alignment on the full dataset every 50 steps.
-    if (i + 1) % 10 == 0:
+    if (epoch + 1) % 10 == 0:
         current_alignment = qml.kernels.target_alignment(
             x_train,
             y_train,
             lambda x1, x2: kernel(x1, x2, params),
             assume_normalized_kernel=False,
         )
-        print(f"Epoch: {i + 1} Current Kernel Alignment: {current_alignment}")
+        print(f"Epoch: {epoch + 1} Current Kernel Alignment: {current_alignment}")
 
-    if sampling == 'greedy_inc':
-        km = get_kernel_matrix(x_train[subset], x_train[subset])
-        kernel_matrix[np.ix_(subset, subset)] = km 
-        svm_model = SVC(kernel='precomputed', probability=True).fit(kernel_matrix, y_train)
+    kernel_matrix = generate_origin_kernel_matrix(x_train, kernel, params)
 
-trained_kernel = lambda x1, x2: kernel(x1, x2, params)
-trained_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, trained_kernel) 
-svm_trained = SVC(kernel=trained_kernel_matrix).fit(x_train, y_train)
-
-y_pred = svm_trained.predict(x_train)
-train_acc = accuracy_score(y_train, y_pred)
-print("Training Accuracy: ", train_acc)
-
-
+#model = SVC(probability=True).fit(kernel_matrix, y_train)
+model = SVC(probability=True).fit(kernel_matrix, y_train)
+kernel_matrix_test = generate_origin_kernel_matrix(x_test, kernel, params)
+y_pred = model.predict(kernel_matrix_test)
 accuracy = accuracy_score(y_test, y_pred)
-print("Testing Accuracy: ", accuracy)
-
-
-d = {
-	'algorithm': [samling],
-	'subset': [subset_size],
-	'dataset': [dataset],
-	'Training Accuracy':[train_acc],
-	'Testing Accuracy': [accuracy]
-
-}
-
-
-df = pd.DataFrame(d)
-file = sampling + '_' + str(subset_size) + '_' + dataset + '.csv'
-df.to_csv(f'results/{file}')
-
+print("Accuracy on test set:", accuracy)
