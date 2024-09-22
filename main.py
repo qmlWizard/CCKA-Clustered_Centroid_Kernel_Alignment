@@ -2,9 +2,10 @@ import pennylane as qml
 from pennylane import numpy as np
 import pandas as pd
 from utils.kernel import initialize_kernel, kernel, get_circuit_executions
-from utils.classification_data import checkerboard_data, linear_data, hidden_manifold_data, power_line_data
+from utils.classification_data import checkerboard_data, linear_data, hidden_manifold_data, power_line_data, microgrid_data
 from utils.train_kernel import target_alignment
-from utils.sampling import subset_sampling, subset_sampling_test
+#from utils.sampling import subset_sampling, subset_sampling_test, 
+from utils.sampling import approx_greedy_sampling
 import sys
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
@@ -23,8 +24,8 @@ except:
 
 print("----------------------------------------------------------------------------------------------------------------------------------------------")
 
-n_feat = 3
-n_sam = 50
+n_feat = 5
+n_sam = 150
 
 circuit_executions = 0
 # Get the dataset 
@@ -36,6 +37,8 @@ elif dataset == 'hidden_manifold':
     data = hidden_manifold_data(n_feat, n_sam)
 elif dataset == 'powerline':
     data = power_line_data()
+elif dataset == 'microgrid':
+    data = microgrid_data()
 
 print("Done..!")
 print("Sample: ", data.head(1))
@@ -85,16 +88,23 @@ get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
 if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
     kernel_matrix = get_kernel_matrix(x_train, x_train)
     print("Created Kernel Matrix Training SVM now")
-    svm_model = SVC(kernel= 'precomputed', probability=True).fit(kernel_matrix, y_train)
+    #svm_model = SVC(kernel= 'precomputed', probability=True).fit(kernel_matrix, y_train)
+    svm_model = SVC(kernel = get_kernel_matrix, probability = True).fit(x_train, y_train)
     print("Model trained")
+
+if sampling == 'approx_greedy':
+    kernel_matrix = get_kernel_matrix(x_train, x_train)
 
 alignment_per_epoch = []
 
-for i in range(100):
+for i in range(250):
     # Choose subset of datapoints to compute the KTA on.
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
         #subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
-        subset = subset_sampling(kernel_matrix, svm_model, sampling, subset_size)
+        subset = subset_sampling(x_train, svm_model, sampling, subset_size)
+    elif sampling == 'approx_greedy':
+        subset = approx_greedy_sampling(kernel_matrix, subset_size, probability = False)
+        print(subset)
     else:
         subset = subset_sampling(x_train, sampling=sampling, subset_size=subset_size)
 
@@ -123,7 +133,10 @@ for i in range(100):
     if sampling == 'greedy_inc':
         km = get_kernel_matrix(x_train[subset], x_train[subset])
         kernel_matrix[np.ix_(subset, subset)] = km 
-        svm_model = SVC(kernel='precomputed', probability=True).fit(kernel_matrix, y_train)
+        svm_model = SVC(get_kernel_matrix, probability=True).fit(x_train, y_train)
+    if sampling == 'approx_greedy':
+        km = get_kernel_matrix(x_train[subset], x_train[subset])
+        kernel_matrix[np.ix_(subset, subset)] = km
 
 trained_kernel = lambda x1, x2: kernel(x1, x2, params)
 trained_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, trained_kernel) 
