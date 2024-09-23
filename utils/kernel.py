@@ -26,11 +26,11 @@ def initialize_kernel(num_qubits, variational_circuit, variational_layers):
     return wires, shape
 
 def encoding(x1, params):
-    #qml.AngleEmbedding(features=x1, wires=wires, rotation='X')
+    qml.AngleEmbedding(features=x1, wires=wires, rotation='Z')
     for l in range(layers):
         req_shape = qml.StronglyEntanglingLayers.shape(n_layers=1, n_wires=len(x1))
-        np.array(params[l])
-        params[l][:, 0] = x1
+        #np.array(params[l])
+        #params[l][:, 0] = x1
         p = params[l].reshape(req_shape)
         strong_entangled(p, wires)
 

@@ -97,7 +97,7 @@ if sampling == 'approx_greedy':
 
 alignment_per_epoch = []
 
-for i in range(250):
+for i in range(2000):
     # Choose subset of datapoints to compute the KTA on.
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
         #subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)

@@ -3,8 +3,8 @@
 source ./kgreedy/bin/activate
 
 # Array of strategies and arguments
-dataset=("checkerboard" "linear")
-strategies=("random")
+dataset=("microgrid" "checkerboard" "linear")
+strategies=("approx_greedy")
 args=(1 2 4 6 8 10 12)
 
 # Run the Python script in parallel with different strategies and arguments
