@@ -1,6 +1,6 @@
 import pennylane as qml
 from pennylane import numpy as np
-from utils.variational_circuits import strong_entangled
+from utils.variational_circuits import strong_entangled, basic_entangled
 np.random.seed(1359)
 
 # Initialize with 6 wires if needed
@@ -20,7 +20,9 @@ def initialize_kernel(num_qubits, variational_circuit, variational_layers):
 
     if variational_circuit == 'strong_entangled':
         shape = qml.StronglyEntanglingLayers.shape(n_layers=variational_layers, n_wires=num_qubits)
-
+    elif variational_circuit == 'basic_entangled':
+        shape = qml.BasicEntanglerLayers.shape(n_layers = variational_layers, n_wires = num_qubits)
+    
     layers = variational_layers
 
     return wires, shape
@@ -28,11 +30,11 @@ def initialize_kernel(num_qubits, variational_circuit, variational_layers):
 def encoding(x1, params):
     qml.AngleEmbedding(features=x1, wires=wires, rotation='Z')
     for l in range(layers):
-        req_shape = qml.StronglyEntanglingLayers.shape(n_layers=1, n_wires=len(x1))
-        #np.array(params[l])
-        #params[l][:, 0] = x1
+        #req_shape = qml.StronglyEntanglingLayers.shape(n_layers=1, n_wires=len(x1))
+        req_shape = qml.BasicEntanglerLayers.shape(n_layers = 1, n_wires = len(x1))
         p = params[l].reshape(req_shape)
-        strong_entangled(p, wires)
+        #strong_entangled(p, wires)
+        basic_entangled(p, wires)
 
 @qml.qnode(dev)
 def kernel_circuit(x1, x2, params):

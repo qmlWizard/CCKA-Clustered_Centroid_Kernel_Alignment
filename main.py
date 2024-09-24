@@ -57,7 +57,7 @@ layers = 6
 print("Number of Qubits: ", n_qubits)
 print("Number of Variational Layers: ", layers)
 
-wires, shape = initialize_kernel(n_qubits, 'strong_entangled', layers)
+wires, shape = initialize_kernel(n_qubits, 'basic_entangled', layers)
 param_shape = (2,) + shape
 params = np.random.random(size=param_shape, requires_grad=True)
 
