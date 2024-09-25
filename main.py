@@ -4,7 +4,7 @@ import pandas as pd
 from utils.kernel import initialize_kernel, kernel, get_circuit_executions
 from utils.classification_data import checkerboard_data, linear_data, hidden_manifold_data, power_line_data, microgrid_data
 from utils.train_kernel import target_alignment
-#from utils.sampling import subset_sampling, subset_sampling_test, 
+from utils.sampling import subset_sampling 
 from utils.sampling import approx_greedy_sampling
 import sys
 from sklearn.model_selection import train_test_split
@@ -109,7 +109,7 @@ for i in range(2000):
         subset = subset_sampling(x_train, sampling=sampling, subset_size=subset_size)
 
     # Define the cost function for optimization
-    cost = lambda _params: -qml.kernels.target_alignment(
+    cost = lambda _params: - target_alignment(
         x_train[subset],
         y_train[subset],
         lambda x1, x2: kernel(x1, x2, _params),
@@ -121,7 +121,7 @@ for i in range(2000):
 
     # Report the alignment on the full dataset every 50 steps.
     if (i + 1) % 10 == 0:
-        current_alignment = qml.kernels.target_alignment(
+        current_alignment = target_alignment(
             x_train,
             y_train,
             lambda x1, x2: kernel(x1, x2, params),

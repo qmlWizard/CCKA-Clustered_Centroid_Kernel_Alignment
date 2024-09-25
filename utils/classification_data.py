@@ -101,7 +101,9 @@ def power_line_data():
 
 def microgrid_data():
     df = pd.read_csv('data/microgrid.csv')
-    cols  = ['f1', 'f2', 'f3', 'f4', 'f5', 'target']
+    curr_cols = df.columns[1:]
+    cols  = ['f2', 'f3', 'f4', 'f5', 'target']
+    df = df[curr_cols]
     df.columns = cols
     return df
 
