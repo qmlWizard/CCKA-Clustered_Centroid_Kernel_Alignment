@@ -57,9 +57,9 @@ layers = 6
 print("Number of Qubits: ", n_qubits)
 print("Number of Variational Layers: ", layers)
 
-wires, shape = initialize_kernel(n_qubits, 'basic_entangled', layers)
+wires, shape = initialize_kernel(n_qubits, 'tutorial_ansatz', layers)
 param_shape = (2,) + shape
-params = np.random.random(size=param_shape, requires_grad=True)
+params = np.random.uniform(0, 2 * np.pi, size=param_shape, requires_grad=True)
 
 x1 = features[0]
 x2 = features[1]
@@ -97,7 +97,7 @@ if sampling == 'approx_greedy':
 
 alignment_per_epoch = []
 
-for i in range(2000):
+for i in range(500):
     # Choose subset of datapoints to compute the KTA on.
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
         #subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
@@ -109,7 +109,7 @@ for i in range(2000):
         subset = subset_sampling(x_train, sampling=sampling, subset_size=subset_size)
 
     # Define the cost function for optimization
-    cost = lambda _params: - target_alignment(
+    cost = lambda _params: -target_alignment(
         x_train[subset],
         y_train[subset],
         lambda x1, x2: kernel(x1, x2, _params),
