@@ -122,16 +122,18 @@ for i in range(50):
     # Optimization step
     params = opt.step(cost, params)
 
+    alignment_per_epoch.append(-cost(params))
+    print(f"Epoch: {i} with alignment {alignment_per_epoch[i]}")
     # Report the alignment on the full dataset every 50 steps.
-    if (i + 1) % 10 == 0:
-        current_alignment = target_alignment(
-            x_train,
-            y_train,
-            lambda x1, x2: kernel(x1, x2, params),
-            assume_normalized_kernel=True,
-        )
-        alignment_per_epoch.append(current_alignment)
-        print(f"Epoch: {i + 1} Current Kernel Alignment: {current_alignment}")
+    #if (i + 1) % 10 == 0:
+    #    current_alignment = target_alignment(
+    #        x_train,
+    #        y_train,
+    #        lambda x1, x2: kernel(x1, x2, params),
+    #        assume_normalized_kernel=True,
+    #    )
+    #    alignment_per_epoch.append(current_alignment)
+    #    print(f"Epoch: {i + 1} Current Kernel Alignment: {current_alignment}")
 
     if sampling == 'greedy_inc':
         km = get_kernel_matrix(x_train[subset], x_train[subset])
