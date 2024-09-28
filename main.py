@@ -16,16 +16,17 @@ print("-------------------------------------------------------------------------
 try:
     dataset = sys.argv[1]
     sampling = sys.argv[2]
-    subset_size = int(sys.argv[3])
+    ansatz = sys.argv[3]
+    subset_size = int(sys.argv[4])
     print("Reading Dataset...")
 except:
     print("Error! While Execution")
-    print("USAGE: python <dataset> <sampling> <subset_size>")
+    print("USAGE: python <dataset> <sampling> <ansatz> <subset_size>")
 
 print("----------------------------------------------------------------------------------------------------------------------------------------------")
 
 n_feat = 5
-n_sam = 150
+n_sam = 200
 
 circuit_executions = 0
 # Get the dataset 
@@ -103,7 +104,7 @@ for i in range(500):
         #subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
         subset = subset_sampling(x_train, svm_model, sampling, subset_size)
     elif sampling == 'approx_greedy':
-        subset = approx_greedy_sampling(kernel_matrix, subset_size, probability = False)
+        subset = approx_greedy_sampling(kernel_matrix, subset_size, probability = True)
         print(subset)
     else:
         subset = subset_sampling(x_train, sampling=sampling, subset_size=subset_size)
@@ -157,17 +158,18 @@ d = {
 	'subset': [subset_size],
 	'dataset': [dataset],
 	'Training Accuracy':[train_acc],
-	'Testing Accuracy': [accuracy]
+	'Testing Accuracy': [accuracy],
+	'executions': [get_circuit_executions()]
 
 }
 
 
 df = pd.DataFrame(d)
-file = sampling + '_' + str(subset_size) + '_' + dataset + '.csv'
-df.to_csv(f'results/{file}')
+file = sampling + '_' + str(subset_size) + '_' + ansatz + '_' + dataset + '.csv'
+df.to_csv(f'results/{dataset}/{file}')
 
 
 cost = {'cost': alignment_per_epoch}
 
-file = sampling + '_' + str(subset_size) + '_' + dataset + '.npy'
+file = f'results/{dataset}/' + sampling + '_' + str(subset_size) + '_' + ansatz + '_' +dataset + '.npy'
 np.save(file, cost)

@@ -53,6 +53,6 @@ def approx_greedy_sampling(kernel_matrix, subset_size, probability = False):
         
         similarity = kernel_matrix @ kernel_matrix
         uncertinity = np.var(similarity, axis = 1)
-        subset = np.argsort(uncertinity)[::-1][:subset_size]
+        subset = np.argsort(uncertinity)[:subset_size]
 
         return subset
