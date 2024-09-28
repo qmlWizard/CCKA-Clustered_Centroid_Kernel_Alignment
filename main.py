@@ -26,7 +26,7 @@ except:
 print("----------------------------------------------------------------------------------------------------------------------------------------------")
 
 n_feat = 5
-n_sam = 20
+n_sam = 200
 
 circuit_executions = 0
 # Get the dataset 
@@ -81,7 +81,7 @@ print("Test Size: ", len(x_test))
 
 print("------------------------------------------------------------------------------------------------------------------------")
 
-opt = qml.GradientDescentOptimizer(0.2)
+opt = qml.GradientDescentOptimizer(0.5)
 
 f_kernel = lambda x1, x2: kernel(x1, x2, params)
 get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel) 
@@ -93,12 +93,12 @@ if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
     svm_model = SVC(kernel = get_kernel_matrix, probability = True).fit(x_train, y_train)
     print("Model trained")
 
-if sampling == 'approx_greedy':
+if sampling in ['approx_greedy', 'approx_greedy_prob']:
     kernel_matrix = get_kernel_matrix(x_train, x_train)
 
 alignment_per_epoch = []
 
-for i in range(500):
+for i in range(50):
     # Choose subset of datapoints to compute the KTA on.
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
         #subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
