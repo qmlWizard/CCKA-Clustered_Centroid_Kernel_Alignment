@@ -26,7 +26,7 @@ except:
 print("----------------------------------------------------------------------------------------------------------------------------------------------")
 
 n_feat = 5
-n_sam = 200
+n_sam = 20
 
 circuit_executions = 0
 # Get the dataset 
@@ -58,7 +58,7 @@ layers = 6
 print("Number of Qubits: ", n_qubits)
 print("Number of Variational Layers: ", layers)
 
-wires, shape = initialize_kernel(n_qubits, 'tutorial_ansatz', layers)
+wires, shape = initialize_kernel(n_qubits, ansatz, layers)
 param_shape = (2,) + shape
 params = np.random.uniform(0, 2 * np.pi, size=param_shape, requires_grad=True)
 
@@ -103,14 +103,16 @@ for i in range(500):
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
         #subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
         subset = subset_sampling(x_train, svm_model, sampling, subset_size)
-    elif sampling == 'approx_greedy':
+    elif sampling == 'approx_greedy_prob':
         subset = approx_greedy_sampling(kernel_matrix, subset_size, probability = True)
         print(subset)
+    elif sampling == 'approx_greedy':
+        subset = approx_greedy_sampling(kernel_matrix, subset_size)
     else:
         subset = subset_sampling(x_train, sampling=sampling, subset_size=subset_size)
 
     # Define the cost function for optimization
-    cost = lambda _params: -target_alignment(
+    cost = lambda _params: -qml.kernels.target_alignment(
         x_train[subset],
         y_train[subset],
         lambda x1, x2: kernel(x1, x2, _params),
@@ -126,7 +128,7 @@ for i in range(500):
             x_train,
             y_train,
             lambda x1, x2: kernel(x1, x2, params),
-            assume_normalized_kernel=False,
+            assume_normalized_kernel=True,
         )
         alignment_per_epoch.append(current_alignment)
         print(f"Epoch: {i + 1} Current Kernel Alignment: {current_alignment}")

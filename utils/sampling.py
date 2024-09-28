@@ -2,6 +2,7 @@ import pennylane as qml
 from pennylane import numpy as np
 from sklearn.svm import SVC
 from sklearn.metrics.pairwise import rbf_kernel
+import scipy.stats
 
 def subset_sampling(x, model=None, sampling='random', subset_size=4):
 
@@ -48,11 +49,17 @@ def approx_greedy_sampling(kernel_matrix, subset_size, probability = False):
         probs = probs / np.sum(probs)
         subset = np.random.choice(uncertinity_idx, size = subset_size, p = probs, replace=False)
         return subset
-
     else:
-        
         similarity = kernel_matrix @ kernel_matrix
-        uncertinity = np.var(similarity, axis = 1)
-        subset = np.argsort(uncertinity)[:subset_size]
-
+        probabilities = scipy.special.softmax(similarity, axis=1)
+        entropy = -np.sum(probabilities * np.log(probabilities), axis=1)
+        subset = np.argsort(entropy)[::-1][:subset_size]
         return subset
+
+    #else:
+        
+        #similarity = kernel_matrix @ kernel_matrix
+        #uncertinity = np.var(similarity, axis = 1)
+        #subset = np.argsort(uncertinity)[:subset_size]
+
+        #return subset
