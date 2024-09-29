@@ -1,2 +1,2 @@
 ,algorithm,subset,dataset,ansatz,Training Accuracy,Testing Accuracy,executions
-0,approx_greedy,4,linear,tutorial_ansatz,0.575,0.4,35002
+0,random,4,linear,efficientsu2,0.625,0.0,38664

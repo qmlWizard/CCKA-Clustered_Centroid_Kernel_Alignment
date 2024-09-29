@@ -28,10 +28,8 @@ def target_alignment_towards_origin(
     else:
         _Y = np.array(Y)
 
-
     #numerator = np.sum(_Y * np.array(K))
     #denominator = np.sqrt(np.sum(K) * np.sum(_Y**2))
-
 
     T = np.outer(_Y, _Y)
     inner_product = np.sum(kernel_matrix * T)

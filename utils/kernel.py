@@ -1,6 +1,6 @@
 import pennylane as qml
 from pennylane import numpy as np
-from utils.variational_circuits import strong_entangled, basic_entangled, tutorial_ansatz
+from utils.variational_circuits import strong_entangled, basic_entangled, tutorial_ansatz, efficientSU2
 
 np.random.seed(1359)
 
@@ -27,7 +27,8 @@ def initialize_kernel(num_qubits, variational_circuit, variational_layers):
         shape = qml.BasicEntanglerLayers.shape(n_layers=variational_layers, n_wires=num_qubits)
     elif variational_circuit == 'tutorial_ansatz':
         shape = (variational_layers, 2, num_qubits)
-
+    elif variational_circuit == 'efficientsu2':
+        shape = (variational_layers, num_qubits, 4)
     layers = variational_layers
     ansatz = variational_circuit
 
@@ -48,6 +49,11 @@ def encoding(x1, params):
                 req_shape = qml.BasicEntanglerLayers.shape(n_layers=1, n_wires=len(x1))
                 p = params[l].reshape(req_shape)
                 basic_entangled(p, wires)
+            elif ansatz == 'efficientsu2':
+                qml.AngleEmbedding(features=x1, wires=wires, rotation='Z')
+                req_shape = (1, len(x1), 4)
+                p = params[l].reshape(req_shape)
+                efficientSU2(p, wires)
 
 @qml.qnode(dev)
 def kernel_circuit(x1, x2, params):

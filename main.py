@@ -11,8 +11,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.svm import SVC
 
-print("---------------------------------------------------------------------------------------------------------------------------------------------")
-# Read configurations from the command line
 try:
     dataset = sys.argv[1]
     sampling = sys.argv[2]
@@ -23,10 +21,8 @@ except:
     print("Error! While Execution")
     print("USAGE: python <dataset> <sampling> <ansatz> <subset_size>")
 
-print("----------------------------------------------------------------------------------------------------------------------------------------------")
-
 n_feat = 5
-n_sam = 200
+n_sam = 10
 
 circuit_executions = 0
 # Get the dataset 
@@ -48,8 +44,6 @@ print("Data Size: ", data.shape)
 features = np.asarray(data[[col for col in data.columns if col != 'target']].values.tolist())
 target = np.asarray(data['target'].values.tolist())
 
-print("--------------------------------------------------------------------------------------------------------------------------")
-
 print("Configuring Quantum Circuit")
 
 n_qubits = len(features[0])
@@ -62,16 +56,7 @@ wires, shape = initialize_kernel(n_qubits, ansatz, layers)
 param_shape = (2,) + shape
 params = np.random.uniform(0, 2 * np.pi, size=param_shape, requires_grad=True)
 
-x1 = features[0]
-x2 = features[1]
-
-print("Before: ", get_circuit_executions())
-distance = kernel(x1, x2, params)
-print(qml.draw(kernel)(x1, x2, params))
-print("Distance between x1 and x2: ", distance)
-print("After: ", get_circuit_executions())
-
-print("-------------------------------------------------------------------------------------------------------------------------")
+print("Shape for params: ", param_shape)
 print("Dividing Testing and Training dataset")
 
 x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
@@ -79,69 +64,93 @@ x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=
 print("Train Size: ", len(x_train))
 print("Test Size: ", len(x_test))
 
-print("------------------------------------------------------------------------------------------------------------------------")
-
-opt = qml.GradientDescentOptimizer(0.5)
+#opt = qml.GradientDescentOptimizer(0.2)
+opt = qml.SPSAOptimizer(0.2)
 
 f_kernel = lambda x1, x2: kernel(x1, x2, params)
-get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel) 
+get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
+
+# Train the SVM to obtain the Lagrange multipliers 'a'
+svm_model = SVC(kernel='precomputed').fit(get_kernel_matrix(x_train, x_train), y_train)
+
+# Retrieve the Lagrange multipliers and support vectors
+a = svm_model.dual_coef_[0]
+support_vectors_indices = svm_model.support_
+alignment_per_epoch = []
 
 if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
     kernel_matrix = get_kernel_matrix(x_train, x_train)
     print("Created Kernel Matrix Training SVM now")
-    #svm_model = SVC(kernel= 'precomputed', probability=True).fit(kernel_matrix, y_train)
     svm_model = SVC(kernel = get_kernel_matrix, probability = True).fit(x_train, y_train)
     print("Model trained")
 
 if sampling in ['approx_greedy', 'approx_greedy_prob']:
     kernel_matrix = get_kernel_matrix(x_train, x_train)
 
-alignment_per_epoch = []
-
-for i in range(50):
+params_list = []
+cost_list = []
+for i in range(200):
     # Choose subset of datapoints to compute the KTA on.
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
-        #subset = subset_sampling_test(x_train, y_train, sampling=sampling, subset_size=subset_size)
         subset = subset_sampling(x_train, svm_model, sampling, subset_size)
+
     elif sampling == 'approx_greedy_prob':
-        subset = approx_greedy_sampling(kernel_matrix, subset_size, probability = True)
-        print(subset)
+        subset = approx_greedy_sampling(kernel_matrix, subset_size, probability=True)
+
     elif sampling == 'approx_greedy':
         subset = approx_greedy_sampling(kernel_matrix, subset_size)
+    
     else:
         subset = subset_sampling(x_train, sampling=sampling, subset_size=subset_size)
+        print(subset)
 
-    # Define the cost function for optimization
-    cost = lambda _params: -qml.kernels.target_alignment(
-        x_train[subset],
-        y_train[subset],
-        lambda x1, x2: kernel(x1, x2, _params),
-        assume_normalized_kernel=True,
-    )
+    # Define the cost function for optimization based on the given formula
+    def cost(_params):
+        # Compute the first summation: sum over all a_i (restricted to support vectors)
+        first_term = np.sum(a)
+
+        # Compute the second summation: 0.5 * sum over all pairs (i, j)
+        second_term = 0.5 * np.sum([
+            a[i] * a[j] * y_train[support_vectors_indices[i]] * y_train[support_vectors_indices[j]] * 
+            kernel(x_train[support_vectors_indices[i]], x_train[support_vectors_indices[j]], _params)
+            for i in range(len(support_vectors_indices))
+            for j in range(len(support_vectors_indices))
+        ])
+
+        # The cost function according to the formula
+        return first_term - second_term
 
     # Optimization step
     params = opt.step(cost, params)
+    cost_list.append(cost(params))
+    params_list.append(params)
 
-    alignment_per_epoch.append(-cost(params))
-    print(f"Epoch: {i} with alignment {alignment_per_epoch[i]}")
-    # Report the alignment on the full dataset every 50 steps.
-    #if (i + 1) % 10 == 0:
-    #    current_alignment = target_alignment(
-    #        x_train,
-    #        y_train,
-    #        lambda x1, x2: kernel(x1, x2, params),
-    #        assume_normalized_kernel=True,
-    #    )
-    #    alignment_per_epoch.append(current_alignment)
-    #    print(f"Epoch: {i + 1} Current Kernel Alignment: {current_alignment}")
+    if (i + 1) % 100 == 0:
+        current_alignment = target_alignment(
+            x_train,
+            y_train,
+            lambda x1, x2: kernel(x1, x2, params),
+            assume_normalized_kernel=True,
+        )
+        alignment_per_epoch.append(current_alignment)
+        print(f"Epoch: {i + 1} Current Kernel Alignment: {current_alignment}")
 
     if sampling == 'greedy_inc':
         km = get_kernel_matrix(x_train[subset], x_train[subset])
         kernel_matrix[np.ix_(subset, subset)] = km 
-        svm_model = SVC(get_kernel_matrix, probability=True).fit(x_train, y_train)
+        svm_model = SVC(kernel=get_kernel_matrix, probability=True).fit(x_train, y_train)
     if sampling == 'approx_greedy':
         km = get_kernel_matrix(x_train[subset], x_train[subset])
         kernel_matrix[np.ix_(subset, subset)] = km
+
+    
+min_cost_idx = cost_list.index(min(cost_list))
+print(min_cost_idx)
+
+params = params_list[min_cost_idx]
+
+
+    
 
 trained_kernel = lambda x1, x2: kernel(x1, x2, params)
 trained_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, trained_kernel) 
@@ -151,29 +160,29 @@ y_pred = svm_trained.predict(x_train)
 train_acc = accuracy_score(y_train, y_pred)
 print("Training Accuracy: ", train_acc)
 
-
 y_pred = svm_trained.predict(x_test)
 accuracy = accuracy_score(y_test, y_pred)
 print("Testing Accuracy: ", accuracy)
 
-
 d = {
-	'algorithm': [sampling],
-	'subset': [subset_size],
-	'dataset': [dataset],
-	'Training Accuracy':[train_acc],
-	'Testing Accuracy': [accuracy],
-	'executions': [get_circuit_executions()]
-
+    'algorithm': [sampling],
+    'subset': [subset_size],
+    'dataset': [dataset],
+    'ansatz': [ansatz],
+    'Training Accuracy': [train_acc],
+    'Testing Accuracy': [accuracy],
+    'executions': [get_circuit_executions()]
 }
-
 
 df = pd.DataFrame(d)
 file = sampling + '_' + str(subset_size) + '_' + ansatz + '_' + dataset + '.csv'
 df.to_csv(f'results/{dataset}/{file}')
 
-
 cost = {'cost': alignment_per_epoch}
 
-file = f'results/{dataset}/' + sampling + '_' + str(subset_size) + '_' + ansatz + '_' +dataset + '.npy'
+file = f'costs/{dataset}/' + sampling + '_' + str(subset_size) + '_' + ansatz + '_' + dataset + '.npy'
 np.save(file, cost)
+
+file = f'weights/{dataset}/' + sampling + '_' + str(subset_size) + '_' + ansatz + '_' + dataset + '_weights.npy'
+weights = {'params': [params]}
+np.save(file, weights)
