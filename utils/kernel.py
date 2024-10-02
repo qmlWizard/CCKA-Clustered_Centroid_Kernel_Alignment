@@ -59,7 +59,7 @@ def encoding(x1, params):
 def kernel_circuit(x1, x2, params):
     encoding(x1, np.asarray(params[0]))
     adjoint_circuit = qml.adjoint(encoding)
-    adjoint_circuit(x2, np.asarray(params[1]))
+    adjoint_circuit(x2, np.asarray(params[0]))
     
     return qml.probs(wires=wires)
 

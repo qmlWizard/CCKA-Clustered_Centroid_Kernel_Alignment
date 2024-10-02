@@ -21,8 +21,8 @@ except:
     print("Error! While Execution")
     print("USAGE: python <dataset> <sampling> <ansatz> <subset_size>")
 
-n_feat = 5
-n_sam = 10
+n_feat = 3
+n_sam = 100
 
 circuit_executions = 0
 # Get the dataset 
@@ -47,7 +47,7 @@ target = np.asarray(data['target'].values.tolist())
 print("Configuring Quantum Circuit")
 
 n_qubits = len(features[0])
-layers = 6
+layers = 1
 
 print("Number of Qubits: ", n_qubits)
 print("Number of Variational Layers: ", layers)
@@ -71,11 +71,11 @@ f_kernel = lambda x1, x2: kernel(x1, x2, params)
 get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
 
 # Train the SVM to obtain the Lagrange multipliers 'a'
-svm_model = SVC(kernel='precomputed').fit(get_kernel_matrix(x_train, x_train), y_train)
+#svm_model = SVC(kernel='precomputed').fit(get_kernel_matrix(x_train, x_train), y_train)
 
 # Retrieve the Lagrange multipliers and support vectors
-a = svm_model.dual_coef_[0]
-support_vectors_indices = svm_model.support_
+#a = svm_model.dual_coef_[0]
+#support_vectors_indices = svm_model.support_
 alignment_per_epoch = []
 
 if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
@@ -89,7 +89,9 @@ if sampling in ['approx_greedy', 'approx_greedy_prob']:
 
 params_list = []
 cost_list = []
-for i in range(200):
+acc = 0
+i = 0
+while acc < 95:
     # Choose subset of datapoints to compute the KTA on.
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
         subset = subset_sampling(x_train, svm_model, sampling, subset_size)
@@ -105,20 +107,27 @@ for i in range(200):
         print(subset)
 
     # Define the cost function for optimization based on the given formula
-    def cost(_params):
-        # Compute the first summation: sum over all a_i (restricted to support vectors)
-        first_term = np.sum(a)
-
-        # Compute the second summation: 0.5 * sum over all pairs (i, j)
-        second_term = 0.5 * np.sum([
-            a[i] * a[j] * y_train[support_vectors_indices[i]] * y_train[support_vectors_indices[j]] * 
-            kernel(x_train[support_vectors_indices[i]], x_train[support_vectors_indices[j]], _params)
-            for i in range(len(support_vectors_indices))
-            for j in range(len(support_vectors_indices))
-        ])
+    #def cost(_params):
+    #    # Compute the first summation: sum over all a_i (restricted to support vectors)
+    #    first_term = np.sum(a)
+#
+ #       # Compute the second summation: 0.5 * sum over all pairs (i, j)
+ #       second_term = 0.5 * np.sum([
+ #           a[i] * a[j] * y_train[support_vectors_indices[i]] * y_train[support_vectors_indices[j]] * 
+  #          kernel(x_train[support_vectors_indices[i]], x_train[support_vectors_indices[j]], _params)
+   #         for i in range(len(support_vectors_indices))
+    #        for j in range(len(support_vectors_indices))
+     #   ])
 
         # The cost function according to the formula
-        return first_term - second_term
+      #return first_term - second_term
+
+    cost = lambda _params: -target_alignment(
+                x_train[subset],
+                y_train[subset],
+                lambda x1, x2: kernel(x1, x2, _params),
+                assume_normalized_kernel = True
+            )
 
     # Optimization step
     params = opt.step(cost, params)
@@ -143,11 +152,19 @@ for i in range(200):
         km = get_kernel_matrix(x_train[subset], x_train[subset])
         kernel_matrix[np.ix_(subset, subset)] = km
 
+    trained_kernel = lambda x1, x2: kernel(x1, x2, params)
+    trained_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, trained_kernel)
+    svm_trained = SVC(kernel=trained_kernel_matrix).fit(x_train, y_train)
     
-min_cost_idx = cost_list.index(min(cost_list))
-print(min_cost_idx)
+    y_pred = svm_trained.predict(x_train)
+    acc = accuracy_score(y_train, y_pred)
+    print(f"Epoch {i}th with training Accuracy: ", acc)
+    i += 1
+    
+#min_cost_idx = cost_list.index(min(cost_list))
+#print(min_cost_idx)
 
-params = params_list[min_cost_idx]
+#params = params_list[min_cost_idx]
 
 
     
