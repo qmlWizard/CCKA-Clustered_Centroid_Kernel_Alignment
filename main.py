@@ -10,6 +10,7 @@ import sys
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from sklearn.svm import SVC
+import re
 
 try:
     dataset = sys.argv[1]
@@ -37,16 +38,30 @@ elif dataset == 'powerline':
 elif dataset == 'microgrid':
     data = microgrid_data()
 
+column_mapping = {}
+for col in data.columns:
+    # Extract the numeric part after 'feature_'
+    match = re.search(r'feature_(\d+)', col)
+    if match:
+        col_num = match.group(1)
+        new_col = f"feature_{int(col_num) + 3}"
+        column_mapping[col] = new_col
+    
+# Duplicate columns with new names
+for original, new in column_mapping.items():
+    data[new] = data[original]
+
 print("Done..!")
 print("Sample: ", data.head(1))
 print("Data Size: ", data.shape)
+
 
 features = np.asarray(data[[col for col in data.columns if col != 'target']].values.tolist())
 target = np.asarray(data['target'].values.tolist())
 
 print("Configuring Quantum Circuit")
 
-n_qubits = len(features[0])
+n_qubits = len(features[0]) 
 layers = 1
 
 print("Number of Qubits: ", n_qubits)
@@ -64,8 +79,8 @@ x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=
 print("Train Size: ", len(x_train))
 print("Test Size: ", len(x_test))
 
-#opt = qml.GradientDescentOptimizer(0.2)
-opt = qml.SPSAOptimizer(0.2)
+opt = qml.GradientDescentOptimizer(0.2)
+#opt = qml.SPSAOptimizer(0.2)
 
 f_kernel = lambda x1, x2: kernel(x1, x2, params)
 get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
@@ -90,8 +105,8 @@ if sampling in ['approx_greedy', 'approx_greedy_prob']:
 params_list = []
 cost_list = []
 acc = 0
-i = 0
-while acc < 95:
+epochs = 500
+for i in range(epochs):
     # Choose subset of datapoints to compute the KTA on.
     if sampling in ['greedy', 'probabilistic', 'greedy_inc']:
         subset = subset_sampling(x_train, svm_model, sampling, subset_size)
@@ -152,14 +167,6 @@ while acc < 95:
         km = get_kernel_matrix(x_train[subset], x_train[subset])
         kernel_matrix[np.ix_(subset, subset)] = km
 
-    trained_kernel = lambda x1, x2: kernel(x1, x2, params)
-    trained_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, trained_kernel)
-    svm_trained = SVC(kernel=trained_kernel_matrix).fit(x_train, y_train)
-    
-    y_pred = svm_trained.predict(x_train)
-    acc = accuracy_score(y_train, y_pred)
-    print(f"Epoch {i}th with training Accuracy: ", acc)
-    i += 1
     
 #min_cost_idx = cost_list.index(min(cost_list))
 #print(min_cost_idx)
