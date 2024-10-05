@@ -135,6 +135,7 @@ for i in range(200):
     # Sample a subset
     #subset = approx_greedy_sampling(kernel_matrix, 4)
     subset = np.random.choice(list(range(len(x_train))), 4)
+    
     """
     class_1_indices = np.where(y_train == 1)[0]
     class_2_indices = np.where(y_train == -1)[0]
@@ -149,6 +150,7 @@ for i in range(200):
     # Combine the indices to form the final subset
     subset = np.concatenate((subset_class_1, subset_class_2))
     """
+
     print(type(np.array(subset)))
     cost = lambda _params: -loss(_params, x_train[subset], y_train[subset])
 
