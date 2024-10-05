@@ -1,0 +1,2 @@
+,algorithm,subset,dataset,ansatz,Training Accuracy,Testing Accuracy,executions
+0,approx_greedy,20,linear,basic_entangled,0.5875,0.3,426600
