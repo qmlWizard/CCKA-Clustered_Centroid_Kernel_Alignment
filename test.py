@@ -28,7 +28,7 @@ n_sam = 100
 circuit_executions = 0
 # Get the dataset 
 if dataset == 'checkerboard':
-    data = checkerboard_data(n_feat, n_sam)
+    data = checkerboard_data(2)
 elif dataset == 'linear':
     data = linear_data(n_feat, n_sam)
 elif dataset == 'hidden_manifold':
@@ -148,6 +148,9 @@ for i in range(500):
         subset = approx_greedy_sampling(kernel_matrix, subset_size, probability=True)
     print(subset)
     # Define the cost function for optimization
+    
+    print(type(subset))
+    
     cost = lambda _params: -target_alignment(
         x_train[subset],
         y_train[subset],

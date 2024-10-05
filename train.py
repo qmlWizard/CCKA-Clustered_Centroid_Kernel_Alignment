@@ -24,12 +24,6 @@ features = np.asarray(data.drop(columns=['target']))
 target = np.asarray(data['target'])
 target = target % 2
 target = 2 * target - 1
-# Scale the features
-#scaler = StandardScaler()
-#features = scaler.fit_transform(features)
-
-
-#features, target = make_circles(n_samples=100, noise = 0.1, factor = 0.5)
 
 
 print("\nConfiguring Quantum Circuit")
@@ -94,23 +88,19 @@ print(f"Quantum SVM AUC: {auc_quantum:.4f}")
 print(f"Classical SVM AUC: {auc_classical:.4f}")
 
 # Initialize alpha
-alpha = np.zeros_like(y_train, dtype=float)
-alpha[svm_model.support_] = np.abs(svm_model.dual_coef_).flatten()
+#alpha = np.zeros_like(y_train, dtype=float)
+#alpha[svm_model.support_] = np.abs(svm_model.dual_coef_).flatten()
 
 # Get initial kernel matrix
-#kernel_matrix = get_kernel_matrix(x_train, x_train)
+kernel_matrix = get_kernel_matrix(x_train, x_train)
 
 # Define loss function for training
-def loss(_params, x_subset, y_subset):
-    print(x_subset, y_subset)
+def loss(_params, x_subset, y_subset, alpha_sub):
+
     f_kernel = lambda x1, x2: kernel_function(x1, x2, _params)
     get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
-    km = get_kernel_matrix(x_subset, x_subset)
-    svm_model_sub = SVC(kernel=get_kernel_matrix).fit(x_subset, y_subset)
-    alpha_sub = np.zeros_like(y_subset, dtype=float)
-    alpha_sub[svm_model_sub.support_] = np.abs(svm_model_sub.dual_coef_).flatten()
+    k_sub = np.array(get_kernel_matrix(x_subset, x_subset))
 
-    k_sub = get_kernel_matrix(x_subset, x_subset)
     loss_value = np.sum(alpha_sub) - 0.5 * np.sum(
         np.outer(alpha_sub, alpha_sub) * np.outer(y_subset, y_subset) * k_sub
     )
@@ -131,37 +121,51 @@ current_alignment = qml.kernels.target_alignment(
         )
 alignments.append(current_alignment)
 
-for i in range(200):
-    # Sample a subset
-    #subset = approx_greedy_sampling(kernel_matrix, 4)
-    subset = np.random.choice(list(range(len(x_train))), 4)
+for i in range(1000):
     
-    """
-    class_1_indices = np.where(y_train == 1)[0]
-    class_2_indices = np.where(y_train == -1)[0]
+    # Sample a subset
+    subset = approx_greedy_sampling(kernel_matrix, 4, y_train, False)
+    #subset = np.random.choice(list(range(len(x_train))), 4)
+    
+    #class_1_indices = np.where(y_train == 1)[0]
+    #class_2_indices = np.where(y_train == -1)[0]
 
     # Select half of the subset size from each class
-    subset_size = 10 // 2  # Assuming you want an equal split
+    #subset_size = 10 // 2  # Assuming you want an equal split
 
     # Randomly select indices from each class
-    subset_class_1 = np.random.choice(class_1_indices, subset_size, replace=False)
-    subset_class_2 = np.random.choice(class_2_indices, subset_size, replace=False)
+    #subset_class_1 = np.random.choice(class_1_indices, subset_size, replace=False)
+    #subset_class_2 = np.random.choice(class_2_indices, subset_size, replace=False)
 
     # Combine the indices to form the final subset
-    subset = np.concatenate((subset_class_1, subset_class_2))
-    """
+    #subset = np.concatenate((subset_class_1, subset_class_2))
+    
+    f_kernel = lambda x1, x2: kernel_function(x1, x2, params)
+    f_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, f_kernel)
+    svm = SVC(kernel=f_kernel_matrix).fit(x_train[subset], y_train[subset])
+    alpha_sub = np.zeros_like(y_train[subset], dtype=float)
+    alpha_sub[svm.support_] = np.abs(svm.dual_coef_).flatten()
+    
+    cost = lambda _params: -loss(_params, x_train[subset], y_train[subset], alpha_sub)
+    #cost = lambda _params: -qml.kernels.target_alignment(
+    #                                                        x_train[subset],
+    #                                                        y_train[subset],
+    #                                                        lambda x1, x2: kernel_function(x1, x2, _params),
+    #                                                        assume_normalized_kernel=True,
+    #                                                    )
+    
 
-    print(type(np.array(subset)))
-    cost = lambda _params: -loss(_params, x_train[subset], y_train[subset])
+    #lcost.append(cost(params))
+    params, curr_cost = opt.step_and_cost(cost, params)
+    lcost.append(curr_cost)
+    lparams.append(params)
+    
 
     
-    lcost.append(cost(params))
-    params = opt.step(cost, params)
-    lparams.append(params)
     # Update the kernel matrix with the new parameters
-    #km = get_kernel_matrix(x_train[subset], x_train[subset])
-    #kernel_matrix[np.ix_(subset, subset)] = km
-    #kernel_matrix[np.ix_(subset, subset)] += np.eye(len(subset)) * 1
+    km = get_kernel_matrix(x_train[subset], x_train[subset])
+    kernel_matrix[np.ix_(subset, subset)] = km
+    kernel_matrix[np.ix_(subset, subset)] += np.eye(len(subset)) * 1
 
     # Calculate and store alignment
     if (i + 1) % 10 == 0:
@@ -175,8 +179,8 @@ for i in range(200):
         print(f"Step {i+1} - Alignment = {current_alignment:.3f}")
 
     # Early stopping condition
-    if len(lcost) > 1 and abs(lcost[-1] - lcost[-2]) <= 1e-09:
-        break
+    #if len(lcost) > 1 and abs(lcost[-1] - lcost[-2]) <= 1e-09:
+    #    break
 
 # Train the SVM with the optimized kernel
 trained_kernel = lambda x1, x2: kernel_function(x1, x2, params)
@@ -184,10 +188,10 @@ trained_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, trained
 svm_trained = SVC(kernel=trained_kernel_matrix).fit(x_train, y_train)
 
 # Make predictions with the trained model
-y_pred_trained = svm_trained.predict(x_train)
+y_pred_train = svm_trained.predict(x_train)
 
 # Calculate accuracy for trained model
-accuracy_train = accuracy_score(y_test, y_pred_trained)
+accuracy_train = accuracy_score(y_train, y_pred_train)
 print(f"\nTrained Quantum SVM Accuracy Train: {accuracy_train:.4f}")
 
 # Make predictions with the trained model
@@ -210,22 +214,24 @@ cost_data = {
 
 
 model_data = {
-    'initial_accuracy': accuracy_quantum,
-    'initial_accuracy_classical': accuracy_classical,
-    'trained_training_accuracy': accuracy_train,
-    'trained_testing_accuracy' : accuracy_test,
-    'initial_auc': auc_quantum,
-    'initial_auc_classical': auc_classical,
-    'auc_trained': auc_trained
+    'initial_accuracy': [accuracy_quantum],
+    'initial_accuracy_classical': [accuracy_classical],
+    'trained_training_accuracy': [accuracy_train],
+    'trained_testing_accuracy' : [accuracy_test],
+    'initial_auc': [auc_quantum],
+    'initial_auc_classical': [auc_classical],
+    'auc_trained': [auc_trained],
+    'circuit_executions': [get_circuit_executions()]
+    
 }
 
 
-file = 'checkerboard_hinge_effcientsu2_random.csv'
+file = 'checkerboard_hinge_effcientsu2_greedy.csv'
 
 df = pd.DataFrame(model_data)
 df.to_csv(file)
 
-file = 'checkerboard_hinge_effcientsu2_random.npy'
+file = 'checkerboard_hinge_effcientsu2_greedy.npy'
 np.save(file, cost_data)
 
 train_color_0 = '#1f77b4'  # Blue shade
@@ -244,8 +250,6 @@ plt.figure(figsize=(5, 5))
 # Plot the decision boundary
 plt.contourf(xx, yy, Z, alpha=0.3, cmap=ListedColormap([train_color_0, train_color_1]))
 
-
-
 # Plot training data with solid circles
 plt.scatter(x_train[y_train == -1][:, 0], x_train[y_train == -1][:, 1], color=train_color_0, label='Train Class -1', s=150, marker='o', alpha=1)
 plt.scatter(x_train[y_train == 1][:, 0], x_train[y_train == 1][:, 1], color=train_color_1, label='Train Class 1', s=150, marker='o', alpha=1)
@@ -259,5 +263,5 @@ plt.xlabel('Feature 1')
 plt.ylabel('Feature 2')
 plt.title('Checkerboard Data')
 plt.tight_layout()
-plt.savefig('decesion_plot_checkerboard_hinge_effcientsu2_random.png', dpi=800)
+plt.savefig('decesion_plot_checkerboard_hinge_effcientsu2_greedy.png', dpi=800)
 plt.show()
