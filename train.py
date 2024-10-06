@@ -14,7 +14,8 @@ from matplotlib.colors import ListedColormap
 
 
 # Load data with increased sample size
-data = checkerboard_data(2)  # Increased from 10 to 100 samples
+#data = checkerboard_data(2)  # Increased from 10 to 100 samples
+data = linear_data(2, 128)
 print("Done..!")
 print("Sample:\n", data.head(1))
 print("Data Size:", data.shape)
@@ -22,8 +23,8 @@ print("Data Size:", data.shape)
 # Extract features and target
 features = np.asarray(data.drop(columns=['target']))
 target = np.asarray(data['target'])
-target = target % 2
-target = 2 * target - 1
+#target = target % 2
+#target = 2 * target - 1
 
 
 print("\nConfiguring Quantum Circuit")
@@ -47,7 +48,7 @@ print("Shape for params:", param_shape)
 
 # Split the dataset
 x_train, x_test, y_train, y_test = train_test_split(
-    features, target, test_size=0.4, random_state=42
+    features, target, test_size=0.25, random_state=42
 )
 
 print("\nDividing Testing and Training dataset")
@@ -62,6 +63,7 @@ f_kernel = lambda x1, x2: kernel_function(x1, x2, params)
 get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
 
 # Train the initial quantum SVM
+print(y_train)
 svm_model = SVC(kernel=get_kernel_matrix).fit(x_train, y_train)
 
 # Train the classical SVM
@@ -92,7 +94,7 @@ print(f"Classical SVM AUC: {auc_classical:.4f}")
 #alpha[svm_model.support_] = np.abs(svm_model.dual_coef_).flatten()
 
 # Get initial kernel matrix
-kernel_matrix = get_kernel_matrix(x_train, x_train)
+#kernel_matrix = get_kernel_matrix(x_train, x_train)
 
 # Define loss function for training
 def loss(_params, x_subset, y_subset, alpha_sub):
@@ -121,24 +123,26 @@ current_alignment = qml.kernels.target_alignment(
         )
 alignments.append(current_alignment)
 
-for i in range(1000):
+for i in range(200):
     
     # Sample a subset
-    subset = approx_greedy_sampling(kernel_matrix, 4, y_train, False)
+    #subset = approx_greedy_sampling(kernel_matrix, 4, y_train, False)
+    #print(y_train[subset])
     #subset = np.random.choice(list(range(len(x_train))), 4)
     
-    #class_1_indices = np.where(y_train == 1)[0]
-    #class_2_indices = np.where(y_train == -1)[0]
+    class_1_indices = np.where(y_train == 1)[0]
+    class_2_indices = np.where(y_train == -1)[0]
 
     # Select half of the subset size from each class
-    #subset_size = 10 // 2  # Assuming you want an equal split
+    subset_size = 16 // 2  # Assuming you want an equal split
 
     # Randomly select indices from each class
-    #subset_class_1 = np.random.choice(class_1_indices, subset_size, replace=False)
-    #subset_class_2 = np.random.choice(class_2_indices, subset_size, replace=False)
+    subset_class_1 = np.random.choice(class_1_indices, subset_size, replace=False)
+    subset_class_2 = np.random.choice(class_2_indices, subset_size, replace=False)
 
     # Combine the indices to form the final subset
-    #subset = np.concatenate((subset_class_1, subset_class_2))
+    subset = np.concatenate((subset_class_1, subset_class_2))
+    
     
     f_kernel = lambda x1, x2: kernel_function(x1, x2, params)
     f_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, f_kernel)
@@ -146,7 +150,7 @@ for i in range(1000):
     alpha_sub = np.zeros_like(y_train[subset], dtype=float)
     alpha_sub[svm.support_] = np.abs(svm.dual_coef_).flatten()
     
-    cost = lambda _params: -loss(_params, x_train[subset], y_train[subset], alpha_sub)
+    cost = lambda _params: loss(_params, x_train[subset], y_train[subset], alpha_sub)
     #cost = lambda _params: -qml.kernels.target_alignment(
     #                                                        x_train[subset],
     #                                                        y_train[subset],
@@ -163,9 +167,9 @@ for i in range(1000):
 
     
     # Update the kernel matrix with the new parameters
-    km = get_kernel_matrix(x_train[subset], x_train[subset])
-    kernel_matrix[np.ix_(subset, subset)] = km
-    kernel_matrix[np.ix_(subset, subset)] += np.eye(len(subset)) * 1
+    #km = get_kernel_matrix(x_train[subset], x_train[subset])
+    #kernel_matrix[np.ix_(subset, subset)] = km
+    #kernel_matrix[np.ix_(subset, subset)] += np.eye(len(subset)) * 1
 
     # Calculate and store alignment
     if (i + 1) % 10 == 0:
@@ -226,12 +230,12 @@ model_data = {
 }
 
 
-file = 'checkerboard_hinge_effcientsu2_greedy.csv'
+file = 'linear_hinge_effcientsu2_random.csv'
 
 df = pd.DataFrame(model_data)
 df.to_csv(file)
 
-file = 'checkerboard_hinge_effcientsu2_greedy.npy'
+file = 'linear_hinge_effcientsu2_random.npy'
 np.save(file, cost_data)
 
 train_color_0 = '#1f77b4'  # Blue shade
@@ -263,5 +267,5 @@ plt.xlabel('Feature 1')
 plt.ylabel('Feature 2')
 plt.title('Checkerboard Data')
 plt.tight_layout()
-plt.savefig('decesion_plot_checkerboard_hinge_effcientsu2_greedy.png', dpi=800)
+plt.savefig('decesion_plot_linear_hinge_effcientsu2_random.png', dpi=800)
 plt.show()

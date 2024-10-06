@@ -69,8 +69,8 @@ def approx_greedy_sampling(kernel_matrix, subset_size, labels, probability=False
     class_size = subset_size // 2
 
     # Get indices of each class
-    class_0_indices = np.where(labels == 0)[0]
-    class_1_indices = np.where(labels == 1)[0]
+    class_0_indices = np.where(labels == 1)[0]
+    class_1_indices = np.where(labels == -1)[0]
 
     if probability:
         similarity = kernel_matrix @ kernel_matrix
@@ -113,7 +113,7 @@ def approx_greedy_sampling(kernel_matrix, subset_size, labels, probability=False
         # Select top indices based on entropy for each class
         subset_class_0 = class_0_indices[np.argsort(entropy_class_0)[::-1][:class_size]]
         subset_class_1 = class_1_indices[np.argsort(entropy_class_1)[::-1][:class_size]]
-
+        
         # Combine the subsets
         subset = np.concatenate([subset_class_0, subset_class_1])
 
