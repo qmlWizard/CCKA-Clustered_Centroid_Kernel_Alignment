@@ -143,14 +143,15 @@ for i in range(200):
     # Combine the indices to form the final subset
     subset = np.concatenate((subset_class_1, subset_class_2))
     
-    
+    print(subset)
     f_kernel = lambda x1, x2: kernel_function(x1, x2, params)
     f_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, f_kernel)
     svm = SVC(kernel=f_kernel_matrix).fit(x_train[subset], y_train[subset])
     alpha_sub = np.zeros_like(y_train[subset], dtype=float)
     alpha_sub[svm.support_] = np.abs(svm.dual_coef_).flatten()
     
-    cost = lambda _params: loss(_params, x_train[subset], y_train[subset], alpha_sub)
+    print(i, "SVM Trained")
+    cost = lambda _params: -loss(_params, x_train[subset], y_train[subset], alpha_sub)
     #cost = lambda _params: -qml.kernels.target_alignment(
     #                                                        x_train[subset],
     #                                                        y_train[subset],
