@@ -60,6 +60,68 @@ def kernel_function(x1, x2, _params):
     return kernel(x1, x2, _params)
 
 f_kernel = lambda x1, x2: kernel_function(x1, x2, params)
+get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)import pennylane as qml
+from pennylane import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from utils.kernel import initialize_kernel, kernel, get_circuit_executions
+from utils.classification_data import linear_data, checkerboard_data, power_line_data, microgrid_data
+from utils.sampling import approx_greedy_sampling
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, roc_curve, auc
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn.datasets import make_circles
+from matplotlib.colors import ListedColormap
+
+
+# Load data with increased sample size
+#data = checkerboard_data(2)  # Increased from 10 to 100 samples
+data = linear_data(2, 128)
+print("Done..!")
+print("Sample:\n", data.head(1))
+print("Data Size:", data.shape)
+
+# Extract features and target
+features = np.asarray(data.drop(columns=['target']))
+target = np.asarray(data['target'])
+#target = target % 2
+#target = 2 * target - 1
+
+
+print("\nConfiguring Quantum Circuit")
+
+n_qubits = features.shape[1]
+layers = 5
+ansatz = 'efficientsu2'
+
+dev = qml.device("default.qubit", wires=n_qubits)
+wires = dev.wires.tolist()
+
+print("Number of Qubits:", n_qubits)
+print("Number of Variational Layers:", layers)
+
+# Initialize the quantum kernel
+wires, shape = initialize_kernel(n_qubits, ansatz, layers)
+param_shape = (2,) + shape
+params = np.random.uniform(0, 2 * np.pi, size=param_shape, requires_grad=True)
+
+print("Shape for params:", param_shape)
+
+# Split the dataset
+x_train, x_test, y_train, y_test = train_test_split(
+    features, target, test_size=0.25, random_state=42
+)
+
+print("\nDividing Testing and Training dataset")
+print("Train Size:", len(x_train))
+print("Test Size:", len(x_test))
+
+# Define kernel functions
+def kernel_function(x1, x2, _params):
+    return kernel(x1, x2, _params)
+
+f_kernel = lambda x1, x2: kernel_function(x1, x2, params)
 get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
 
 # Train the initial quantum SVM
