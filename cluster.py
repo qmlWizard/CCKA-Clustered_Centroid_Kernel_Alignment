@@ -3,7 +3,7 @@ from pennylane import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from utils.kernel import initialize_kernel, kernel, get_circuit_executions
-from utils.classification_data import linear_data, checkerboard_data, power_line_data, microgrid_data
+from utils.classification_data import linear_data, checkerboard_data, power_line_data, microgrid_data, make_double_cake_data
 from utils.sampling import approx_greedy_sampling
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, roc_curve, auc
@@ -17,10 +17,11 @@ from scipy.stats import mode
 
 # Load data with increased sample size
 #data = checkerboard_data(2)  # Increased from 10 to 100 samples
-data = linear_data(2, 10)
-print("Done..!")
-print("Sample:\n", data.head(1))
-print("Data Size:", data.shape)
+#features, target = make_double_cake_data(3, 4)
+data = linear_data(3, 10)
+#print("Done..!")
+#print("Sample:\n", data.head(1))
+#print("Data Size:", data.shape)
 
 # Extract features and target
 features = np.asarray(data.drop(columns=['target']))
@@ -33,7 +34,7 @@ print("\nConfiguring Quantum Circuit")
 
 n_qubits = features.shape[1]
 layers = 5
-ansatz = 'efficientsu2'
+ansatz = 'tutorial_ansatz'
 
 dev = qml.device("default.qubit", wires=n_qubits)
 wires = dev.wires.tolist()
@@ -74,7 +75,7 @@ cluster_labels_kmeans = kmeans_clustering.fit_predict(kernel_matrix)
  
 # Get the centroids of the clusters
 centroids = kmeans_clustering.cluster_centers_
-centroids = centroids[:, :2]
+centroids = centroids[:, :n_qubits]
 
 
 # Store the majority class label for each centroid
@@ -134,8 +135,8 @@ opt = qml.GradientDescentOptimizer(0.2)
 for i in range(500):
 
     cost = lambda _params: -qml.kernels.target_alignment(
-                                                            x_train,
-                                                            y_train,
+                                                            centroids,
+                                                            centroid_labels,
                                                             lambda x1, x2: kernel_function(x1, x2, _params),
                                                             assume_normalized_kernel=True,
                                                         )
@@ -151,15 +152,15 @@ for i in range(500):
         )
         print(f"Step {i+1} - Alignment = {current_alignment:.3f}")
 
-        #kernel_matrix = get_kernel_matrix(x_train, x_train)
+        kernel_matrix = get_kernel_matrix(x_train, x_train)
 
 
-        #kmeans_clustering = KMeans(n_clusters=4, random_state=42)
-        #cluster_labels_kmeans = kmeans_clustering.fit_predict(kernel_matrix)
+        kmeans_clustering = KMeans(n_clusters=4, random_state=42)
+        cluster_labels_kmeans = kmeans_clustering.fit_predict(kernel_matrix)
         
         # Get the centroids of the clusters
-        #centroids = kmeans_clustering.cluster_centers_
-        #centroids = centroids[:, :2]
+        centroids = kmeans_clustering.cluster_centers_
+        centroids = centroids[:, :n_qubits]
 
 
 # Train the SVM with the optimized kernel

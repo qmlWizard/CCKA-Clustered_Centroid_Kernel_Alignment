@@ -62,7 +62,7 @@ def hidden_manifold_data(n_features, n_samples):
         X[:, 0] = t  # First feature is t
         X[:, 1] = np.sin(t) + np.random.normal(0, 0.1, n_samples)  # Second feature
         X[:, 2] = np.cos(t) + np.random.normal(0, 0.1, n_samples)  # Third feature
-        # Fill remaining features with random noise
+
         if n_features > 3:
             X[:, 3:] = np.random.normal(0, 1, (n_samples, n_features - 3))
 
@@ -93,3 +93,34 @@ def microgrid_data():
 
 def ionosphere_data():
     pass
+
+
+def _make_circular_data(num_sectors, points_per_sector):
+    """Generate datapoints arranged in an even circle."""
+    center_indices = np.repeat(np.array(range(0, num_sectors)), points_per_sector)
+    sector_angle = 2 * np.pi / num_sectors
+    angles = (center_indices + np.random.rand(center_indices.shape[0])) * sector_angle  # Add randomness for more points
+    
+    x = 0.7 * np.cos(angles)
+    y = 0.7 * np.sin(angles)
+    labels = 2 * np.remainder(np.floor_divide(center_indices, 1), 2) - 1
+
+    return x, y, labels
+
+def make_double_cake_data(num_sectors, points_per_sector=1):
+    x1, y1, labels1 = _make_circular_data(num_sectors, points_per_sector)
+    x2, y2, labels2 = _make_circular_data(num_sectors, points_per_sector)
+
+    # x and y coordinates of the datapoints
+    x = np.hstack([x1, 0.5 * x2])
+    y = np.hstack([y1, 0.5 * y2])
+
+    # Canonical form of dataset
+    X = np.vstack([x, y]).T
+
+    labels = np.hstack([labels1, -1 * labels2])
+
+    # Canonical form of labels
+    Y = labels.astype(int)
+
+    return X, Y
