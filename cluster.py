@@ -152,15 +152,15 @@ for i in range(500):
         )
         print(f"Step {i+1} - Alignment = {current_alignment:.3f}")
 
-        kernel_matrix = get_kernel_matrix(x_train, x_train)
+        #kernel_matrix = get_kernel_matrix(x_train, x_train)
 
 
-        kmeans_clustering = KMeans(n_clusters=4, random_state=42)
-        cluster_labels_kmeans = kmeans_clustering.fit_predict(kernel_matrix)
+        #kmeans_clustering = KMeans(n_clusters=4, random_state=42)
+        #cluster_labels_kmeans = kmeans_clustering.fit_predict(kernel_matrix)
         
         # Get the centroids of the clusters
-        centroids = kmeans_clustering.cluster_centers_
-        centroids = centroids[:, :n_qubits]
+        #centroids = kmeans_clustering.cluster_centers_
+        #centroids = centroids[:, :n_qubits]
 
 
 # Train the SVM with the optimized kernel
