@@ -10,9 +10,10 @@ import matplotlib as mpl
 
 np.random.seed(1359)
 
-train = 'cluster'
+train = 'random'
 circuit_executions = 0
 
+print("Algorithm: ", train)
 def layer(x, params, wires, i0=0, inc=1):
     """Building block of the embedding ansatz"""
     i = i0
@@ -145,11 +146,11 @@ def target_alignment(
 
     return inner_product
 
-features, target = make_double_cake_data(4, 20)
+data = linear_data(2, 150)
 
 ## Extract features and target
-#features = np.asarray(data.drop(columns=['target']))
-#target = np.asarray(data['target'])
+features = np.asarray(data.drop(columns=['target']))
+target = np.asarray(data['target'])
 #target = target % 2
 #target = 2 * target - 1
 
@@ -172,9 +173,9 @@ alignment.append(kta_init)
 if train == 'random':
     opt = qml.GradientDescentOptimizer(0.2)
 
-    for i in range(1000):
+    for i in range(500):
         # Choose subset of datapoints to compute the KTA on.
-        subset = np.random.choice(list(range(len(X))), 4)
+        subset = np.random.choice(list(range(len(X))), 8)
         # Define the cost function for optimization
         cost = lambda _params: -target_alignment(
             X[subset],
@@ -255,29 +256,32 @@ elif train == 'cluster':
             )
             alignment.append(current_alignment)
             print(f"Step {i+1} - Alignment = {current_alignment:.3f}")
-
-            class1_kernel_matrix = get_kernel_matrix(class1, class1)
-            class2_kernel_matrix = get_kernel_matrix(class2, class2)
-
-            class1_clusters = cluster.fit_predict(class1_kernel_matrix)
-            class1_centroids = cluster.cluster_centers_
-            class1_centroids = class1_centroids[:, :len(X[0])]
-
-
-            class2_clusters = cluster.fit_predict(class2_kernel_matrix)
-            class2_centroids = cluster.cluster_centers_
-            class2_centroids = class2_centroids[:, :len(X[0])]
             
-            centroids = []
-            centroid_labels = []
-            for c, cent in zip(np.unique(class1_clusters), class1_centroids):
-                centroids.append(cent)
-                centroid_labels.append(1)
+            if alignment[len(alignment) - 2] > current_alignment:
+   
+                print("Updating the Centroids")
+                class1_kernel_matrix = get_kernel_matrix(class1, class1)
+                class2_kernel_matrix = get_kernel_matrix(class2, class2)
 
-            for c, cent in zip(np.unique(class2_clusters), class2_centroids):
-                centroids.append(cent)
-                centroid_labels.append(-1)
+                class1_clusters = cluster.fit_predict(class1_kernel_matrix)
+                class1_centroids = cluster.cluster_centers_
+                class1_centroids = class1_centroids[:, :len(X[0])]
 
+
+                class2_clusters = cluster.fit_predict(class2_kernel_matrix)
+                class2_centroids = cluster.cluster_centers_
+                class2_centroids = class2_centroids[:, :len(X[0])]
+                
+                centroids = []
+                centroid_labels = []
+                for c, cent in zip(np.unique(class1_clusters), class1_centroids):
+                    centroids.append(cent)
+                    centroid_labels.append(1)
+
+                for c, cent in zip(np.unique(class2_clusters), class2_centroids):
+                    centroids.append(cent)
+                    centroid_labels.append(-1)
+          
 
 # First create a kernel with the trained parameter baked into it.
 trained_kernel = lambda x1, x2: kernel(x1, x2, params)
@@ -310,7 +314,7 @@ model_data = {
     
 }
 
-np.save(f'checkerboard_{train}.npy', model_data)
+np.save(f'linear_{train}.npy', model_data)
 
 trained_plot_data = plot_decision_boundaries(svm_trained, plt.gca())
 plt.savefig(f'checkerboard_{train}_decision_boundaries.png') 
