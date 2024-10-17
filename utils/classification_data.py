@@ -1,6 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.datasets import make_moons, make_swiss_roll, make_gaussian_quantiles
+
 import sys
 import os
 import time
@@ -124,3 +126,91 @@ def make_double_cake_data(num_sectors, points_per_sector=1):
     Y = labels.astype(int)
 
     return X, Y
+
+
+def _make_circular_data(num_sectors, points_per_sector):
+    """Generate datapoints arranged in an even circle."""
+    center_indices = np.repeat(np.array(range(0, num_sectors)), points_per_sector)
+    sector_angle = 2 * np.pi / num_sectors
+    angles = (center_indices + np.random.rand(center_indices.shape[0])) * sector_angle  # Add randomness for more points
+    
+    x = 0.7 * np.cos(angles)
+    y = 0.7 * np.sin(angles)
+    labels = 2 * np.remainder(np.floor_divide(center_indices, 1), 2) - 1
+
+    return x, y, labels
+
+def make_double_cake_data(num_sectors, points_per_sector=1):
+    x1, y1, labels1 = _make_circular_data(num_sectors, points_per_sector)
+    x2, y2, labels2 = _make_circular_data(num_sectors, points_per_sector)
+
+    # x and y coordinates of the datapoints
+    x = np.hstack([x1, 0.5 * x2])
+    y = np.hstack([y1, 0.5 * y2])
+
+    # Canonical form of dataset
+    X = np.vstack([x, y]).T
+
+    labels = np.hstack([labels1, -1 * labels2])
+
+    # Canonical form of labels
+    Y = labels.astype(int)
+
+    return X, Y
+
+# Update the generate_dataset function to include double cake data
+def generate_dataset(dataset_name, n_samples=1000, noise=0.1, num_sectors=8, points_per_sector=10):
+    if dataset_name == 'moons':
+        X, y = make_moons(n_samples=n_samples, noise=noise, random_state=0)
+        y = np.where(y == 0, -1, 1)  # Replace 0 with -1
+    elif dataset_name == 'xor':
+        X, y = create_xor(n_samples, noise)
+    elif dataset_name == 'swiss_roll':
+        X, y = make_swiss_roll(n_samples=n_samples, noise=noise, random_state=0)
+        y = np.where(y > np.median(y), 1, -1)  # Binarize labels based on median
+    elif dataset_name == 'gaussian':
+        X, y = make_gaussian_quantiles(n_samples=n_samples, n_features=2, n_classes=2, random_state=0)
+        y = np.where(y == 0, -1, 1)  # Replace 0 with -1
+    elif dataset_name == 'double_cake':
+        X, y = make_double_cake_data(num_sectors=num_sectors, points_per_sector=points_per_sector)
+    else:
+        raise ValueError("Dataset not supported. Choose from 'moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake'.")
+    
+    return pd.DataFrame(X, columns=[f'Feature {i+1}' for i in range(X.shape[1])]), pd.Series(y, name='Label')
+
+
+# Create XOR Dataset
+def create_xor(n_samples=1000, noise=0.1):
+    np.random.seed(0)
+    X = np.random.rand(n_samples, 2) * 2 - 1
+    y = ((X[:, 0] > 0) != (X[:, 1] > 0)).astype(int)
+    X += noise * np.random.randn(n_samples, 2)
+    y = np.where(y == 0, -1, 1)  # Replace 0 with -1
+    return X, y
+
+
+def plot_and_save(dataset_name, n_samples=1000, noise=0.1, save_path='plot.png'):
+    df_features, df_labels = generate_dataset(dataset_name, n_samples, noise)
+    
+    X = df_features.values
+    y = df_labels.values
+
+    plt.figure(figsize=(10, 8))
+    
+    if X.shape[1] == 2:
+        plt.scatter(X[y == 1, 0], X[y == 1, 1], color="#1f77b4", label='Class 1')
+        plt.scatter(X[y == -1, 0], X[y == -1, 1], color="#ff7f0e", label='Class -1')
+    else:
+        # For Swiss Roll or 3D data, plot only first two features for simplicity
+        plt.scatter(X[y == 1, 0], X[y == 1, 1], color="#1f77b4", label='Class 1')
+        plt.scatter(X[y == -1, 0], X[y == -1, 1], color="#ff7f0e", label='Class -1')
+    
+    plt.title(f'{dataset_name.capitalize()} Dataset')
+    plt.legend()
+    plt.grid(True)
+    
+    # Save high-resolution plot
+    plt.savefig(save_path, dpi=300)
+    plt.close()
+    
+    return np.array(df_features), np.array(df_labels)
