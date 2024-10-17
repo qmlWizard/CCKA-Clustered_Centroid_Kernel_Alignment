@@ -81,16 +81,22 @@ def loss_kao(X, Y, centroid, kernel, params, lambda_kao = 0.01):
     return 1 - TA + r
 
 def print_boxed_message(title, content):
-    max_len = max(len(f"Cluster {i+1}: {np.array2string(item, precision=2, floatmode='fixed')}")
-                  for i, item in enumerate(content))
+    def format_item(item, i):
+        if isinstance(item, np.ndarray):  # Check if the item is an array
+            return f"Cluster {i+1}: {np.array2string(item, precision=2, floatmode='fixed')}"
+        else:
+            return f"Cluster {i+1}: {item}"  # If it's not an array, just print the item as-is
+    
+    # Ensure that we only calculate lengths for formatted strings (arrays and others)
+    formatted_content = [format_item(item, i) for i, item in enumerate(content)]
+    max_len = max(len(line) for line in formatted_content)
     box_width = max(len(title) + 4, max_len + 4)
 
     print(f"+{'-' * box_width}+")
     print(f"|  {title.center(box_width - 4)}  |")
     print(f"+{'-' * box_width}+")
-    for i, item in enumerate(content):
-        centroid_str = np.array2string(item, precision=2, floatmode='fixed')
-        print(f"|  Cluster {i + 1}: {centroid_str.ljust(box_width - 14)} |")
+    for line in formatted_content:
+        print(f"|  {line.ljust(box_width - 4)}  |")
     print(f"+{'-' * box_width}+")
 
 def plot_svm_decision_boundary(svm_model, X_train, y_train, X_test, y_test, filename = 'svm_decesion_boundary.png'):
@@ -147,6 +153,8 @@ if __name__ == '__main__':
     print(" ")
 
     X, x_test, Y, y_test = train_test_split(features, target, test_size=0.25, random_state=42)
+    x_test = x_test[:10]
+    y_test = y_test[:10]
 
     print(f"* Train Shape: {X.shape}")
     print(f"* Train Labels Shape:  {Y.shape}")
@@ -159,10 +167,6 @@ if __name__ == '__main__':
     kernel_value = kernel(X[0], X[1], init_params)
     print(f"*The kernel value between the first and second datapoint is {kernel_value:.3f}") 
     init_kernel = lambda x1, x2: kernel(x1, x2, init_params)
-    #svm = SVC(kernel=lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, init_kernel)).fit(X, Y)
-    #y_true = svm.predict(X)
-    #initial_accuracy = accuracy_score(y_true, Y)
-    #print(f"*Initial Accuracy for SVM (training data): {initial_accuracy}")
     kta_init = qml.kernels.target_alignment(X, Y, init_kernel, assume_normalized_kernel=True)
     print(f"*The kernel-target alignment for our dataset and random parameters is {kta_init:.3f}")
     print(" ")
@@ -208,45 +212,58 @@ if __name__ == '__main__':
     kao_class = 1
     n_classes = len(classes)
 
-    for i in range(250):
+    for i in range(10):
         
         centroid_idx = kao_class - 1  # Index for the current class/centroid
         
-        if main_centroid:
+        #if main_centroid:
             # Update the cost function for the current centroid and class
-            cost = lambda _params: loss_kao(
-                class_centroids[centroid_idx],  # Access current class clusters
-                centroid_labels[centroid_idx],  # Labels for the current class
-                centroids[centroid_idx],        # Current centroid
-                lambda x1, x2: kernel(x1, x2, params),
-                _params
-            )
-            
-            centroid_cost = lambda _centroid: loss_co(
-                class_centroids[centroid_idx],  # Access current class clusters
-                centroid_labels[centroid_idx],  # Labels for the current class
-                centroids[centroid_idx],        # Current centroid
-                lambda x1, x2: kernel(x1, x2, params),
-                _centroid
-            )
-
-            # Update kao_class to iterate through centroids in the next steps
-            kao_class = (kao_class % n_classes) + 1
-            main_centroid = False if kao_class == 1 else True
-
+        cost = lambda _params: loss_kao(
+            class_centroids[centroid_idx],  # Access current class clusters
+            centroid_labels[centroid_idx],  # Labels for the current class
+            centroids[centroid_idx],        # Current centroid
+            lambda x1, x2: kernel(x1, x2, params),
+            _params
+        )
+        
+        centroid_cost = lambda _centroid: loss_co(
+            class_centroids[centroid_idx],  # Access current class clusters
+            centroid_labels[centroid_idx],  # Labels for the current class
+            centroids[centroid_idx],        # Current centroid
+            lambda x1, x2: kernel(x1, x2, params),
+            _centroid
+        )
+        # Update kao_class to iterate through centroids in the next steps
+        kao_class = (kao_class % n_classes) + 1
+        main_centroid = False if kao_class == 1 else True
+        """
         else:
             # Use all centroids and labels for target alignment across classes
             cost = lambda _params: -qml.kernels.target_alignment(
                 np.vstack(class_centroids),  # Combine all class centroids
-                np.concatenate(centroid_labels),  # Flatten the labels list
+                centroid_labels,  # Flatten the labels list
                 lambda x1, x2: kernel(x1, x2, _params),
                 assume_normalized_kernel=True,
             )
             main_centroid = True
-
+        """
         # Optimize the parameters
-        params = opt.step(cost, params)
+        params, l = opt.step_and_cost(cost, params)
         centroids[centroid_idx] = opt.step(centroid_cost, centroids[centroid_idx])
+
+        loss_per_epoch.append(l)
+        executions.append(circuit_executions)
+
+        if (i + 1) % 10 == 0:
+            print(f"Circuit Executions: {circuit_executions}") 
+            current_alignment = qml.kernels.target_alignment(
+                        X,
+                        Y,
+                        lambda x1, x2: kernel(x1, x2, params),
+                        assume_normalized_kernel=True,
+                    )
+            alignments.append(current_alignment)
+            print(f"Alignment = {current_alignment:.3f}")
 
 
 
