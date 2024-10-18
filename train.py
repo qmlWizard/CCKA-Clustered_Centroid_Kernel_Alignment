@@ -101,7 +101,7 @@ def print_boxed_message(title, content):
 
 def plot_svm_decision_boundary(svm_model, X_train, y_train, X_test, y_test, filename = 'svm_decesion_boundary.png'):
     # Create a mesh to plot the decision boundary
-    h = .02  # step size in the mesh
+    h = .2  # step size in the mesh
     x_min, x_max = X_train[:, 0].min() - 1, X_train[:, 0].max() + 1
     y_min, y_max = X_train[:, 1].min() - 1, X_train[:, 1].max() + 1
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
@@ -204,7 +204,7 @@ if __name__ == '__main__':
         print_boxed_message(f"Class {classes[i]} Centroids", class_centroid)
 
     main_centroid = True
-    opt = qml.GradientDescentOptimizer(0.2)
+    opt = qml.GradientDescentOptimizer(0.5)
     circuit_executions = 0
     params = init_params
 
@@ -221,25 +221,16 @@ if __name__ == '__main__':
         
         if main_centroid:
             # Update the cost function for the current centroid and class
-            cost = lambda _params: loss_kao(
+            cost = lambda _params: -loss_kao(
                 class_centroids[centroid_idx],  # Access current class clusters
                 centroid_labels[centroid_idx],  # Labels for the current class
                 centroids[centroid_idx],        # Current centroid
                 lambda x1, x2: kernel(x1, x2, params),
                 _params
             )
-            print(class_centroids[centroid_idx])
-            #centroid_cost = lambda _centroid: loss_co(
-            #    class_centroids[centroid_idx],  # Access current class clusters
-            #    centroid_labels[centroid_idx],  # Labels for the current class
-            #    centroids[centroid_idx],        # Current centroid
-            #    lambda x1, x2: kernel(x1, x2, params),
-            #    _centroid
-            #)
-            # Update kao_class to iterate through centroids in the next steps
-            centroid_cost = lambda _centroid: -loss_co(
-                centroids,  # Access current class clusters
-                main_centroid_labels,  # Labels for the current class
+            centroid_cost = lambda _centroid: loss_co(
+                class_centroids[centroid_idx],  # Access current class clusters
+                centroid_labels[centroid_idx],  # Labels for the current class
                 centroids[centroid_idx],        # Current centroid
                 lambda x1, x2: kernel(x1, x2, params),
                 _centroid
@@ -249,12 +240,12 @@ if __name__ == '__main__':
         
         else:
             # Use all centroids and labels for target alignment across classes
-            cost = lambda _params: -qml.kernels.target_alignment(
-                np.vstack(class_centroids),  # Combine all class centroids
-                centroid_labels,  # Flatten the labels list
-                lambda x1, x2: kernel(x1, x2, _params),
-                assume_normalized_kernel=True,
-            )
+            #cost = lambda _params: -qml.kernels.target_alignment(
+            #    class_centroids,  # Combine all class centroids
+             #   centroid_labels,  # Flatten the labels list
+             #   lambda x1, x2: kernel(x1, x2, _params),
+             #   assume_normalized_kernel=True,
+            #)
             centroid_cost = lambda _centroid: -loss_co(
                 centroids,  # Access current class clusters
                 main_centroid_labels,  # Labels for the current class
