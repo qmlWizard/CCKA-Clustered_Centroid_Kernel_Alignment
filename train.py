@@ -164,9 +164,9 @@ if __name__ == '__main__':
     init_params = random_params(num_wires=6, num_layers=6)
     kernel_value = kernel(X[0], X[1], init_params)
     print(f"*The kernel value between the first and second datapoint is {kernel_value:.3f}") 
-    init_kernel = lambda x1, x2: kernel(x1, x2, init_params)
-    kta_init = qml.kernels.target_alignment(X, Y, init_kernel, assume_normalized_kernel=True)
-    print(f"*The kernel-target alignment for our dataset and random parameters is {kta_init:.3f}")
+    #init_kernel = lambda x1, x2: kernel(x1, x2, init_params)
+    #kta_init = qml.kernels.target_alignment(X, Y, init_kernel, assume_normalized_kernel=True)
+    #print(f"*The kernel-target alignment for our dataset and random parameters is {kta_init:.3f}")
     print(" ")
 
 
@@ -204,7 +204,7 @@ if __name__ == '__main__':
         print_boxed_message(f"Class {classes[i]} Centroids", class_centroid)
 
     main_centroid = True
-    opt = qml.GradientDescentOptimizer(0.5)
+    opt = qml.GradientDescentOptimizer(0.01)
     circuit_executions = 0
     params = init_params
 
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     n_classes = len(classes)
 
     for i in range(250):
-        
+        circuit_executions = 0
         centroid_idx = kao_class - 1  # Index for the current class/centroid
         
         if main_centroid:
@@ -237,15 +237,17 @@ if __name__ == '__main__':
             )
             kao_class = (kao_class % n_classes) + 1
             main_centroid = False if kao_class == 1 else True
+
+            params, l = opt.step_and_cost(cost, params)
         
         else:
             # Use all centroids and labels for target alignment across classes
-            #cost = lambda _params: -qml.kernels.target_alignment(
-            #    class_centroids,  # Combine all class centroids
-             #   centroid_labels,  # Flatten the labels list
-             #   lambda x1, x2: kernel(x1, x2, _params),
-             #   assume_normalized_kernel=True,
-            #)
+            cost = lambda _params: -qml.kernels.target_alignment(
+                class_centroids,  # Combine all class centroids
+                centroid_labels,  # Flatten the labels list
+                lambda x1, x2: kernel(x1, x2, _params),
+                assume_normalized_kernel=True,
+            )
             centroid_cost = lambda _centroid: -loss_co(
                 centroids,  # Access current class clusters
                 main_centroid_labels,  # Labels for the current class
@@ -256,7 +258,7 @@ if __name__ == '__main__':
             main_centroid = True
         
         # Optimize the parameters
-        params, l = opt.step_and_cost(cost, params)
+        
         centroids[centroid_idx] = opt.step(centroid_cost, centroids[centroid_idx])
 
         loss_per_epoch.append(l)
@@ -308,6 +310,7 @@ if __name__ == '__main__':
     print_boxed_message("Test Performance", test_content)
 
     obervations = {
+        'init_svc_acc': [],
         'init_kta': [kta_init],
         'alignments': [alignments],
         'loss_per_epoch': [loss_per_epoch],
