@@ -170,40 +170,7 @@ if __name__ == '__main__':
     print(" ")
 
 
-    classes = np.unique(Y)
-    n_clusters = int(num_clusters)  # Ensure this is an integer
 
-    centroids = []
-    class_centroids = []
-    centroid_labels = []
-    main_centroid_labels = []
-
-    for c in classes:
-        class_data = X[np.where(Y == c)[0]]
-
-        if class_data.shape[0] < n_clusters:
-            raise ValueError(f"Not enough data points for class {c} to form {n_clusters} clusters.")
-        
-        # Calculate the overall class centroid and store it
-        main_centroid = np.mean(class_data, axis=0)
-        centroids.append(main_centroid)
-        main_centroid_labels.append(c)  # Assign the main centroid label
-
-        # Split class data into clusters and compute centroids for each cluster
-        clusters = np.array_split(class_data, n_clusters)
-        class_centroids.append([np.mean(cluster, axis=0) for cluster in clusters])
-        
-        # Assign the class labels to the cluster centroids
-        centroid_labels.extend([c] * n_clusters)
-
-    # Print main centroids
-    print_boxed_message("Main Centroids", centroids)
-
-    # Print class centroids
-    for i, class_centroid in enumerate(class_centroids):
-        print_boxed_message(f"Class {classes[i]} Centroids", class_centroid)
-
-    main_centroid = True
     opt = qml.GradientDescentOptimizer(0.2)
     circuit_executions = 0
     params = init_params
@@ -212,61 +179,19 @@ if __name__ == '__main__':
     executions = []
     loss_per_epoch = []
 
-    kao_class = 1
-    n_classes = len(classes)
-
     for i in range(250):
         
-        centroid_idx = kao_class - 1  # Index for the current class/centroid
-        
-        if main_centroid:
-            # Update the cost function for the current centroid and class
-            cost = lambda _params: loss_kao(
-                class_centroids[centroid_idx],  # Access current class clusters
-                centroid_labels[centroid_idx],  # Labels for the current class
-                centroids[centroid_idx],        # Current centroid
-                lambda x1, x2: kernel(x1, x2, params),
-                _params
-            )
-            print(class_centroids[centroid_idx])
-            #centroid_cost = lambda _centroid: loss_co(
-            #    class_centroids[centroid_idx],  # Access current class clusters
-            #    centroid_labels[centroid_idx],  # Labels for the current class
-            #    centroids[centroid_idx],        # Current centroid
-            #    lambda x1, x2: kernel(x1, x2, params),
-            #    _centroid
-            #)
-            # Update kao_class to iterate through centroids in the next steps
-            centroid_cost = lambda _centroid: -loss_co(
-                centroids,  # Access current class clusters
-                main_centroid_labels,  # Labels for the current class
-                centroids[centroid_idx],        # Current centroid
-                lambda x1, x2: kernel(x1, x2, params),
-                _centroid
-            )
-            kao_class = (kao_class % n_classes) + 1
-            main_centroid = False if kao_class == 1 else True
-        
-        else:
-            # Use all centroids and labels for target alignment across classes
-            cost = lambda _params: -qml.kernels.target_alignment(
-                np.vstack(class_centroids),  # Combine all class centroids
-                centroid_labels,  # Flatten the labels list
-                lambda x1, x2: kernel(x1, x2, _params),
-                assume_normalized_kernel=True,
-            )
-            centroid_cost = lambda _centroid: -loss_co(
-                centroids,  # Access current class clusters
-                main_centroid_labels,  # Labels for the current class
-                centroids[centroid_idx],        # Current centroid
-                lambda x1, x2: kernel(x1, x2, params),
-                _centroid
-            )
-            main_centroid = True
-        
-        # Optimize the parameters
+        subset = np.random.choice(list(range(len(X))), 8)
+
+        cost = lambda _params: -qml.kernels.target_alignment(
+                                                                    X[subset],
+                                                                    Y[subset],
+                                                                    lambda x1, x2: kernel(x1, x2, _params),
+                                                                    assume_normalized_kernel=True,
+                                                                )
+   
         params, l = opt.step_and_cost(cost, params)
-        centroids[centroid_idx] = opt.step(centroid_cost, centroids[centroid_idx])
+     
 
         loss_per_epoch.append(l)
         executions.append(circuit_executions)
@@ -330,6 +255,6 @@ if __name__ == '__main__':
         'test_cm' : [test_conf_matrix]
     }
 
-    np.save(f'{dataset}_observations_clustering.npy', obervations)
+    np.save(f'{dataset}_observations_random.npy', obervations)
 
-    plot_svm_decision_boundary(svm_trained, X, Y, x_test, y_test, filename= f'{dataset}_decesion_boundary_clustering.png')
+    plot_svm_decision_boundary(svm_trained, X, Y, x_test, y_test, filename= f'{dataset}_decesion_boundary_random.png')
