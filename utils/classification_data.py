@@ -159,7 +159,7 @@ def make_double_cake_data(num_sectors, points_per_sector=1):
 
     return X, Y
 
-def generate_dataset(dataset_name, n_samples=1000, noise=0.1, num_sectors=8, points_per_sector=10):
+def generate_dataset(dataset_name, n_samples=1000, noise=0.1, num_sectors=3, points_per_sector=10):
     if dataset_name == 'moons':
         X, y = make_moons(n_samples=n_samples, noise=noise, random_state=0)
         y = np.where(y == 0, -1, 1)  # Replace 0 with -1

@@ -21,10 +21,12 @@ def layer(x, params, wires, i0=0, inc=1):
     for j, wire in enumerate(wires):
         qml.Hadamard(wires=[wire])
         qml.RZ(x[i % len(x)], wires=[wire])
+        
         i += inc
-        qml.RY(params[0, j], wires=[wire])
+        qml.RX(params[0, j], wires=[wire])
+        qml.RY(params[1, j], wires=[wire])
 
-    qml.broadcast(unitary=qml.CRZ, pattern="ring", wires=wires, parameters=params[1])
+    qml.broadcast(unitary=qml.CNOT, pattern="ring", wires=wires)
 
 def ansatz(x, params, wires):
     """The embedding ansatz"""
@@ -102,8 +104,8 @@ def print_boxed_message(title, content):
 def plot_svm_decision_boundary(svm_model, X_train, y_train, X_test, y_test, filename = 'svm_decesion_boundary.png'):
     # Create a mesh to plot the decision boundary
     h = .2  # step size in the mesh
-    x_min, x_max = X_train[:, 0].min() - 1, X_train[:, 0].max() + 1
-    y_min, y_max = X_train[:, 1].min() - 1, X_train[:, 1].max() + 1
+    x_min, x_max = X_train[:, 0].min(), X_train[:, 0].max()
+    y_min, y_max = X_train[:, 1].min(), X_train[:, 1].max()
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
 
     # Plot decision boundary
@@ -164,9 +166,12 @@ if __name__ == '__main__':
     init_params = random_params(num_wires=6, num_layers=6)
     kernel_value = kernel(X[0], X[1], init_params)
     print(f"*The kernel value between the first and second datapoint is {kernel_value:.3f}") 
-    #init_kernel = lambda x1, x2: kernel(x1, x2, init_params)
-    #kta_init = qml.kernels.target_alignment(X, Y, init_kernel, assume_normalized_kernel=True)
-    #print(f"*The kernel-target alignment for our dataset and random parameters is {kta_init:.3f}")
+    drawer = qml.draw_mpl(kernel_circuit)
+    fig, ax = drawer(X[0], X[1], init_params)
+    fig.savefig('circuit.png')
+    init_kernel = lambda x1, x2: kernel(x1, x2, init_params)
+    kta_init = qml.kernels.target_alignment(X, Y, init_kernel, assume_normalized_kernel=True)
+    print(f"*The kernel-target alignment for our dataset and random parameters is {kta_init:.3f}")
     print(" ")
 
 
@@ -204,7 +209,7 @@ if __name__ == '__main__':
         print_boxed_message(f"Class {classes[i]} Centroids", class_centroid)
 
     main_centroid = True
-    opt = qml.GradientDescentOptimizer(0.01)
+    opt = qml.GradientDescentOptimizer(0.2)
     circuit_executions = 0
     params = init_params
 
@@ -214,58 +219,48 @@ if __name__ == '__main__':
 
     kao_class = 1
     n_classes = len(classes)
-
-    for i in range(250):
-        circuit_executions = 0
-        centroid_idx = kao_class - 1  # Index for the current class/centroid
+    params_list = []
+    train_accuracy = 0
+    i = 0
+    while train_accuracy < 0.95:
         
-        if main_centroid:
-            # Update the cost function for the current centroid and class
-            cost = lambda _params: -loss_kao(
-                class_centroids[centroid_idx],  # Access current class clusters
-                centroid_labels[centroid_idx],  # Labels for the current class
+        centroid_idx = kao_class - 1  # Index for the current class/centroid
+        cost = lambda _params: loss_kao(
+                np.vstack(class_centroids),  # Access current class clusters
+                centroid_labels,  # Labels for the current class
                 centroids[centroid_idx],        # Current centroid
                 lambda x1, x2: kernel(x1, x2, params),
                 _params
             )
-            centroid_cost = lambda _centroid: loss_co(
-                class_centroids[centroid_idx],  # Access current class clusters
-                centroid_labels[centroid_idx],  # Labels for the current class
+        
+        centroid_cost = lambda _centroid: -loss_co(
+                np.vstack(class_centroids),  # Access current class clusters
+                centroid_labels,  # Labels for the current class
                 centroids[centroid_idx],        # Current centroid
                 lambda x1, x2: kernel(x1, x2, params),
                 _centroid
             )
-            kao_class = (kao_class % n_classes) + 1
-            main_centroid = False if kao_class == 1 else True
 
-            params, l = opt.step_and_cost(cost, params)
-        
-        else:
-            # Use all centroids and labels for target alignment across classes
-            cost = lambda _params: -qml.kernels.target_alignment(
-                class_centroids,  # Combine all class centroids
-                centroid_labels,  # Flatten the labels list
-                lambda x1, x2: kernel(x1, x2, _params),
-                assume_normalized_kernel=True,
-            )
-            centroid_cost = lambda _centroid: -loss_co(
-                centroids,  # Access current class clusters
-                main_centroid_labels,  # Labels for the current class
-                centroids[centroid_idx],        # Current centroid
-                lambda x1, x2: kernel(x1, x2, params),
-                _centroid
-            )
-            main_centroid = True
-        
-        # Optimize the parameters
-        
+        params, l = opt.step_and_cost(cost, params)
+        print(f"Epoch {i + 1} Loss: {l}")
         centroids[centroid_idx] = opt.step(centroid_cost, centroids[centroid_idx])
+        for sub_centroid_idx in range(len(class_centroids[centroid_idx])):
+            class_centroids[centroid_idx][sub_centroid_idx] = opt.step(centroid_cost, class_centroids[centroid_idx][sub_centroid_idx])
+        kao_class = (kao_class % n_classes) + 1
 
         loss_per_epoch.append(l)
         executions.append(circuit_executions)
 
-        if (i + 1) % 10 == 0:
-            print(f"Circuit Executions: {circuit_executions}") 
+        
+        if (i + 1) % 50 == 0:
+            trained_kernel = lambda x1, x2: kernel(x1, x2, params)
+            trained_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, trained_kernel)
+            svm_trained = SVC(kernel=trained_kernel_matrix).fit(X, Y) 
+            y_true_train = svm_trained.predict(X)
+            train_accuracy = accuracy_score(Y, y_true_train)
+    
+            print(f"Epoch {i + 1} Loss: {l}, Accuracy: {train_accuracy}") 
+            """
             current_alignment = qml.kernels.target_alignment(
                         X,
                         Y,
@@ -273,10 +268,12 @@ if __name__ == '__main__':
                         assume_normalized_kernel=True,
                     )
             alignments.append(current_alignment)
+            params_list.append(params)
+
             print(f"Alignment = {current_alignment:.3f}")
-
-
-
+        """
+        
+        i += 1
 
     trained_kernel = lambda x1, x2: kernel(x1, x2, params)
     trained_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, trained_kernel)

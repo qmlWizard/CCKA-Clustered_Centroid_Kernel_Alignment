@@ -71,3 +71,34 @@ def target_alignment(
     inner_product = inner_product / norm
 
     return inner_product
+
+
+def centroid_kernel_matrix(X, centroid, ckernel):
+    
+    kernel_matrix = []
+
+    for i in range(len(X)):
+        kernel_matrix.append(ckernel(centroid, X[i]))
+
+    return np.array(kernel_matrix)
+
+def centroid_target_alignment(X, Y, centroid, kernel, l = 0.1, assume_normalized_kernel=False, rescale_class_labels=True):
+   
+    Y = np.asarray(Y)
+    K = centroid_kernel_matrix(X, centroid, kernel)
+    numerator = l * np.sum(Y * K)  
+    denominator = np.sqrt(np.sum(K**2) * np.sum(Y**2))
+
+    TA = numerator / denominator
+
+    return TA
+
+def loss_co(X, Y, centroid, kernel, cl, lambda_kao = 0.01):
+    TA = centroid_target_alignment(X, Y, centroid, kernel)
+    r = np.sum(np.maximum(cl - 1, 0) - np.minimum(cl, 0))
+    return 1 - TA + r
+
+def loss_kao(X, Y, centroid, kernel, params, lambda_kao = 0.01):
+    TA = centroid_target_alignment(X, Y, centroid, kernel)
+    r = lambda_kao * np.sum(params ** 2)
+    return 1 - TA + r
