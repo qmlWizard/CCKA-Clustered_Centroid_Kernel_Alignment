@@ -15,13 +15,12 @@ from matplotlib.colors import ListedColormap
 
 # Load data with increased sample size
 #data = checkerboard_data(2)  # Increased from 10 to 100 samples
-features, target = plot_and_save(2, 128)
-
+features, target = plot_and_save('swiss_roll', 128)
 
 print("\nConfiguring Quantum Circuit")
 
 n_qubits = features.shape[1]
-layers = 5
+layers = 6
 ansatz = 'efficientsu2'
 
 dev = qml.device("default.qubit", wires=n_qubits)
@@ -33,14 +32,12 @@ print("Number of Variational Layers:", layers)
 # Initialize the quantum kernel
 wires, shape = initialize_kernel(n_qubits, ansatz, layers)
 param_shape = (2,) + shape
-params = np.random.uniform(0, 2 * np.pi, size=param_shape, requires_grad=True)
+params = np.random.uniform(-np.pi, np.pi, size=param_shape, requires_grad=True)
 
 print("Shape for params:", param_shape)
 
 # Split the dataset
-x_train, x_test, y_train, y_test = train_test_split(
-    features, target, test_size=0.25, random_state=42
-)
+x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.25, random_state=42)
 
 print("\nDividing Testing and Training dataset")
 print("Train Size:", len(x_train))
@@ -54,7 +51,6 @@ f_kernel = lambda x1, x2: kernel_function(x1, x2, params)
 get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
 
 # Train the initial quantum SVM
-print(y_train)
 svm_model = SVC(kernel=get_kernel_matrix).fit(x_train, y_train)
 
 # Train the classical SVM
@@ -80,103 +76,178 @@ auc_classical = auc(fpr_classical, tpr_classical)
 print(f"Quantum SVM AUC: {auc_quantum:.4f}")
 print(f"Classical SVM AUC: {auc_classical:.4f}")
 
-# Initialize alpha
-#alpha = np.zeros_like(y_train, dtype=float)
-#alpha[svm_model.support_] = np.abs(svm_model.dual_coef_).flatten()
+def centroid_kernel_matrix(X, centroid, ckernel):
+    
+    kernel_matrix = []
 
-# Get initial kernel matrix
-#kernel_matrix = get_kernel_matrix(x_train, x_train)
+    for i in range(len(X)):
+        kernel_matrix.append(ckernel(centroid, X[i]))
 
-# Define loss function for training
-def loss(_params, x_subset, y_subset, alpha_sub):
+    return np.array(kernel_matrix)
 
-    f_kernel = lambda x1, x2: kernel_function(x1, x2, _params)
-    get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
-    k_sub = np.array(get_kernel_matrix(x_subset, x_subset))
+def centroid_target_alignment(X, Y, centroid, kernel, l = 0.1, assume_normalized_kernel=False, rescale_class_labels=True):
+   
+    Y = np.asarray(Y)
+    K = centroid_kernel_matrix(X, centroid, kernel)
+    numerator = l * np.sum(Y * K)  
+    denominator = np.sqrt(np.sum(K**2) * np.sum(Y**2))
 
-    loss_value = np.sum(alpha_sub) - 0.5 * np.sum(
-        np.outer(alpha_sub, alpha_sub) * np.outer(y_subset, y_subset) * k_sub
-    )
-    return loss_value
+    TA = numerator / denominator
 
-# Optimize the kernel parameters
-opt = qml.AdamOptimizer(0.01)
+    return TA
 
-lcost = []
+def loss_co(X, Y, centroid, kernel, cl, lambda_kao = 0.01):
+    TA = centroid_target_alignment(X, Y, centroid, kernel)
+    r = np.sum(np.maximum(cl - 1, 0) - np.minimum(cl, 0))
+    return 1 - TA + r
+
+def loss_kao(X, Y, centroid, kernel, params, lambda_kao = 0.01):
+    TA = centroid_target_alignment(X, Y, centroid, kernel)
+    r = lambda_kao * np.sum(params ** 2)
+    return 1 - TA + r
+
+def print_boxed_message(title, content):
+    def format_item(item, i):
+        if isinstance(item, np.ndarray):  # Check if the item is an array
+            return f"Cluster {i+1}: {np.array2string(item, precision=2, floatmode='fixed')}"
+        else:
+            return f"Cluster {i+1}: {item}"  # If it's not an array, just print the item as-is
+    
+    # Ensure that we only calculate lengths for formatted strings (arrays and others)
+    formatted_content = [format_item(item, i) for i, item in enumerate(content)]
+    max_len = max(len(line) for line in formatted_content)
+    box_width = max(len(title) + 4, max_len + 4)
+
+    print(f"+{'-' * box_width}+")
+    print(f"|  {title.center(box_width - 4)}  |")
+    print(f"+{'-' * box_width}+")
+    for line in formatted_content:
+        print(f"|  {line.ljust(box_width - 4)}  |")
+    print(f"+{'-' * box_width}+")
+
+def plot_svm_decision_boundary(svm_model, X_train, y_train, X_test, y_test, filename = 'svm_decesion_boundary.png'):
+    # Create a mesh to plot the decision boundary
+    h = .2  # step size in the mesh
+    x_min, x_max = X_train[:, 0].min(), X_train[:, 0].max()
+    y_min, y_max = X_train[:, 1].min(), X_train[:, 1].max()
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
+
+    # Plot decision boundary
+    Z = svm_model.predict(np.c_[xx.ravel(), yy.ravel()])
+    Z = Z.reshape(xx.shape)
+    
+    plt.figure(figsize=(8, 8))
+    
+    # Custom colormap for decision boundary
+    cmap_background = ListedColormap(['#a6cee3', '#fdbf6f'])
+    plt.contourf(xx, yy, Z, cmap=cmap_background, alpha=0.8)
+    
+    # Plot training data (filled circles)
+    plt.scatter(X_train[:, 0], X_train[:, 1], c=y_train, cmap=ListedColormap(['blue', 'orange']),
+                edgecolor='k', marker='o', s=100, label='Train Data', alpha=0.9)
+    
+    # Plot testing data (hollow circles)
+    plt.scatter(X_test[:, 0], X_test[:, 1], c=y_test, cmap=ListedColormap(['blue', 'orange']),
+                edgecolor='k', marker='o', s=100, facecolors='none', label='Test Data', alpha=0.9)
+    
+    # Labels and title
+    plt.title('SVM Decision Boundary')
+    plt.xlabel('Feature 1')
+    plt.ylabel('Feature 2')
+    plt.legend(loc='best')
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    plt.show()
+
+
+####Training Loop Sttart
+classes = np.unique(y_train)
+n_clusters = int(4)  # Ensure this is an integer
+
+centroids = []
+class_centroids = []
+centroid_labels = []
+main_centroid_labels = []
+
+for c in classes:
+    class_data = x_train[np.where(y_train == c)[0]]
+
+    if class_data.shape[0] < n_clusters:
+        raise ValueError(f"Not enough data points for class {c} to form {n_clusters} clusters.")
+        
+    # Calculate the overall class centroid and store it
+    main_centroid = np.mean(class_data, axis=0)
+    centroids.append(main_centroid)
+    main_centroid_labels.append(c)  # Assign the main centroid label
+
+    # Split class data into clusters and compute centroids for each cluster
+    clusters = np.array_split(class_data, n_clusters)
+    class_centroids.append([np.mean(cluster, axis=0) for cluster in clusters])
+        
+        # Assign the class labels to the cluster centroids
+    centroid_labels.extend([c] * n_clusters)
+
+    # Print main centroids
+print_boxed_message("Main Centroids", centroids)
+
+    # Print class centroids
+for i, class_centroid in enumerate(class_centroids):
+    print_boxed_message(f"Class {classes[i]} Centroids", class_centroid)
+
+main_centroid = True
+opt = qml.GradientDescentOptimizer(0.2)
+circuit_executions = 0
+params = params
+
 alignments = []
-lparams = []
+executions = []
+loss_per_epoch = []
 
-current_alignment = qml.kernels.target_alignment(
-            x_train,
-            y_train,
-            lambda x1, x2: kernel_function(x1, x2, params),
-            assume_normalized_kernel=True,
+kao_class = 1
+n_classes = len(classes)
+params_list = []
+train_accuracy = 0
+for i in range(500):
+        
+    centroid_idx = kao_class - 1  # Index for the current class/centroid
+    cost = lambda _params: loss_kao(
+            np.vstack(class_centroids),  # Access current class clusters
+            centroid_labels,  # Labels for the current class
+            centroids[centroid_idx],        # Current centroid
+            lambda x1, x2: kernel(x1, x2, params),
+            _params
         )
-alignments.append(current_alignment)
-
-for i in range(200):
     
-    # Sample a subset
-    #subset = approx_greedy_sampling(kernel_matrix, 4, y_train, False)
-    #print(y_train[subset])
-    #subset = np.random.choice(list(range(len(x_train))), 4)
-    
-    class_1_indices = np.where(y_train == 1)[0]
-    class_2_indices = np.where(y_train == -1)[0]
-
-    # Select half of the subset size from each class
-    subset_size = 16 // 2  # Assuming you want an equal split
-
-    # Randomly select indices from each class
-    subset_class_1 = np.random.choice(class_1_indices, subset_size, replace=False)
-    subset_class_2 = np.random.choice(class_2_indices, subset_size, replace=False)
-
-    # Combine the indices to form the final subset
-    subset = np.concatenate((subset_class_1, subset_class_2))
-    
-    print(subset)
-    f_kernel = lambda x1, x2: kernel_function(x1, x2, params)
-    f_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, f_kernel)
-    svm = SVC(kernel=f_kernel_matrix, max_iter=10000).fit(x_train[subset], y_train[subset])
-    alpha_sub = np.zeros_like(y_train[subset], dtype=float)
-    alpha_sub[svm.support_] = np.abs(svm.dual_coef_).flatten()
-    
-    print(i, "SVM Trained")
-    cost = lambda _params: loss(_params, x_train[subset], y_train[subset], alpha_sub)
-    #cost = lambda _params: -qml.kernels.target_alignment(
-    #                                                        x_train[subset],
-    #                                                        y_train[subset],
-    #                                                        lambda x1, x2: kernel_function(x1, x2, _params),
-    #                                                        assume_normalized_kernel=True,
-    #                                                    )
+    centroid_cost = lambda _centroid: -loss_co(
+            np.vstack(class_centroids),  # Access current class clusters
+            centroid_labels,  # Labels for the current class
+            centroids[centroid_idx],        # Current centroid
+            lambda x1, x2: kernel(x1, x2, params),
+            _centroid
+        )
+    params, l = opt.step_and_cost(cost, params)
+    print(f"Epoch {i + 1} Loss: {l}")
+    centroids[centroid_idx] = opt.step(centroid_cost, centroids[centroid_idx])
+    for sub_centroid_idx in range(len(class_centroids[centroid_idx])):
+        class_centroids[centroid_idx][sub_centroid_idx] = opt.step(centroid_cost, class_centroids[centroid_idx][sub_centroid_idx])
+    kao_class = (kao_class % n_classes) + 1
+    loss_per_epoch.append(l)
+    executions.append(circuit_executions)
+    print(f'Epoch {i + 1}th: \n\tLoss: {l}')
     
 
-    #lcost.append(cost(params))
-    params, curr_cost = opt.step_and_cost(cost, params)
-    lcost.append(curr_cost)
-    lparams.append(params)
-    
-
-    
-    # Update the kernel matrix with the new parameters
-    #km = get_kernel_matrix(x_train[subset], x_train[subset])
-    #kernel_matrix[np.ix_(subset, subset)] = km
-    #kernel_matrix[np.ix_(subset, subset)] += np.eye(len(subset)) * 1
-
-    # Calculate and store alignment
-    if (i + 1) % 10 == 0:
+    if (i + 1) % 25 == 0:
         current_alignment = qml.kernels.target_alignment(
-            x_train,
-            y_train,
-            lambda x1, x2: kernel_function(x1, x2, params),
-            assume_normalized_kernel=True,
-        )
+                        x_train,
+                        y_train,
+                        lambda x1, x2: kernel(x1, x2, params),
+                        assume_normalized_kernel=True,
+                    )
         alignments.append(current_alignment)
-        print(f"Step {i+1} - Alignment = {current_alignment:.3f}")
+        params_list.append(params)
 
-    # Early stopping condition
-    #if len(lcost) > 1 and abs(lcost[-1] - lcost[-2]) <= 1e-09:
-    #    break
+        message = f"\tLoss: {l}, Alignment = {current_alignment:.3f}"
+        print_boxed_message(f"Epoch {i + 1}th:", message)
+####Training Loop End
 
 # Train the SVM with the optimized kernel
 trained_kernel = lambda x1, x2: kernel_function(x1, x2, params)
@@ -203,9 +274,10 @@ auc_trained = auc(fpr_trained, tpr_trained)
 print(f"Trained Quantum SVM AUC: {auc_trained:.4f}")
 
 cost_data = {
-    'lcost': [lcost],
+    'lcost': [loss_per_epoch],
     'alignment': [alignments],
-    'params': [lparams]
+    'params': [params_list],
+    'executions': [executions]
 }
 
 
@@ -217,47 +289,17 @@ model_data = {
     'initial_auc': [auc_quantum],
     'initial_auc_classical': [auc_classical],
     'auc_trained': [auc_trained],
-    'circuit_executions': [get_circuit_executions()]
+    'circuit_executions': [np.sum(np.array(executions))]
     
 }
 
 
-file = 'linear_hinge_effcientsu2_random.csv'
+file = 'swiss_roll_hinge_effcientsu2_clustering.csv'
 
 df = pd.DataFrame(model_data)
 df.to_csv(file)
 
-file = 'linear_hinge_effcientsu2_random.npy'
+file = 'swiss_roll_hinge_effcientsu2_clustering.npy'
 np.save(file, cost_data)
 
-train_color_0 = '#1f77b4'  # Blue shade
-train_color_1 = '#ff7f0e'  # Orange shade
-x_min, x_max = features[:, 0].min() - 1, features[:, 0].max() + 1
-y_min, y_max = features[:, 1].min() - 1, features[:, 1].max() + 1
-xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))
-
-# Predict the decision function for each point in the grid
-Z = svm_trained.predict(np.c_[xx.ravel(), yy.ravel()])
-Z = Z.reshape(xx.shape)
-
-# Plotting the decision boundary and training/testing data
-plt.figure(figsize=(5, 5))
-
-# Plot the decision boundary
-plt.contourf(xx, yy, Z, alpha=0.3, cmap=ListedColormap([train_color_0, train_color_1]))
-
-# Plot training data with solid circles
-plt.scatter(x_train[y_train == -1][:, 0], x_train[y_train == -1][:, 1], color=train_color_0, label='Train Class -1', s=150, marker='o', alpha=1)
-plt.scatter(x_train[y_train == 1][:, 0], x_train[y_train == 1][:, 1], color=train_color_1, label='Train Class 1', s=150, marker='o', alpha=1)
-
-# Plot testing data with hollow circles
-plt.scatter(x_test[y_test == -1][:, 0], x_test[y_test == -1][:, 1], edgecolor=train_color_0, facecolor='none', label='Test Class -1', s=100, marker='o', alpha=1)
-plt.scatter(x_test[y_test == 1][:, 0], x_test[y_test == 1][:, 1], edgecolor=train_color_1, facecolor='none', label='Test Class 1', s=100, marker='o', alpha=1)
-
-# Remove extra margins for a tighter layout
-plt.xlabel('Feature 1')
-plt.ylabel('Feature 2')
-plt.title('Checkerboard Data')
-plt.tight_layout()
-plt.savefig('decesion_plot_linear_hinge_effcientsu2_random.png', dpi=800)
-plt.show()
+plot_svm_decision_boundary(svm_trained, x_train, y_train, x_test, y_test, '/results/decesion_boundary_swiss_roll_hinge_effcientsu2_clustering.png')
