@@ -3,6 +3,15 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.datasets import make_gaussian_quantiles
+import torch
+import pennylane as qml
+from torch import nn
+
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+    print(f"MPS is available. Using device: {device}")
+else:
+    print("MPS is not available. Using CPU.")
 
 # Set random seeds
 torch.manual_seed(42)
@@ -19,44 +28,68 @@ plt.axis("off")
 plt.scatter(X[:, 0], X[:, 1], c=c)
 plt.show()
 
-n_qubits = 2
-
-# Adjusted: Remove batch_size since it's not needed without vectorization
+# Define the number of qubits and device
+n_qubits = len(X[0])
 dev = qml.device("default.qubit", wires=n_qubits)
 
-def embedding(inputs, weights):
-    qml.AngleEmbedding(inputs, wires=range(2))
-    qml.BasicEntanglerLayers(weights, wires=range(2))
+# Define a simple embedding circuit
+def embedding_circuit(x):
+    # Data embedding into quantum circuit
+    for i in range(n_qubits):
+        qml.Hadamard(wires=i)  # Example of state preparation
+        qml.RX(x[i], wires=i)  # Example of data embedding with RX rotation
 
-@qml.qnode(dev, interface='torch', diff_method='backprop')
-def qnode(inputs, weights):
-    x1 = inputs[ :len(X[0])]
-    x2 = inputs[len(X[0]): ]
+# Define the adjoint embedding circuit
+def adjoint_embedding_circuit(x):
+    # Apply the adjoint (conjugate transpose) of the embedding
+    for i in range(n_qubits):
+        qml.Hadamard(wires=i)  # Inverse of state preparation
+        qml.RX(-x[i], wires=i)  # Inverse RX rotation
 
-    # Apply embedding to x1
-    embedding(x1, weights[0])
+# Define the Quantum Kernel Layer
+class QuantumKernelLayer(nn.Module):
+    def __init__(self):
+        super(QuantumKernelLayer, self).__init__()
 
-    # Apply adjoint embedding to x2
-    qml.adjoint(embedding)(x2, weights[1])
+        
+    @qml.qnode(dev, interface = 'torch')
+    def kernel(self, x1, x2):
+        embedding_circuit(x1)
+        adjoint_embedding_circuit(x2)
 
-    return qml.expval(qml.PauliZ(wires=0))
+        return qml.probs(wires = range(n_qubits))
 
-n_layers = 6
-weight_shapes = {"weights": (2, n_layers, n_qubits)}
+    def forward(self, x1, x2):
+        # Apply the embedding and its adjoint
+        embedding1 = embedding_circuit(x1)
+        adjoint_embedding2 = adjoint_embedding_circuit(x2)
+        
+        # Kernel as the overlap of embeddings (i.e., dot product or a chosen expectation value)
+        kernel_value = self.kernel(self, x1, x2)[0]
+        return kernel_value
 
-# Corrected: Remove input_dims
-qlayer = qml.qnn.TorchLayer(qnode, weight_shapes)
+# Example usage
+quantum_kernel_layer = QuantumKernelLayer()
 
-model = torch.nn.Sequential(qlayer)
-opt = torch.optim.SGD(model.parameters(), lr=0.01)
-loss_fn = torch.nn.L1Loss()
+kernel_output = quantum_kernel_layer(X[0], X[1])
+print(f"Quantum Kernel Output: {kernel_output}")
 
-X = torch.tensor(X).float()
-y_hot = y_hot.float()
+def create_kernel_matrix(X, quantum_kernel_layer):
+    n_samples = len(X)
+    kernel_matrix = torch.zeros((n_samples, n_samples))
 
-# Prepare inputs: since batch processing isn't set up, use individual inputs
-#inputs = torch.stack(X[0] + X[1])
+    for i in range(n_samples):
+        for j in range(i, n_samples):
+            # Compute the kernel value for each pair (X[i], X[j])
+            kernel_value = quantum_kernel_layer(X[i], X[j])
+            kernel_matrix[i, j] = kernel_value
+            kernel_matrix[j, i] = kernel_value  # Kernel matrix is symmetric
+        print(i)
 
-# Run the model
-output = model(X[0] + X[1])
-print(output)   
+    return kernel_matrix
+
+# Compute the kernel matrix
+kernel_matrix = create_kernel_matrix(X, quantum_kernel_layer)
+
+# Display the kernel matrix
+print(f"Quantum Kernel Matrix:\n{kernel_matrix}")
