@@ -36,7 +36,7 @@ def initialize_kernel(num_qubits, variational_circuit, variational_layers):
 
 def encoding(x1, params):
     if ansatz == 'tutorial_ansatz':
-        tutorial_ansatz(x1, params, range(len(x1)))
+        tutorial_ansatz(x1, params, range(5))
     else:
         for l in range(layers):
             if ansatz == 'strong_entangled':

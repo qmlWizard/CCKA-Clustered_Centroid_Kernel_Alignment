@@ -2,7 +2,7 @@ import pennylane as qml
 from pennylane import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from utils.kernel import initialize_kernel, kernel, get_circuit_executions
+from utils.kernel import initialize_kernel, kernel
 from utils.classification_data import plot_and_save
 from utils.sampling import approx_greedy_sampling
 from sklearn.model_selection import train_test_split
@@ -15,13 +15,13 @@ from matplotlib.colors import ListedColormap
 
 # Load data with increased sample size
 #data = checkerboard_data(2)  # Increased from 10 to 100 samples
-features, target = plot_and_save('swiss_roll', 128)
+features, target = plot_and_save('double_cake', 128)
 
 print("\nConfiguring Quantum Circuit")
 
 n_qubits = features.shape[1]
 layers = 6
-ansatz = 'efficientsu2'
+ansatz = 'tutorial_ansatz'
 
 dev = qml.device("default.qubit", wires=n_qubits)
 wires = dev.wires.tolist()
@@ -43,15 +43,19 @@ print("\nDividing Testing and Training dataset")
 print("Train Size:", len(x_train))
 print("Test Size:", len(x_test))
 
-# Define kernel functions
-def kernel_function(x1, x2, _params):
-    return kernel(x1, x2, _params)
-
-f_kernel = lambda x1, x2: kernel_function(x1, x2, params)
+f_kernel = lambda x1, x2: kernel(x1, x2, params)
 get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, f_kernel)
 
+init_kta = qml.kernels.target_alignment(
+                        x_train,
+                        y_train,
+                        lambda x1, x2: kernel(x1, x2, params),
+                        assume_normalized_kernel=True,
+                    )
+print(f"Initial KTA: {init_kta:.4f}")
+
 # Train the initial quantum SVM
-svm_model = SVC(kernel=get_kernel_matrix).fit(x_train, y_train)
+svm_model = SVC(kernel=get_kernel_matrix, max_iter=10000).fit(x_train, y_train)
 
 # Train the classical SVM
 classical_model = SVC().fit(x_train, y_train)
@@ -125,15 +129,17 @@ def print_boxed_message(title, content):
         print(f"|  {line.ljust(box_width - 4)}  |")
     print(f"+{'-' * box_width}+")
 
-def plot_svm_decision_boundary(svm_model, X_train, y_train, X_test, y_test, filename = 'svm_decesion_boundary.png'):
+def plot_svm_decision_boundary(svm_qmodel, X_train, y_train, X_test, y_test, filename = 'svm_decesion_boundary.png'):
     # Create a mesh to plot the decision boundary
     h = .2  # step size in the mesh
     x_min, x_max = X_train[:, 0].min(), X_train[:, 0].max()
     y_min, y_max = X_train[:, 1].min(), X_train[:, 1].max()
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
 
+    print(np.c_[xx.ravel(), yy.ravel()])
     # Plot decision boundary
-    Z = svm_model.predict(np.c_[xx.ravel(), yy.ravel()])
+    Z = svm_qmodel.predict(np.c_[xx.ravel(), yy.ravel()])
+    print(Z)
     Z = Z.reshape(xx.shape)
     
     plt.figure(figsize=(8, 8))
@@ -157,6 +163,9 @@ def plot_svm_decision_boundary(svm_model, X_train, y_train, X_test, y_test, file
     plt.legend(loc='best')
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.show()
+
+
+#plot_svm_decision_boundary(svm_model, x_train, y_train, x_test, y_test, '/results/init_decesion_boundary_swiss_roll_hinge_effcientsu2_clustering.png')
 
 
 ####Training Loop Sttart
@@ -193,6 +202,7 @@ print_boxed_message("Main Centroids", centroids)
 for i, class_centroid in enumerate(class_centroids):
     print_boxed_message(f"Class {classes[i]} Centroids", class_centroid)
 
+
 main_centroid = True
 opt = qml.GradientDescentOptimizer(0.2)
 circuit_executions = 0
@@ -206,7 +216,7 @@ kao_class = 1
 n_classes = len(classes)
 params_list = []
 train_accuracy = 0
-for i in range(500):
+for i in range(250):
         
     centroid_idx = kao_class - 1  # Index for the current class/centroid
     cost = lambda _params: loss_kao(
@@ -225,16 +235,14 @@ for i in range(500):
             _centroid
         )
     params, l = opt.step_and_cost(cost, params)
-    print(f"Epoch {i + 1} Loss: {l}")
     centroids[centroid_idx] = opt.step(centroid_cost, centroids[centroid_idx])
     for sub_centroid_idx in range(len(class_centroids[centroid_idx])):
         class_centroids[centroid_idx][sub_centroid_idx] = opt.step(centroid_cost, class_centroids[centroid_idx][sub_centroid_idx])
     kao_class = (kao_class % n_classes) + 1
     loss_per_epoch.append(l)
     executions.append(circuit_executions)
-    print(f'Epoch {i + 1}th: \n\tLoss: {l}')
+    print(f'Epoch {i + 1}th, Loss: {l}')
     
-
     if (i + 1) % 25 == 0:
         current_alignment = qml.kernels.target_alignment(
                         x_train,
@@ -249,10 +257,14 @@ for i in range(500):
         print_boxed_message(f"Epoch {i + 1}th:", message)
 ####Training Loop End
 
+alignments = np.array(alignments)
+max_alignment = np.argmax(alignments)
+params = params_list[max_alignment]
+
 # Train the SVM with the optimized kernel
-trained_kernel = lambda x1, x2: kernel_function(x1, x2, params)
+trained_kernel = lambda x1, x2: kernel(x1, x2, params)
 trained_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, trained_kernel)
-svm_trained = SVC(kernel=trained_kernel_matrix).fit(x_train, y_train)
+svm_trained = SVC(kernel=trained_kernel_matrix, max_iter=10000).fit(x_train, y_train)
 
 # Make predictions with the trained model
 y_pred_train = svm_trained.predict(x_train)
@@ -289,17 +301,18 @@ model_data = {
     'initial_auc': [auc_quantum],
     'initial_auc_classical': [auc_classical],
     'auc_trained': [auc_trained],
+    'initial_kta': [init_kta],
     'circuit_executions': [np.sum(np.array(executions))]
     
 }
 
 
-file = 'swiss_roll_hinge_effcientsu2_clustering.csv'
+file = 'swiss_roll_effcientsu2_clustering.csv'
 
 df = pd.DataFrame(model_data)
 df.to_csv(file)
 
-file = 'swiss_roll_hinge_effcientsu2_clustering.npy'
+file = 'swiss_roll_effcientsu2_clustering.npy'
 np.save(file, cost_data)
 
-plot_svm_decision_boundary(svm_trained, x_train, y_train, x_test, y_test, '/results/decesion_boundary_swiss_roll_hinge_effcientsu2_clustering.png')
+#plot_svm_decision_boundary(svm_trained, x_train, y_train, x_test, y_test, '/results/decesion_boundary_swiss_roll_hinge_effcientsu2_clustering.png')

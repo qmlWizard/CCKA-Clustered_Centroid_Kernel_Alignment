@@ -104,8 +104,8 @@ def print_boxed_message(title, content):
 def plot_svm_decision_boundary(svm_model, X_train, y_train, X_test, y_test, filename = 'svm_decesion_boundary.png'):
     # Create a mesh to plot the decision boundary
     h = .2  # step size in the mesh
-    x_min, x_max = X_train[:, 0].min(), X_train[:, 0].max()
-    y_min, y_max = X_train[:, 1].min(), X_train[:, 1].max()
+    x_min, x_max = X_train[:, 0].min() - 1, X_train[:, 0].max() + 1
+    y_min, y_max = X_train[:, 1].min() - 1, X_train[:, 1].max() + 1
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
 
     # Plot decision boundary
@@ -135,6 +135,7 @@ def plot_svm_decision_boundary(svm_model, X_train, y_train, X_test, y_test, file
     plt.show()
 
 
+
 if __name__ == '__main__':
     
     try:
@@ -147,7 +148,7 @@ if __name__ == '__main__':
         sys.exit()
 
     
-    features, target = plot_and_save(dataset, 128, save_path=f'{dataset}_plot.png')
+    features, target = plot_and_save(dataset, 1024, save_path=f'{dataset}_plot.png')
 
     print(" ")
     print(f"* Feature Shape: {features.shape}")
@@ -171,10 +172,30 @@ if __name__ == '__main__':
     fig.savefig('circuit.png')
     init_kernel = lambda x1, x2: kernel(x1, x2, init_params)
     kta_init = qml.kernels.target_alignment(X, Y, init_kernel, assume_normalized_kernel=True)
-    print(f"*The kernel-target alignment for our dataset and random parameters is {kta_init:.3f}")
+    print(f"*The kernel-target alignment for {dataset} and random parameters is {kta_init:.3f}")
     print(" ")
 
+    get_kernel_matrix = lambda x1, x2: qml.kernels.kernel_matrix(x1, x2, init_kernel)
 
+    # Train the initial quantum SVM
+    svm_model = SVC(kernel=get_kernel_matrix, max_iter=10000).fit(X, Y)
+
+    # Train the classical SVM
+    classical_model = SVC().fit(X, Y)
+
+    # Make predictions
+    y_pred_quantum = svm_model.predict(x_test)
+    y_pred_classical = classical_model.predict(x_test)
+
+    # Calculate accuracy
+    accuracy_quantum = accuracy_score(y_test, y_pred_quantum)
+    accuracy_classical = accuracy_score(y_test, y_pred_classical)
+
+    print(f"\nQuantum SVM Accuracy: {accuracy_quantum:.4f}")
+    print(f"Classical SVM Accuracy: {accuracy_classical:.4f}")    
+        
+    plot_svm_decision_boundary(svm_model, X, Y, x_test, y_test, filename= f'init_{dataset}_decesion_boundary_clustering_{num_clusters}.png')
+        
     classes = np.unique(Y)
     n_clusters = int(num_clusters)  # Ensure this is an integer
 
@@ -222,7 +243,8 @@ if __name__ == '__main__':
     params_list = []
     train_accuracy = 0
     i = 0
-    while train_accuracy < 0.95:
+
+    for i in range(250):
         
         centroid_idx = kao_class - 1  # Index for the current class/centroid
         cost = lambda _params: loss_kao(
@@ -240,42 +262,33 @@ if __name__ == '__main__':
                 lambda x1, x2: kernel(x1, x2, params),
                 _centroid
             )
-
         params, l = opt.step_and_cost(cost, params)
-        print(f"Epoch {i + 1} Loss: {l}")
         centroids[centroid_idx] = opt.step(centroid_cost, centroids[centroid_idx])
         for sub_centroid_idx in range(len(class_centroids[centroid_idx])):
             class_centroids[centroid_idx][sub_centroid_idx] = opt.step(centroid_cost, class_centroids[centroid_idx][sub_centroid_idx])
         kao_class = (kao_class % n_classes) + 1
-
         loss_per_epoch.append(l)
         executions.append(circuit_executions)
-
+        print(f'Epoch {i + 1}th, Loss: {l}')
         
-        if (i + 1) % 50 == 0:
-            trained_kernel = lambda x1, x2: kernel(x1, x2, params)
-            trained_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, trained_kernel)
-            svm_trained = SVC(kernel=trained_kernel_matrix).fit(X, Y) 
-            y_true_train = svm_trained.predict(X)
-            train_accuracy = accuracy_score(Y, y_true_train)
-    
-            print(f"Epoch {i + 1} Loss: {l}, Accuracy: {train_accuracy}") 
-            """
+        if (i + 1) % 25 == 0:
             current_alignment = qml.kernels.target_alignment(
-                        X,
-                        Y,
-                        lambda x1, x2: kernel(x1, x2, params),
-                        assume_normalized_kernel=True,
-                    )
+                            X,
+                            Y,
+                            lambda x1, x2: kernel(x1, x2, params),
+                            assume_normalized_kernel=True,
+                        )
             alignments.append(current_alignment)
             params_list.append(params)
 
-            print(f"Alignment = {current_alignment:.3f}")
-        """
-        
-        i += 1
+            message = f"\tLoss: {l}, Alignment = {current_alignment:.3f}"
+            print_boxed_message(f"Epoch {i + 1}th:", message)
+        trained_kernel = lambda x1, x2: kernel(x1, x2, params)
 
-    trained_kernel = lambda x1, x2: kernel(x1, x2, params)
+    alignments = np.array(alignments)
+    max_alignment = np.argmax(alignments)
+    params = params_list[max_alignment]
+
     trained_kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, trained_kernel)
     svm_trained = SVC(kernel=trained_kernel_matrix).fit(X, Y) 
 
@@ -307,20 +320,21 @@ if __name__ == '__main__':
     print_boxed_message("Test Performance", test_content)
 
     obervations = {
-        'init_svc_acc': [],
+        'classical_acc': [accuracy_classical],
+        'init_svc_acc': [accuracy_quantum],
         'init_kta': [kta_init],
         'alignments': [alignments],
         'loss_per_epoch': [loss_per_epoch],
         'executions': [np.sum(np.array(executions))],
         'final_kta': [current_alignment],
         'train_acc': [train_accuracy],
-        'train_f1': [train_f1],
+        'train_f1': [train_f1], 
         'train_cm' : [train_conf_matrix],
         'test_acc': [test_accuracy],
         'test_f1' : [test_f1],
         'test_cm' : [test_conf_matrix]
     }
 
-    np.save(f'{dataset}_observations_clustering.npy', obervations)
+    np.save(f'{dataset}_observations_clustering_{num_clusters}.npy', obervations)
 
-    plot_svm_decision_boundary(svm_trained, X, Y, x_test, y_test, filename= f'{dataset}_decesion_boundary_clustering.png')
+    plot_svm_decision_boundary(svm_trained, X, Y, x_test, y_test, filename= f'{dataset}_decesion_boundary_clustering_{num_clusters}.png')
