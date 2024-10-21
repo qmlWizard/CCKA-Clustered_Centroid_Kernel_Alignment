@@ -7,12 +7,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 from matplotlib.colors import ListedColormap
 from sklearn.svm import SVC
+from sklearn.datasets import make_friedman1
 import pandas as pd
 import sys
 import time
 import os
 
-dev = qml.device("default.qubit", wires=14, shots=None)
+dev = qml.device("default.qubit", wires=8, shots=None)
 wires = dev.wires.tolist()
 
 def layer(x, params, wires, i0=0, inc=1):
@@ -148,8 +149,9 @@ if __name__ == '__main__':
         sys.exit()
 
     
-    features, target = plot_and_save(dataset, 1024, save_path=f'{dataset}_plot.png')
+    features, target = plot_and_save(dataset, 128, save_path=f'{dataset}_plot.png')
 
+    print(target)
     print(" ")
     print(f"* Feature Shape: {features.shape}")
     print(f"* Labels Shape:  {target.shape}")
@@ -157,6 +159,7 @@ if __name__ == '__main__':
 
     X, x_test, Y, y_test = train_test_split(features, target, test_size=0.25, random_state=42)
 
+    print(X[0])
     print(f"* Train Shape: {X.shape}")
     print(f"* Train Labels Shape:  {Y.shape}")
     print(f"* Test Shape: {x_test.shape}")
@@ -164,7 +167,7 @@ if __name__ == '__main__':
     print(" ")
 
     circuit_executions = 0
-    init_params = random_params(num_wires=6, num_layers=6)
+    init_params = random_params(num_wires=8, num_layers=6)
     kernel_value = kernel(X[0], X[1], init_params)
     print(f"*The kernel value between the first and second datapoint is {kernel_value:.3f}") 
     drawer = qml.draw_mpl(kernel_circuit)

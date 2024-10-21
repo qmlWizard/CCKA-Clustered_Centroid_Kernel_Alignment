@@ -167,6 +167,7 @@ def generate_dataset(dataset_name, n_samples=1000, noise=0.1, num_sectors=3, poi
         X, y = create_xor(n_samples, noise)
     elif dataset_name == 'swiss_roll':
         X, y = make_swiss_roll(n_samples=n_samples, noise=noise, random_state=0)
+        X = np.hstack((X, np.random.randn(n_samples, 2)))  # Add 2 random features to make 4 features
         y = np.where(y > np.median(y), 1, -1)  # Binarize labels based on median
     elif dataset_name == 'gaussian':
         X, y = make_gaussian_quantiles(n_samples=n_samples, n_features=2, n_classes=2, random_state=0)
