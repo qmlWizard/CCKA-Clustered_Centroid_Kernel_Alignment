@@ -12,7 +12,7 @@ import sys
 import time
 import os
 
-dev = qml.device("default.qubit", wires=6, shots=None)
+dev = qml.device("default.qubit", wires=14, shots=None)
 wires = dev.wires.tolist()
 
 def layer(x, params, wires, i0=0, inc=1):
