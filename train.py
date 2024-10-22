@@ -13,7 +13,7 @@ import sys
 import time
 import os
 
-dev = qml.device("default.qubit", wires=8, shots=None)
+dev = qml.device("default.qubit", wires=14, shots=None)
 wires = dev.wires.tolist()
 
 def layer(x, params, wires, i0=0, inc=1):
@@ -151,9 +151,10 @@ if __name__ == '__main__':
     
     #features, target = plot_and_save(dataset, 128, save_path=f'{dataset}_plot.png')
 
-    df = pd.read_csv('data/dataset_graph7.csv')
-    print(df)
-    feature = df[]
+    df = pd.read_csv('data/dataset_graph7.csv', header=None)
+    target = df.iloc[:, -1]
+# All other columns as features
+    features = df.iloc[:, :-8]
     print(target)
     print(" ")
     print(f"* Feature Shape: {features.shape}")
@@ -161,6 +162,11 @@ if __name__ == '__main__':
     print(" ")
 
     X, x_test, Y, y_test = train_test_split(features, target, test_size=0.25, random_state=42)
+
+    X = np.array(X)
+    Y = np.array(Y)
+    x_test = np.array(x_test)
+    y_test = np.array(y_test)
 
     print(X[0])
     print(f"* Train Shape: {X.shape}")
@@ -170,7 +176,7 @@ if __name__ == '__main__':
     print(" ")
 
     circuit_executions = 0
-    init_params = random_params(num_wires=8, num_layers=6)
+    init_params = random_params(num_wires=14, num_layers=6)
     kernel_value = kernel(X[0], X[1], init_params)
     print(f"*The kernel value between the first and second datapoint is {kernel_value:.3f}") 
     drawer = qml.draw_mpl(kernel_circuit)
