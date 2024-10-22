@@ -149,8 +149,11 @@ if __name__ == '__main__':
         sys.exit()
 
     
-    features, target = plot_and_save(dataset, 128, save_path=f'{dataset}_plot.png')
+    #features, target = plot_and_save(dataset, 128, save_path=f'{dataset}_plot.png')
 
+    df = pd.read_csv('data/dataset_graph7.csv')
+    print(df)
+    feature = df[]
     print(target)
     print(" ")
     print(f"* Feature Shape: {features.shape}")
