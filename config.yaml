@@ -1,0 +1,53 @@
+# Configuration for a Quantum Kernel Alignment
+
+# Dataset settings
+dataset:
+  name: gaussian_quantiles
+  n_samples: 128
+  n_features: 2
+  n_classes: 2
+  random_state: 42
+
+# Hyperparameters for the Quantum Kernel
+qkernel:
+  device: default.qubit
+  n_qubits: 10
+  trainable: True
+  input_scaling: True
+  data_reuploading: True
+  ansatz: efficientsu2
+  ansatz_layers: 2
+  entangling: linear
+  
+
+# Training settings
+training:
+  batch_size: 32
+  learning_rate: 0.2
+  epochs: 100
+  optimizer: gd
+  criterion: cross_entropy
+
+#Hyperparameters for Optimizers
+gd:
+  learning_rate: 0.2
+  max_iter: 250
+  tolerance: 0.00000001
+
+
+spsa:
+  learning_rate: 0.01
+  max_iter: 200
+  perturbation: 0.01
+
+adam:
+  learning_rate: 0.01
+  max_iter: 200
+  tolerance: 0.00000001
+
+
+
+# Paths
+paths:
+  data_path: /path/to/data
+  model_save_path: /path/to/save/model
