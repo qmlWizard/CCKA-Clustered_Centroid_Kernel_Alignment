@@ -10,6 +10,9 @@ from torch import nn
 if torch.backends.mps.is_available():
     device = torch.device("mps")
     print(f"MPS is available. Using device: {device}")
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+    print(f"Cuda is available. Using device: {device}")
 else:
     print("MPS is not available. Using CPU.")
 
@@ -18,7 +21,7 @@ torch.manual_seed(42)
 np.random.seed(42)
 
 X, y = make_gaussian_quantiles(
-    n_samples=1000, n_features=2, n_classes=2, random_state=0
+    n_samples=1000, n_features=10, n_classes=2, random_state=0
 )
 y_ = torch.unsqueeze(torch.tensor(y), 1)  # used for one-hot encoded labels
 y_hot = torch.scatter(torch.zeros((1000, 2)), 1, y_, 1)
