@@ -13,7 +13,7 @@ import sys
 import time
 import os
 
-dev = qml.device("default.qubit", wires=14, shots=None)
+dev = qml.device("default.qubit", wires=6, shots=None)
 wires = dev.wires.tolist()
 
 def layer(x, params, wires, i0=0, inc=1):
@@ -151,10 +151,12 @@ if __name__ == '__main__':
     
     #features, target = plot_and_save(dataset, 128, save_path=f'{dataset}_plot.png')
 
-    df = pd.read_csv('data/dataset_graph7.csv', header=None)
+    df = pd.read_csv('data/powerline.csv')
+    print(df)
     target = df.iloc[:, -1]
 # All other columns as features
-    features = df.iloc[:, :-8]
+    features = df.iloc[:, :6]
+    
     print(target)
     print(" ")
     print(f"* Feature Shape: {features.shape}")
@@ -176,7 +178,7 @@ if __name__ == '__main__':
     print(" ")
 
     circuit_executions = 0
-    init_params = random_params(num_wires=14, num_layers=6)
+    init_params = random_params(num_wires=6, num_layers=6)
     kernel_value = kernel(X[0], X[1], init_params)
     print(f"*The kernel value between the first and second datapoint is {kernel_value:.3f}") 
     drawer = qml.draw_mpl(kernel_circuit)
