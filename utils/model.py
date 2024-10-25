@@ -23,34 +23,36 @@ class qnn(nn.Module):
         self._data_reuploading = config['qkernel']['data_reuploading']
         self._ansatz = config['qkernel']['ansatz']
         self._layers = config['qkernel']['ansatz_layers']
+        self._wires = range(self._n_qubits)
+        self._projector = torch.zeros((2**self.num_qubits,2**self.num_qubits))
+        self._projector[0,0] = 1
 
         if self._ansatz == 'he':
             if self._input_scaling:
                 self.register_parameter(name="input_scaling", param= nn.Parameter(torch.ones(self._layers, self._n_qubits), requires_grad=True))
             else:
                 self.register_parameter(name="input_scaling", param= nn.Parameter(torch.ones(self._layers, self._n_qubits), requires_grad=True))
-
             self.register_parameter(name="variational", param= nn.Parameter(torch.ones(self._layers, self._n_qubits * 2) * 2 * torch.pi, requires_grad=True))
 
-        if self._ansatz == 'covariant':
+        elif self._ansatz == 'covariant':
             if self._input_scaling:
                 self.register_parameter(name="input_scaling", param= nn.Parameter(torch.ones(self._layers, self._n_qubits), requires_grad=True))
             else:
                 self.register_parameter(name="input_scaling", param= nn.Parameter(torch.ones(self._layers, self._n_qubits), requires_grad=True))
-
             self.register_parameter(name="variational", param= nn.Parameter(torch.ones(self._layers, self._n_qubits) * 2 * torch.pi, requires_grad=True))
             self.register_parameter(name="rotational", param= nn.Parameter(torch.ones(self._layers, self._n_qubits) * 2 * torch.pi, requires_grad=True))
 
         dev = qml.device(self._device, wires = range(self._n_qubits))
         if self._ansatz == 'he':
             self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
-        if self._ansatz == 'qkra':
+        if self._ansatz == 'ra':
             self._kernel = qml.QNode(qkra, dev, diff_method='adjoint', interface='torch')
-        if self._ansatz == 'qkcovariant':
+        if self._ansatz == 'covariant':
             self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
         
     def forward(self, x1, x2):
-        pass
+        all_zero_state = self.kernel(x1, x2, self._parameters, self._wires, self._layers, self._projector, self._data_reuploading)
+        return all_zero_state
     
     def train(self, dataloader, optimizer, criterion, epochs, save_model_path = 'models/', test_dataloader=None, metrics_file="result/qnn_metrics.json"):
         metrics = {
