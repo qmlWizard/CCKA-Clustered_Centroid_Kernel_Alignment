@@ -18,7 +18,6 @@ qkernel:
   ansatz: efficientsu2
   ansatz_layers: 2
   entangling: linear
-  
 
 # Training settings
 training:
@@ -44,8 +43,6 @@ adam:
   learning_rate: 0.01
   max_iter: 200
   tolerance: 0.00000001
-
-
 
 # Paths
 paths:
