@@ -1,0 +1,11 @@
+pennylane
+torch
+torchvision
+torchaudio
+scikit-learn
+pandas
+matplotlib
+scipy
+seaborn
+plotly
+pyyaml

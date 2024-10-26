@@ -159,6 +159,7 @@ def make_double_cake_data(num_sectors, points_per_sector=1):
 
     return X, Y
 
+
 def generate_dataset(dataset_name, n_samples=1000, noise=0.1, num_sectors=3, points_per_sector=10):
     if dataset_name == 'moons':
         X, y = make_moons(n_samples=n_samples, noise=noise, random_state=0)
@@ -178,6 +179,10 @@ def generate_dataset(dataset_name, n_samples=1000, noise=0.1, num_sectors=3, poi
         iris = load_iris()
         X = iris.data
         y = iris.target + 1  # Shift labels to start from 1 (1, 2, 3 instead of 0, 1, 2)
+    elif dataset_name == 'checkerboard':
+        df = pd.read_csv("data/checherboard_paper.csv")
+        X = np.array(df[['feature 1', 'feature 2']])
+        y = np.array(df['target'])
     else:
         raise ValueError("Dataset not supported. Choose from 'moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake', 'iris'.")
     

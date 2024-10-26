@@ -2,21 +2,23 @@
 
 # Dataset settings
 dataset:
-  name: gaussian_quantiles
+  name: checkerboard
   n_samples: 128
   n_features: 2
   n_classes: 2
+  noise: 0.1
   random_state: 42
+  figure_path: dataset/
 
 # Hyperparameters for the Quantum Kernel
 qkernel:
   device: default.qubit
-  n_qubits: 10
+  n_qubits: 3
   trainable: True
   input_scaling: True
   data_reuploading: True
-  ansatz: efficientsu2
-  ansatz_layers: 2
+  ansatz: he
+  ansatz_layers: 6
   entangling: linear
 
 # Training settings
@@ -26,6 +28,9 @@ training:
   epochs: 100
   optimizer: gd
   criterion: cross_entropy
+  sampling: 4
+  clusters: 2
+
 
 #Hyperparameters for Optimizers
 gd:
