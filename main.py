@@ -2,8 +2,9 @@ import pennylane as qml
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
+import torch.optim as optim
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import numpy as np
@@ -15,6 +16,7 @@ import os
 #Custom Libraries
 from utils.model import qkernel
 from utils.classification_data import plot_and_save
+from utils.train import train_model
 
 
 ##Backend Configuration
@@ -43,13 +45,13 @@ feature_dimensions =  len(features[0]) #math.ceil(math.log2(len(feature[0])))
 n_classes = len(np.unique(target))
 
 
-training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.25, random_state=42)
+training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.50, random_state=42)
 
 # Convert each data point to a torch tensor
 training_data = torch.tensor(training_data, dtype=torch.float32, requires_grad=True)
 testing_data = torch.tensor(testing_data, dtype=torch.float32, requires_grad=True)
-training_labels = torch.tensor(training_labels, dtype=torch.long)
-testing_labels = torch.tensor(testing_labels, dtype=torch.long)
+training_labels = torch.tensor(training_labels, dtype=torch.int)
+testing_labels = torch.tensor(testing_labels, dtype=torch.int)
 
 print(f"* Train Shape: {training_data.shape}")
 print(f"* Train Labels Shape:  {training_labels.shape}")
@@ -57,20 +59,40 @@ print(f"* Test Shape: {testing_data.shape}")
 print(f"* Test Labels Shape:  {testing_labels.shape}")
 print(" ")
 
-
 kernel = qkernel(config)
-
-
 print("Sample Distance between x[0] and x[1]: ", kernel(training_data[0], training_data[1]))
 
-#K_init = qml.kernels.square_kernel_matrix(training_data, kernel, assume_normalized_kernel=True)
+# Define optimizer
+learning_rate = 0.01
+optimizer = optim.Adam(kernel.parameters(), lr=learning_rate)
 
-n_samples = training_data.shape[0]
-K_theta = torch.zeros((n_samples, n_samples), dtype=torch.float32)
-for i in range(len(training_data)):
-    for j in range(len(training_data)):
-        print(" ",i, j, " ")
-        K_theta[i, j] = kernel(training_data[i], training_data[j])
-    print("\n")
+agent = train_model( kernel= kernel,
+                    training_data = training_data,
+                    training_labels = training_labels,
+                    optimizer= optimizer,
+                    train_method= 'random',
+                    )
 
+init_metrics = agent.evaluate(testing_data, testing_labels)
+agent.fit(training_data, training_labels)
+after_metrics = agent.evaluate(testing_data, testing_labels)
 
+"""
+# Training loop
+n_epochs = 100
+
+for epoch in range(n_epochs):
+    optimizer.zero_grad()
+
+    alignment = qml.kernels.target_alignment(training_data, training_labels, kernel,  assume_normalized_kernel=True)
+
+    # Define loss as negative alignment
+    loss = -alignment
+
+    # Backpropagation
+    loss.backward()
+    optimizer.step()
+
+    print(f"Epoch {epoch+1}/{n_epochs}, Loss: {loss.item()}, Alignment: {alignment.item()}")
+
+"""

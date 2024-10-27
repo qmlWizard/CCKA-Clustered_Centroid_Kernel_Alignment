@@ -3,9 +3,7 @@ import pennylane as qml
 from pennylane import numpy as np
 import matplotlib.pyplot as plt
 from utils.classification_data import generate_dataset, plot_and_save
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
-from matplotlib.colors import ListedColormap
+
 from sklearn.svm import SVC
 from sklearn.datasets import make_friedman1
 import pandas as pd
