@@ -26,6 +26,7 @@ class qkernel(nn.Module):
         self._wires = range(self._n_qubits)
         self._projector = torch.zeros((2**self._n_qubits,2**self._n_qubits))
         self._projector[0,0] = 1
+        self._circuit_executions = 0
 
         if self._ansatz == 'he':
             if self._input_scaling:
@@ -52,5 +53,5 @@ class qkernel(nn.Module):
         
     def forward(self, x1, x2):
         all_zero_state = self._kernel(x1, x2, self._parameters, self._wires, self._layers, self._projector, self._data_reuploading)
+        self._circuit_executions += 1
         return all_zero_state
-    

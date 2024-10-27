@@ -5,6 +5,7 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 import torch.optim as optim
 from sklearn.svm import SVC
+from sklearn.metrics import hinge_loss
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -15,7 +16,7 @@ import time
 import os 
 
 
-class train_model():
+class train_ccka_model():
 
     def __init__(self, 
                  kernel,
@@ -30,41 +31,46 @@ class train_model():
         self._kernel = kernel
         self._optimizer = optimizer
         self._method = train_method
-        self._epochs = 500
+        self._epochs = 100
         self._sampling_size = sampling_size
         self._clusters = clusters
-        self._kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, self._kernel)
         self._training_data = training_data
         self._training_labels = training_labels
+        self._n_classes = torch.unique(training_labels)
 
-        if self._method == 'random':
-            self._loss_function = self._loss_ta
-            self._sample_function = self._sampler_random_sampling
-        elif self._method == 'full':
-            self._loss_function = self._loss_ta
-            self._sample_function = self._full_data
-        
+        self._main_centroids = []
+        self._class_centroids = []
+        self._class_centroid_labels = []
+
+        self._get_centroids(self._training_data, self._training_labels)
+        self._loss_function = self._loss_svm
         self._loss_arr = []
         self.alignment_arr = []
         
-        _matrix = self._kernel_matrix(self._training_data, self._training_data)
+        _matrix = self._centered_kernel_matrix(self._training_data, self._training_data)
         if torch.is_tensor(_matrix):
             _matrix = _matrix.detach().numpy()
         if torch.is_tensor(self._training_labels):
             self._training_labels = self._training_labels.detach().numpy()
 
-        self._model = SVC(kernel='precomputed').fit(_matrix, self._training_labels)
+    @property
+    def _get_all_centroids(self):
+        return self._main_centroids + [centroid for cluster in self._class_centroids for centroid in cluster]
 
+    def _get_centroids(self, data, data_labels):
+        for c in self._n_classes:
+            class_data = data[np.where(data_labels == c)[0]]
+            self._main_centroids.append(np.mean(class_data, axis=0))
+            self._class_centroids.append([np.mean(cluster, axis=0) for cluster in np.array_split(class_data, self._clusters)])
+            self._class_centroid_labels.extend([[c] * self._clusters])
+
+    def _centered_kernel_matrix(self, x):
+        return qml.kernels.kernel_matrix(x, self._get_all_centroids, self._kernel)
     
-    def _loss_ta(self, data, data_labels):
-        return qml.kernels.target_alignment(data, data_labels, self._kernel, assume_normalized_kernel=True)
+    def _loss_svm(self, ):
 
-    def _sampler_random_sampling(self, data, data_labels):
-        subset_indices = torch.randperm(len(data))[:self._sampling_size]
-        return data[subset_indices], data_labels[subset_indices]
-
-    def _full_data(self, data, data_labels):
-        return data, data_labels
+        clf = SVC(kernel='precomputed')
+        clf.fit(, y_train)
     
     def fit_kernel(self, training_data, training_labels):
         optimizer = self._optimizer

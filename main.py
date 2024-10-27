@@ -45,7 +45,7 @@ feature_dimensions =  len(features[0]) #math.ceil(math.log2(len(feature[0])))
 n_classes = len(np.unique(target))
 
 
-training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.50, random_state=42)
+training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.25, random_state=42)
 
 # Convert each data point to a torch tensor
 training_data = torch.tensor(training_data, dtype=torch.float32, requires_grad=True)
@@ -74,25 +74,6 @@ agent = train_model( kernel= kernel,
                     )
 
 init_metrics = agent.evaluate(testing_data, testing_labels)
-agent.fit(training_data, training_labels)
+agent.fit_kernel(training_data, training_labels)
 after_metrics = agent.evaluate(testing_data, testing_labels)
-
-"""
-# Training loop
-n_epochs = 100
-
-for epoch in range(n_epochs):
-    optimizer.zero_grad()
-
-    alignment = qml.kernels.target_alignment(training_data, training_labels, kernel,  assume_normalized_kernel=True)
-
-    # Define loss as negative alignment
-    loss = -alignment
-
-    # Backpropagation
-    loss.backward()
-    optimizer.step()
-
-    print(f"Epoch {epoch+1}/{n_epochs}, Loss: {loss.item()}, Alignment: {alignment.item()}")
-
-"""
+print(kernel._circuit_executions)
