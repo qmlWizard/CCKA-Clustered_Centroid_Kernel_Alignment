@@ -17,6 +17,7 @@ import os
 from utils.model import qkernel
 from utils.classification_data import plot_and_save
 from utils.train import train_model
+from utils.train_ccka import train_ccka_model
 
 
 ##Backend Configuration
@@ -62,18 +63,36 @@ print(" ")
 kernel = qkernel(config)
 print("Sample Distance between x[0] and x[1]: ", kernel(training_data[0], training_data[1]))
 
-# Define optimizer
-learning_rate = 0.01
-optimizer = optim.Adam(kernel.parameters(), lr=learning_rate)
+if config['training']['method'] == 'ccka':
+    learning_rate = 0.01
+    optimizer = optim.Adam(kernel.parameters(), lr=learning_rate)
 
-agent = train_model( kernel= kernel,
-                    training_data = training_data,
-                    training_labels = training_labels,
-                    optimizer= optimizer,
-                    train_method= 'random',
-                    )
+    agent = train_ccka_model( kernel= kernel,
+                        training_data = training_data,
+                        training_labels = training_labels,
+                        optimizer= optimizer,
+                        train_method= 'ccka',
+                        clusters = 4
+                        )
 
-init_metrics = agent.evaluate(testing_data, testing_labels)
-agent.fit_kernel(training_data, training_labels)
-after_metrics = agent.evaluate(testing_data, testing_labels)
-print(kernel._circuit_executions)
+    init_metrics = agent.evaluate(testing_data, testing_labels)
+    agent.fit_kernel(training_data, training_labels)
+    after_metrics = agent.evaluate(testing_data, testing_labels)
+    print(kernel._circuit_executions)
+
+else:
+    # Define optimizer
+    learning_rate = 0.01
+    optimizer = optim.Adam(kernel.parameters(), lr=learning_rate)
+
+    agent = train_model( kernel= kernel,
+                        training_data = training_data,
+                        training_labels = training_labels,
+                        optimizer= optimizer,
+                        train_method= 'random',
+                        )
+
+    init_metrics = agent.evaluate(testing_data, testing_labels)
+    agent.fit_kernel(training_data, training_labels)
+    after_metrics = agent.evaluate(testing_data, testing_labels)
+    print(kernel._circuit_executions)

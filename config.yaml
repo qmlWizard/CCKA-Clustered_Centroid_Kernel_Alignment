@@ -23,6 +23,7 @@ qkernel:
 
 # Training settings
 training:
+  method: ccka
   batch_size: 32
   learning_rate: 0.2
   epochs: 100
