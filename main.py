@@ -75,7 +75,7 @@ if config['training']['method'] == 'ccka':
                         clusters = 4
                         )
 
-    init_metrics = agent.evaluate(testing_data, testing_labels)
+    #init_metrics = agent.evaluate(testing_data, testing_labels)
     agent.fit_kernel(training_data, training_labels)
     after_metrics = agent.evaluate(testing_data, testing_labels)
     print(kernel._circuit_executions)

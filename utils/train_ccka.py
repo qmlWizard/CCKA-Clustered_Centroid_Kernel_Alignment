@@ -49,14 +49,12 @@ class train_ccka_model():
         self._loss_arr = []
         self.alignment_arr = []
         
-        self._centroid_optimizer = optim.Adam([self._get_all_centroids], lr = 0.01)
-        
+        self._centroid_optimizer = optim.Adam([self._get_all_centroids], lr = 0.01)        
         _matrix = self._centered_kernel_matrix(self._training_data)
         if torch.is_tensor(_matrix):
             _matrix = _matrix.detach().numpy()
         if torch.is_tensor(self._training_labels):
             self._training_labels = self._training_labels.detach().numpy()
-
         self._model = SVC(kernel='linear').fit(_matrix, self._training_labels)
 
     @property
@@ -76,52 +74,61 @@ class train_ccka_model():
     def _get_centroids(self, data, data_labels):
         for c in self._n_classes:
             class_data = data[np.where(data_labels == c)[0]]
-            
+
             # Ensure class_data is a NumPy array
             if isinstance(class_data, torch.Tensor):
                 class_data = class_data.detach().numpy()
-            
-            self._main_centroids.append(np.mean(class_data, axis=0))
+
+            # Calculate centroids and convert back to torch tensor
+            main_centroid = np.mean(class_data, axis=0)
+            self._main_centroids.append(torch.from_numpy(main_centroid))
             self._main_centroids_labels.append(c)
-            
+
             # Convert class_data to NumPy arrays if necessary
             if isinstance(class_data, torch.Tensor):
                 class_data = class_data.detach().numpy()
-            
-            self._class_centroids.append([np.mean(cluster, axis=0) for cluster in np.array_split(class_data, self._clusters)])
+
+            # Calculate centroids for clusters, and convert back to torch tensor
+            class_centroids = [np.mean(cluster, axis=0) for cluster in np.array_split(class_data, self._clusters)]
+            self._class_centroids.append([torch.from_numpy(centroid) for centroid in class_centroids])
             self._class_centroid_labels.extend([[c] * self._clusters])
 
     def _centered_kernel_matrix(self, x):
         return qml.kernels.kernel_matrix(x, self._get_all_centroids, self._kernel)
     
-    def centroid_kernel_matrix(self, X, centroid, ckernel):
+    def centroid_kernel_matrix(self, X, centroid):
     
         kernel_matrix = []
 
         for i in range(len(X)):
-            kernel_matrix.append(ckernel(centroid, X[i]))
+            kernel_matrix.append(self._kernel(centroid, X[i]))
 
-        return np.array(kernel_matrix)
+        return torch.tensor(kernel_matrix, dtype=torch.float32, requires_grad= True)
     
-    def centroid_target_alignment(self, X, Y, centroid, kernel, l = 0.1, assume_normalized_kernel=False, rescale_class_labels=True):
+    def centroid_target_alignment(self, X, Y, centroid, l = 0.1, assume_normalized_kernel=False, rescale_class_labels=True):
    
-        Y = np.asarray(Y)
-        K = self.centroid_kernel_matrix(X, centroid, kernel)
-        numerator = l * np.sum(Y * K)  
-        denominator = np.sqrt(np.sum(K**2) * np.sum(Y**2))
+        K = self.centroid_kernel_matrix(X, centroid)
+        Y = torch.tensor(Y, dtype=torch.float32, requires_grad= True)
+        numerator = l * torch.sum(Y * K)  
+        denominator = torch.sqrt(torch.sum(K**2) * torch.sum(Y**2))
 
         TA = numerator / denominator
 
         return TA
     
-    def loss_kao(self, X, Y, centroid, kernel, params, lambda_kao = 0.01):
-        TA = self.centroid_target_alignment(X, Y, centroid, kernel)
-        r = lambda_kao * np.sum(params ** 2)
+    def loss_kao(self, X, Y, centroid, lambda_kao = 0.01):
+        TA = self.centroid_target_alignment(X, Y, centroid)
+        params_numpy = []
+        for param in self._kernel.parameters():
+            # Convert the parameter to a NumPy array
+            param_numpy = param.detach().cpu().numpy()
+            params_numpy.append(param_numpy)
+        r = lambda_kao * np.sum(np.array(param_numpy) ** 2)
         return 1 - TA + r
 
     def loss_co(self, X, Y, centroid, kernel, cl, lambda_kao = 0.01):
         TA = self.centroid_target_alignment(X, Y, centroid, kernel)
-        r = np.sum(np.maximum(cl - 1, 0) - np.minimum(cl, 0))
+        r = torch.sum(torch.maximum(cl - 1, 0) - torch.minimum(cl, 0))
         return 1 - TA + r
 
     def _loss_svm(self):
@@ -146,72 +153,32 @@ class train_ccka_model():
         loss_func = self._loss_function
         centroid_loss_func = self._centroid_loss_function
         kao_class = 1
-        
+
         for epoch in range(epochs):
-            total_loss = 0
+            centroid_idx = kao_class - 1
+            cost = -self._loss_function( torch.vstack([centroid for sublist in self._class_centroids for centroid in sublist]),  # Access current class clusters
+                                         torch.tensor([label for sublist in self._class_centroid_labels for label in sublist]),  # Labels for the current class
+                                         self._main_centroids[centroid_idx],   # Current centroid 
+                                        )
+    
+            centroid_cost = lambda _centroid: -self._centroid_loss_function(
+                                                                                self._class_centroids[centroid_idx],  # Access current class clusters
+                                                                                self._class_centroid_labels[centroid_idx],  # Labels for the current class
+                                                                                self._main_centroids[centroid_idx],        # Current centroid
+                                                                                self._kernel,
+                                                                                _centroid
+                                                                           )
+
+            kao_class = (kao_class % len(self._n_classes)) + 1
+            kernel_loss = cost
+            kernel_loss.backward()
+            optimizer.step()
+
+            centroid_loss = centroid_cost(self._main_centroids[centroid_idx])
+            centroid_loss.backward()
+            centroid_optimizer.step()
             
-            # Update parameters and centroids for each class
-            for class_idx in range(len(self._class_centroids)):
-                
-                centroid_idx = kao_class - 1
-                
-                # Define the cost function for parameters
-                def cost(_params):
-                    class_centroids_np = np.array(self._class_centroids)
-                    class_centroids_tensor = torch.tensor(class_centroids_np, dtype=torch.float32)
-                    class_centroid_labels_np = np.concatenate(self._class_centroid_labels)
-                    class_centroid_labels_tensor = torch.tensor(class_centroid_labels_np, dtype=torch.float32)
-                    return -loss_func(
-                        class_centroids_tensor,  # Access current class clusters
-                        class_centroid_labels_tensor,  # Labels for the current class
-                        self._main_centroids[centroid_idx],  # Current centroid
-                        self._kernel,
-                        _params
-                    )
-                
-                # Define the cost function for centroids
-                def centroid_cost(_centroid):
-                    class_centroids_np = np.array(self._class_centroids[centroid_idx])
-                    class_centroids_tensor = torch.tensor(class_centroids_np, dtype=torch.float32)
-                    class_centroid_labels_tensor = torch.tensor(self._class_centroid_labels[centroid_idx], dtype=torch.float32)
-                    return -centroid_loss_func(
-                        class_centroids_tensor,  # Access current class clusters
-                        class_centroid_labels_tensor,  # Labels for the current class
-                        self._main_centroids[centroid_idx],  # Current centroid
-                        self._kernel,
-                        _centroid
-                    )
-                
-                # Update parameters using the optimizer
-                optimizer.zero_grad()
-                params_loss = cost(self._kernel.parameters())
-                params_loss.backward()
-                optimizer.step()
-                
-                # Update the main centroids using the centroid optimizer
-                centroid_optimizer.zero_grad()
-                centroid_loss = centroid_cost(self._main_centroids[centroid_idx])
-                centroid_loss.backward()
-                centroid_optimizer.step()
-                
-                # Update class-specific centroids
-                for sub_centroid_idx in range(len(self._class_centroids[centroid_idx])):
-                    centroid_optimizer.zero_grad()
-                    sub_centroid_loss = centroid_cost(self._class_centroids[centroid_idx][sub_centroid_idx])
-                    sub_centroid_loss.backward()
-                    centroid_optimizer.step()
-                
-                # Accumulate loss
-                total_loss += params_loss.item()
-                
-                # Update the class for the next iteration
-                kao_class = (kao_class % len(self._main_centroids)) + 1
-            
-            # Store and print average loss for the epoch
-            avg_loss = total_loss / len(self._class_centroids)
-            self._loss_arr.append(avg_loss)
-            print(f"Epoch {epoch + 1}/{epochs}, Loss: {avg_loss}")
-            
+
         # Update SVM model after training loop
         _matrix = self._centered_kernel_matrix(self._training_data)
         if torch.is_tensor(_matrix):
