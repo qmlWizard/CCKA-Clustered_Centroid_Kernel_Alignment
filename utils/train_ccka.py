@@ -44,12 +44,21 @@ class train_ccka_model():
         self._class_centroid_labels = []
 
         self._get_centroids(self._training_data, self._training_labels)
-        self._loss_function = self.loss_kao
+        self._loss_function = self._loss_ta
         self._centroid_loss_function = self.loss_co
         self._loss_arr = []
         self.alignment_arr = []
         
-        self._centroid_optimizer = optim.Adam([self._get_all_centroids], lr = 0.01)        
+        self._all_centroids = self._main_centroids + [centroid for cluster in self._class_centroids for centroid in cluster]
+
+        # Define optimizer with centroids as parameters
+        self._centroid_optimizer = optimizer = optim.Adam(
+                                                            [
+                                                                {'params': self._kernel.parameters(), 'lr': 0.2},
+                                                                {'params': self._get_all_centroids, 'lr': 0.01},
+                                                            ]
+                                                        )  
+
         _matrix = self._centered_kernel_matrix(self._training_data)
         if torch.is_tensor(_matrix):
             _matrix = _matrix.detach().numpy()
@@ -60,8 +69,8 @@ class train_ccka_model():
     @property
     def _get_all_centroids(self):
         centroids = self._main_centroids + [centroid for cluster in self._class_centroids for centroid in cluster]
-        centroids = np.array(centroids)  # Convert to NumPy array if not already
-        return torch.tensor(centroids, dtype=torch.float32, requires_grad=True)
+        #centroids = np.array(centroids)  # Convert to NumPy array if not already
+        return centroids
  
     
     @property
@@ -74,65 +83,49 @@ class train_ccka_model():
     def _get_centroids(self, data, data_labels):
         for c in self._n_classes:
             class_data = data[np.where(data_labels == c)[0]]
-
             # Ensure class_data is a NumPy array
             if isinstance(class_data, torch.Tensor):
                 class_data = class_data.detach().numpy()
-
-            # Calculate centroids and convert back to torch tensor
+            # Calculate centroids and convert back to torch tensor with requires_grad=True
             main_centroid = np.mean(class_data, axis=0)
-            self._main_centroids.append(torch.from_numpy(main_centroid))
+            self._main_centroids.append(torch.tensor(main_centroid, dtype=torch.float32, requires_grad=True))
             self._main_centroids_labels.append(c)
-
-            # Convert class_data to NumPy arrays if necessary
-            if isinstance(class_data, torch.Tensor):
-                class_data = class_data.detach().numpy()
-
-            # Calculate centroids for clusters, and convert back to torch tensor
+            # Calculate centroids for clusters and convert back to torch tensor with requires_grad=True
             class_centroids = [np.mean(cluster, axis=0) for cluster in np.array_split(class_data, self._clusters)]
-            self._class_centroids.append([torch.from_numpy(centroid) for centroid in class_centroids])
-            self._class_centroid_labels.extend([[c] * self._clusters])
+            self._class_centroids.append([torch.tensor(centroid, dtype=torch.float32, requires_grad=True) for centroid in class_centroids])
+            self._class_centroid_labels.append([c] * self._clusters)
 
     def _centered_kernel_matrix(self, x):
+        print(self._get_all_centroids)
         return qml.kernels.kernel_matrix(x, self._get_all_centroids, self._kernel)
     
     def centroid_kernel_matrix(self, X, centroid):
-    
-        kernel_matrix = []
+        kernel_matrix = [self._kernel(centroid, x_i) for x_i in X]
+        return torch.stack(kernel_matrix)
 
-        for i in range(len(X)):
-            kernel_matrix.append(self._kernel(centroid, X[i]))
-
-        return torch.tensor(kernel_matrix, dtype=torch.float32, requires_grad= True)
-    
     def centroid_target_alignment(self, X, Y, centroid, l = 0.1, assume_normalized_kernel=False, rescale_class_labels=True):
-   
         K = self.centroid_kernel_matrix(X, centroid)
-        Y = torch.tensor(Y, dtype=torch.float32, requires_grad= True)
+        Y = torch.tensor(Y)
         numerator = l * torch.sum(Y * K)  
         denominator = torch.sqrt(torch.sum(K**2) * torch.sum(Y**2))
-
         TA = numerator / denominator
-
-        return TA
+        return torch.tensor(TA, dtype=torch.float32, requires_grad= True)
     
-    def loss_kao(self, X, Y, centroid, lambda_kao = 0.01):
+    def _loss_ta(self, data, data_labels):
+        return qml.kernels.target_alignment(data, data_labels, self._kernel, assume_normalized_kernel=True)
+    
+    def loss_kao(self, X, Y, centroid, lambda_kao=0.01):
         TA = self.centroid_target_alignment(X, Y, centroid)
-        params_numpy = []
-        for param in self._kernel.parameters():
-            # Convert the parameter to a NumPy array
-            param_numpy = param.detach().cpu().numpy()
-            params_numpy.append(param_numpy)
-        r = lambda_kao * np.sum(np.array(param_numpy) ** 2)
+        # Regularization term computed using tensors
+        r = lambda_kao * sum((param ** 2).sum() for param in self._kernel.parameters())
         return 1 - TA + r
 
-    def loss_co(self, X, Y, centroid, kernel, cl, lambda_kao = 0.01):
-        TA = self.centroid_target_alignment(X, Y, centroid, kernel)
-        r = torch.sum(torch.maximum(cl - 1, 0) - torch.minimum(cl, 0))
+    def loss_co(self, X, Y, centroid, cl, lambda_kao=0.01):
+        TA = self.centroid_target_alignment(X, Y, centroid)
+        r = torch.sum(torch.maximum(cl - torch.tensor(1), torch.tensor(0)) - torch.minimum(cl, torch.tensor(0)))
         return 1 - TA + r
 
     def _loss_svm(self):
-
         kernel_matrix = qml.kernels.kernel_matrix(self._get_all_centroids, self._get_all_centroids, self._kernel)
         if torch.is_tensor(kernel_matrix):
             kernel_matrix = kernel_matrix.detach().numpy()
@@ -141,9 +134,7 @@ class train_ccka_model():
         clf = SVC(kernel='precomputed')
         clf.fit(kernel_matrix, test_labels)
         svm_loss = hinge_loss(test_labels, clf.decision_function(kernel_matrix))
-
         return torch.tensor(svm_loss,  dtype=torch.float32, requires_grad= True)
-
 
     def fit_kernel(self, training_data, training_labels):
         
@@ -154,30 +145,25 @@ class train_ccka_model():
         centroid_loss_func = self._centroid_loss_function
         kao_class = 1
 
-        for epoch in range(epochs):
-            centroid_idx = kao_class - 1
-            cost = -self._loss_function( torch.vstack([centroid for sublist in self._class_centroids for centroid in sublist]),  # Access current class clusters
-                                         torch.tensor([label for sublist in self._class_centroid_labels for label in sublist]),  # Labels for the current class
-                                         self._main_centroids[centroid_idx],   # Current centroid 
-                                        )
-    
-            centroid_cost = lambda _centroid: -self._centroid_loss_function(
-                                                                                self._class_centroids[centroid_idx],  # Access current class clusters
-                                                                                self._class_centroid_labels[centroid_idx],  # Labels for the current class
-                                                                                self._main_centroids[centroid_idx],        # Current centroid
-                                                                                self._kernel,
-                                                                                _centroid
-                                                                           )
-
-            kao_class = (kao_class % len(self._n_classes)) + 1
-            kernel_loss = cost
-            kernel_loss.backward()
-            optimizer.step()
-
-            centroid_loss = centroid_cost(self._main_centroids[centroid_idx])
-            centroid_loss.backward()
-            centroid_optimizer.step()
+        class1_centroids = self._get_all_centroids[2: 2 + self._clusters]
+        class2_centroids = self._get_all_centroids[2 + self._clusters: ]
+        combined_centroids = torch.cat((class1_centroids, class2_centroids), dim=1)
             
+        stacked_centroids = []
+        stacked_centroids.append(class1_centroids)
+        stacked_centroids.append(class2_centroids)
+        stacked_centroids = torch.vstack(stacked_centroids)
+
+        for epoch in range(epochs):
+
+            centroid_optimizer.zero_grad()
+            
+            loss = -loss_func(self._get_all_centroids, self._get_all_centroid_labels)
+            loss.backward()
+            centroid_optimizer.step()
+
+
+            print(f"Epoch {epoch + 1}th, Kernel Loss: {loss}")
 
         # Update SVM model after training loop
         _matrix = self._centered_kernel_matrix(self._training_data)
@@ -185,20 +171,18 @@ class train_ccka_model():
             _matrix = _matrix.detach().numpy()
         if torch.is_tensor(self._training_labels):
             self._training_labels = self._training_labels.detach().numpy()
-
-        self._model = SVC(kernel='precomputed').fit(_matrix, self._training_labels)
-
+        self._model = SVC(kernel='linear').fit(_matrix, self._training_labels)
 
     def evaluate(self, test_data, test_labels):
 
+        _matrix = self._centered_kernel_matrix(self._training_data)
+        if torch.is_tensor(_matrix):
+            _matrix = _matrix.detach().numpy()
+        if torch.is_tensor(self._training_labels):
+            self._training_labels = self._training_labels.detach().numpy()
+        self._model = SVC(kernel='linear').fit(_matrix, self._training_labels)
 
-        matrix = self._centered_kernel_matrix(test_data)
-        if torch.is_tensor(matrix):
-            matrix = matrix.detach().numpy()
-        if torch.is_tensor(test_labels):
-            test_labels = test_labels.detach().numpy()
-
-        predictions = self._model.predict(matrix)
+        predictions = self._model.predict(_matrix)
         # Calculate evaluation metrics
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
