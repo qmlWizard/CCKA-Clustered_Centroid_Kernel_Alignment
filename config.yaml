@@ -3,7 +3,7 @@
 # Dataset settings
 dataset:
   name: checkerboard
-  n_samples: 128
+  n_samples: 60
   n_features: 2
   n_classes: 2
   noise: 0.1
@@ -13,21 +13,21 @@ dataset:
 # Hyperparameters for the Quantum Kernel
 qkernel:
   device: default.qubit
-  n_qubits: 3
+  n_qubits: 2
   trainable: True
   input_scaling: True
   data_reuploading: True
   ansatz: he
-  ansatz_layers: 6
+  ansatz_layers: 3
   entangling: linear
 
 # Training settings
 training:
-  method: random
+  method: ccka
   batch_size: 32
-  learning_rate: 0.2
-  epochs: 100
-  optimizer: gd
+  learning_rate: 0.01
+  epochs: 250
+  optimizer: adam
   criterion: cross_entropy
   sampling: 8
   clusters: 4
@@ -50,7 +50,3 @@ adam:
   max_iter: 200
   tolerance: 0.00000001
 
-# Paths
-paths:
-  data_path: /path/to/data
-  model_save_path: /path/to/save/model

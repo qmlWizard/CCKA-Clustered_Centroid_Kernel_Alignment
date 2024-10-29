@@ -1,0 +1,78 @@
+{
+    "runs": [
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.8,
+                "f1_score": 0.7945701357466064,
+                "auc": 0.8125
+            },
+            "final": {
+                "executions": 3340,
+                "accuracy": 0.8,
+                "f1_score": 0.8,
+                "auc": 0.8035714285714286
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.8666666666666667,
+                "f1_score": 0.8666666666666667,
+                "auc": 0.8660714285714286
+            },
+            "final": {
+                "executions": 3340,
+                "accuracy": 0.8,
+                "f1_score": 0.8,
+                "auc": 0.8035714285714286
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.7333333333333333,
+                "f1_score": 0.7185185185185186,
+                "auc": 0.75
+            },
+            "final": {
+                "executions": 3340,
+                "accuracy": 0.7333333333333333,
+                "f1_score": 0.7260935143288084,
+                "auc": 0.7455357142857143
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.8666666666666667,
+                "f1_score": 0.8654761904761905,
+                "auc": 0.875
+            },
+            "final": {
+                "executions": 3340,
+                "accuracy": 0.9666666666666667,
+                "f1_score": 0.9665544332210999,
+                "auc": 0.9642857142857143
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.8,
+                "f1_score": 0.7981900452488688,
+                "auc": 0.7946428571428572
+            },
+            "final": {
+                "executions": 3340,
+                "accuracy": 1.0,
+                "f1_score": 1.0,
+                "auc": 1.0
+            }
+        }
+    ],
+    "average_metrics": {
+        "accuracy": 0.86,
+        "f1_score": 0.8585295895099817
+    }
+}

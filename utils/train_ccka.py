@@ -20,15 +20,18 @@ class train_ccka_model():
                  training_data,
                  training_labels,
                  optimizer,
+                 lr,
+                 epochs,
                  train_method,
                  sampling_size=4,
-                 clusters=4):
+                 clusters=4
+                 ):
         super().__init__()
 
         self._kernel = kernel
         self._optimizer = optimizer
         self._method = train_method
-        self._epochs = 100
+        self._epochs = epochs
         self._sampling_size = sampling_size
         self._clusters = clusters
         self._training_data = training_data
@@ -36,6 +39,7 @@ class train_ccka_model():
         self._n_classes = torch.unique(training_labels)
         self._kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, self._kernel)
         self._executions = 0
+        self._lr = lr
 
         self._main_centroids = []
         self._main_centroids_labels = []
@@ -51,9 +55,13 @@ class train_ccka_model():
         # Flatten the list of class centroids to pass as parameters
         self._flattened_class_centroids = [centroid.clone().detach().requires_grad_() for cluster in self._class_centroids for centroid in cluster]
 
+        if optimizer == 'adam':
         # Define optimizer with centroids as parameters
-        self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr=0.01)
-        self._centroid_optimizer = optim.Adam(self._flattened_class_centroids, lr=0.01)
+            self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr=self._lr)
+            self._centroid_optimizer = optim.Adam(self._flattened_class_centroids, lr=self._lr)
+        elif optimizer == 'gd':
+            self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr=self._lr)
+            self._centroid_optimizer = optim.SGD(self._flattened_class_centroids, lr=self._lr)
 
     @property
     def _get_all_centroids(self):
@@ -106,23 +114,28 @@ class train_ccka_model():
     def fit_kernel(self, training_data, training_labels):
         self._kernel._circuit_executions = 0
         for epoch in range(self._epochs):
-            for _class in range(len(self._n_classes)):
-                class_centroids = self._class_centroids[_class]
-                class_labels = torch.tensor(self._class_centroid_labels[_class], dtype=torch.int)
-                
-                # Kao loss
-                loss_kao = -self._loss_kao(class_centroids, class_labels, self._main_centroids[_class])
-                self._kernel_optimizer.zero_grad()
-                loss_kao.backward(retain_graph=True)
-                self._kernel_optimizer.step() 
-                
-                # Co loss
-                self._centroid_optimizer.zero_grad()
-                loss_co = -self.loss_co(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
-                loss_co.backward(retain_graph=True)
-                self._centroid_optimizer.step()
+            _class = epoch % len(self._n_classes)
+            class_centroids = self._class_centroids[_class]
+            class_labels = torch.tensor(self._class_centroid_labels[_class], dtype=torch.int)
+            
+            # Kao loss
+            loss_kao = -self._loss_kao(class_centroids, class_labels, self._main_centroids[_class])
+            self._kernel_optimizer.zero_grad()
+            loss_kao.backward(retain_graph=True)
+            self._kernel_optimizer.step() 
+            
+            # Co loss
+            self._centroid_optimizer.zero_grad()
+            loss_co = -self.loss_co(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
+            loss_co.backward(retain_graph=True)
+            self._centroid_optimizer.step()
 
-            print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
+            #print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
+            if epoch % 50 == 0:
+                current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
+                print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
+
+        
         self._executions = self._kernel._circuit_executions
 
     def evaluate(self, test_data, test_labels):
