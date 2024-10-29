@@ -23,14 +23,14 @@ qkernel:
 
 # Training settings
 training:
-  method: ccka
+  method: random
   batch_size: 32
   learning_rate: 0.2
   epochs: 100
   optimizer: gd
   criterion: cross_entropy
-  sampling: 4
-  clusters: 2
+  sampling: 8
+  clusters: 4
 
 
 #Hyperparameters for Optimizers
