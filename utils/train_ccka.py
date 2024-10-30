@@ -53,7 +53,7 @@ class train_ccka_model():
         self.alignment_arr = []
 
         # Flatten the list of class centroids to pass as parameters
-        self._flattened_class_centroids = [centroid.clone().detach().requires_grad_() for cluster in self._get_all_centroids for centroid in cluster]
+        self._flattened_class_centroids = [centroid.clone().detach().requires_grad_() for cluster in self._class_centroids for centroid in cluster]
 
         if optimizer == 'adam':
         # Define optimizer with centroids as parameters
@@ -64,7 +64,7 @@ class train_ccka_model():
             self._centroid_optimizer = optim.SGD(self._flattened_class_centroids, lr=self._lr)
         self._centroid_minimization_opt = optim.Adam([
                                                         {'params': self._flattened_class_centroids, 'lr': self._lr},
-                                                        {'params': self._kernel.parameters(), 'lr': self._lr}
+                                                        {'params': self._kernel.parameters(), 'lr': self._lr},
                                                     ])
 
     @property
@@ -121,7 +121,8 @@ class train_ccka_model():
         inter_class_loss = 0.0
         n_intra = 0
         n_inter = 0
-
+        
+        """
         for i, label in enumerate(labels):
 
             dist = 1 - self._kernel(centroids[i], main_centroid)
@@ -132,12 +133,22 @@ class train_ccka_model():
             else:
                 inter_class_loss += dist
                 n_inter += 1
+        """
 
+        for i in range(len(centroids)):
+            for j in range(i + 1, len(centroids)):
+                dist = torch.norm(centroids[i] - centroids[j])
+                if labels[i] == labels[j]:  # same class
+                    intra_class_loss += dist
+                    n_intra += 1
+                else:  # different classes
+                    inter_class_loss += dist
+                    n_inter += 1
             
         intra_class_loss /= n_intra if n_intra > 0 else 1
         inter_class_loss /= n_inter if n_inter > 0 else 1
 
-        loss = intra_class_loss - inter_class_loss
+        loss = intra_class_loss - inter_class_loss 
 
         return loss.requires_grad_()
 
@@ -146,30 +157,30 @@ class train_ccka_model():
         self._kernel._circuit_executions = 0
         for epoch in range(self._epochs):
             _class = epoch % len(self._n_classes)
-            #class_centroids = self._class_centroids[_class]
-            #class_labels = torch.tensor(self._class_centroid_labels[_class], dtype=torch.int)
+            class_centroids = self._class_centroids[_class]
+            class_labels = torch.tensor(self._class_centroid_labels[_class], dtype=torch.int)
             
             # Kao loss
-            #loss_kao = -self._loss_kao(class_centroids, class_labels, self._main_centroids[_class])
-            #self._kernel_optimizer.zero_grad()
-            #loss_kao.backward(retain_graph=True)
-            #self._kernel_optimizer.step() 
+            loss_kao = -self._loss_kao(class_centroids, class_labels, self._main_centroids[_class])
+            self._kernel_optimizer.zero_grad()
+            loss_kao.backward(retain_graph=True)
+            self._kernel_optimizer.step() 
             
             # Co loss
-            #self._centroid_optimizer.zero_grad()
-            #loss_co = -self.loss_co(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
-            #loss_co.backward(retain_graph=True)
-            #self._centroid_optimizer.step()
+            self._centroid_optimizer.zero_grad()
+            loss_co = -self.loss_co(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
+            loss_co.backward(retain_graph=True)
+            self._centroid_optimizer.step()
 
-            #print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
-            #if epoch % 50 == 0:
-            #    current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
-            #    print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
-            self._centroid_minimization_opt.zero_grad()
-            loss = self._loss_centroid_dist_min(self._flattened_class_centroids, self._get_all_centroid_labels[2:], self._main_centroids[_class])
-            loss.backward(retain_graph=True)
-            self._centroid_minimization_opt.step()
-            print(f"Epoch {epoch +1}th, loss: {loss}")
+            print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
+            if epoch % 50 == 0:
+                current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
+                print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
+            #self._centroid_minimization_opt.zero_grad()
+            #loss = self._loss_centroid_dist_min(self._flattened_class_centroids, self._get_all_centroid_labels[2:], self._main_centroids[_class])
+            #loss.backward(retain_graph=True)
+            #self._centroid_minimization_opt.step()
+            #print(f"Epoch {epoch +1}th, loss: {loss}")
 
         self._executions = self._kernel._circuit_executions
 

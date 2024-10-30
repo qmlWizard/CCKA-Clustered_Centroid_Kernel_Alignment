@@ -2,7 +2,7 @@
 
 # Dataset settings
 dataset:
-  name: checkerboard
+  name: double_cake
   n_samples: 100
   n_features: 2
   n_classes: 2
@@ -13,12 +13,12 @@ dataset:
 # Hyperparameters for the Quantum Kernel
 qkernel:
   device: default.qubit
-  n_qubits: 2
+  n_qubits: 5
   trainable: True
   input_scaling: True
   data_reuploading: True
-  ansatz: he
-  ansatz_layers: 3
+  ansatz: embedding_paper
+  ansatz_layers: 6
   entangling: linear
 
 # Training settings
@@ -26,7 +26,7 @@ training:
   method: ccka
   batch_size: 32
   learning_rate: 0.01
-  epochs: 150
+  epochs: 250
   optimizer: adam
   criterion: cross_entropy
   sampling: 8

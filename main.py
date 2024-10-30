@@ -77,7 +77,7 @@ for run in range(5):
             clusters=config['training']['clusters'],
             epochs=config['training']['epochs']
         )
-        experiment_name = f"he_results/{config['dataset']['name']}_{config['training']['method']}_{config['training']['clusters']}_exp1.json"
+        experiment_name = f"embedding_paper/{config['dataset']['name']}_{config['training']['method']}_{config['training']['clusters']}_exp1.json"
     else:
         agent = train_model(
             kernel=kernel,
