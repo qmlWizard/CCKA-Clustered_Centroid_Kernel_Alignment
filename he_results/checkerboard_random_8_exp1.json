@@ -1,0 +1,78 @@
+{
+    "runs": [
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.58,
+                "f1_score": 0.5801680672268907,
+                "auc": 0.5801282051282051
+            },
+            "final": {
+                "executions": 12880,
+                "accuracy": 0.72,
+                "f1_score": 0.72,
+                "auc": 0.7195512820512819
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.58,
+                "f1_score": 0.5801680672268907,
+                "auc": 0.5801282051282051
+            },
+            "final": {
+                "executions": 12880,
+                "accuracy": 0.72,
+                "f1_score": 0.72,
+                "auc": 0.7195512820512819
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.58,
+                "f1_score": 0.5801680672268907,
+                "auc": 0.5801282051282051
+            },
+            "final": {
+                "executions": 12880,
+                "accuracy": 0.72,
+                "f1_score": 0.72,
+                "auc": 0.7195512820512819
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.58,
+                "f1_score": 0.5801680672268907,
+                "auc": 0.5801282051282051
+            },
+            "final": {
+                "executions": 12880,
+                "accuracy": 0.74,
+                "f1_score": 0.739686872741871,
+                "auc": 0.7387820512820512
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.58,
+                "f1_score": 0.5801680672268907,
+                "auc": 0.5801282051282051
+            },
+            "final": {
+                "executions": 12880,
+                "accuracy": 0.64,
+                "f1_score": 0.6388461538461538,
+                "auc": 0.6426282051282051
+            }
+        }
+    ],
+    "average_metrics": {
+        "accuracy": 0.708,
+        "f1_score": 0.7077066053176051
+    }
+}

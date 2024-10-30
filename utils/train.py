@@ -22,6 +22,8 @@ class train_model():
                  training_data,
                  training_labels,
                  optimizer,
+                 lr,
+                 epochs,
                  train_method,
                  sampling_size=8,
                  clusters=2):
@@ -30,13 +32,20 @@ class train_model():
         self._kernel = kernel
         self._optimizer = optimizer
         self._method = train_method
-        self._epochs = 100
+        self._epochs = epochs
+        self._lr = lr
         self._sampling_size = sampling_size
         self._clusters = clusters
         self._kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, self._kernel)
         self._training_data = training_data
         self._training_labels = training_labels
         self._executions = 0
+
+        if optimizer == 'adam':
+        # Define optimizer with centroids as parameters
+            self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr=self._lr)
+        elif optimizer == 'gd':
+            self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr=self._lr)
 
         if self._method == 'random':
             self._loss_function = self._loss_ta
@@ -68,7 +77,7 @@ class train_model():
         return data, data_labels
     
     def fit_kernel(self, training_data, training_labels):
-        optimizer = self._optimizer
+        optimizer = self._kernel_optimizer
         epochs = self._epochs
         loss_func = self._loss_function
         samples_func = self._sample_function
@@ -83,14 +92,16 @@ class train_model():
 
             # Store and print loss values
             self._loss_arr.append(loss.item())
-            print(f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item()}")
+            if epoch % 50 == 0:
+                current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
+                print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
 
-        if torch.is_tensor(training_data):
-            training_data = training_data.detach().numpy()
-        if torch.is_tensor(training_labels):
-            training_labels = training_labels.detach().numpy()
-
+        
         self._executions = self._kernel._circuit_executions
+
+
+
+    def evaluate(self, test_data, test_labels):
         _matrix = self._kernel_matrix(self._training_data, self._training_data)
         if torch.is_tensor(_matrix):
             _matrix = _matrix.detach().numpy()
@@ -98,23 +109,16 @@ class train_model():
             self._training_labels = self._training_labels.detach().numpy()
 
         self._model = SVC(kernel='precomputed').fit(_matrix, self._training_labels)
-        return self._model
 
-    def evaluate(self, test_data, test_labels):
-
-
-        matrix = self._kernel_matrix(test_data, self._training_data)
-        if torch.is_tensor(matrix):
-            matrix = matrix.detach().numpy()
+        _matrix = self._kernel_matrix(test_data, self._training_data)
+        if torch.is_tensor(_matrix):
+            _matrix = _matrix.detach().numpy()
         if torch.is_tensor(test_labels):
             test_labels = test_labels.detach().numpy()
-
-        predictions = self._model.predict(matrix)
-        # Calculate evaluation metrics
+        predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
         auc = roc_auc_score(test_labels, predictions)
-        # Print and return the results
         print(f"Testing Accuracy: {accuracy}")
         print(f"F1 Score: {f1}")
         print(f"AUC: {auc}")

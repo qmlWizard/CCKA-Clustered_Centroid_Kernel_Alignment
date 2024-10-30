@@ -2,8 +2,8 @@
 
 # Dataset settings
 dataset:
-  name: checkerboard
-  n_samples: 60
+  name: moons
+  n_samples: 100
   n_features: 2
   n_classes: 2
   noise: 0.1
@@ -23,10 +23,10 @@ qkernel:
 
 # Training settings
 training:
-  method: ccka
+  method: random
   batch_size: 32
   learning_rate: 0.01
-  epochs: 250
+  epochs: 50
   optimizer: adam
   criterion: cross_entropy
   sampling: 8

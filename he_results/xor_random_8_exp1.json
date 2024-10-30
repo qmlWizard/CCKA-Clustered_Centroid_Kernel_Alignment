@@ -1,0 +1,78 @@
+{
+    "runs": [
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.74,
+                "f1_score": 0.7327498927498928,
+                "auc": 0.7167487684729063
+            },
+            "final": {
+                "executions": 5250,
+                "accuracy": 0.84,
+                "f1_score": 0.84,
+                "auc": 0.8620689655172413
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.74,
+                "f1_score": 0.7327498927498928,
+                "auc": 0.7167487684729063
+            },
+            "final": {
+                "executions": 5250,
+                "accuracy": 0.84,
+                "f1_score": 0.84,
+                "auc": 0.8620689655172413
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.74,
+                "f1_score": 0.7327498927498928,
+                "auc": 0.7167487684729063
+            },
+            "final": {
+                "executions": 5250,
+                "accuracy": 0.84,
+                "f1_score": 0.84,
+                "auc": 0.8620689655172413
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.74,
+                "f1_score": 0.7327498927498928,
+                "auc": 0.7167487684729063
+            },
+            "final": {
+                "executions": 5250,
+                "accuracy": 0.84,
+                "f1_score": 0.84,
+                "auc": 0.8620689655172413
+            }
+        },
+        {
+            "init": {
+                "executions": 0,
+                "accuracy": 0.74,
+                "f1_score": 0.7327498927498928,
+                "auc": 0.7167487684729063
+            },
+            "final": {
+                "executions": 5250,
+                "accuracy": 0.82,
+                "f1_score": 0.8193517406962785,
+                "auc": 0.8448275862068966
+            }
+        }
+    ],
+    "average_metrics": {
+        "accuracy": 0.836,
+        "f1_score": 0.8358703481392556
+    }
+}

@@ -155,10 +155,11 @@ class train_ccka_model():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
-        auc = roc_auc_score(test_labels, predictions)
+        #auc = roc_auc_score(test_labels, predictions)
         print(f"Testing Accuracy: {accuracy}")
         print(f"F1 Score: {f1}")
-        print(f"AUC: {auc}")
+        #print(f"AUC: {auc}")
+        auc = 0
         return {
             'executions': self._executions,
             'accuracy': accuracy,

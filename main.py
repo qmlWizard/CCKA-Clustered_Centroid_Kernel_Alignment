@@ -66,16 +66,30 @@ for run in range(5):
     print(f"Run {run + 1}: Sample Distance between x[0] and x[1]: ", kernel(training_data[0], training_data[1]))
 
     # Initialize agent and perform training
-    agent = train_ccka_model(
-        kernel=kernel,
-        training_data=training_data,
-        training_labels=training_labels,
-        optimizer=config['training']['optimizer'],
-        lr=config['training']['learning_rate'],
-        train_method='ccka',
-        clusters=config['training']['clusters'],
-        epochs=config['training']['epochs']
-    )
+    if config['training']['method'] == 'ccka':
+        agent = train_ccka_model(
+            kernel=kernel,
+            training_data=training_data,
+            training_labels=training_labels,
+            optimizer=config['training']['optimizer'],
+            lr=config['training']['learning_rate'],
+            train_method='ccka',
+            clusters=config['training']['clusters'],
+            epochs=config['training']['epochs']
+        )
+        experiment_name = f"he_results/{config['dataset']['name']}_{config['training']['method']}_{config['training']['clusters']}_exp1.json"
+    else:
+        agent = train_model(
+            kernel=kernel,
+            training_data=training_data,
+            training_labels=training_labels,
+            optimizer=config['training']['optimizer'],
+            lr=config['training']['learning_rate'],
+            train_method=config['training']['method'],
+            sampling_size=config['training']['sampling'],
+            epochs=config['training']['epochs']
+        )
+        experiment_name = f"he_results/{config['dataset']['name']}_{config['training']['method']}_{config['training']['sampling']}_exp1.json"
 
     # Evaluate before fitting kernel
     init_metrics = agent.evaluate(testing_data, testing_labels)
@@ -96,7 +110,7 @@ avg_metrics = {
 }
 
 # Store metrics and average in JSON format
-experiment_name = f"he_results/{config['dataset']['name']}_{config['training']['method']}_{config['training']['clusters']}_exp1.json"
+
 metrics_to_save = {
     'runs': all_metrics,
     'average_metrics': avg_metrics
