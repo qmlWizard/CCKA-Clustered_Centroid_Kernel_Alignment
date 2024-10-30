@@ -89,7 +89,7 @@ for run in range(5):
             sampling_size=config['training']['sampling'],
             epochs=config['training']['epochs']
         )
-        experiment_name = f"he_results/{config['dataset']['name']}_{config['training']['method']}_{config['training']['sampling']}_exp1.json"
+        experiment_name = f"he_results_cmdloss/{config['dataset']['name']}_{config['training']['method']}_{config['training']['sampling']}_exp1.json"
 
     # Evaluate before fitting kernel
     init_metrics = agent.evaluate(testing_data, testing_labels)
@@ -117,10 +117,10 @@ metrics_to_save = {
 }
 
 # Ensure directory exists
-os.makedirs("he_results", exist_ok=True)
+os.makedirs("he_results_cmdloss", exist_ok=True)
 
 # Save to JSON
-with open(experiment_name, 'w') as json_file:
-    json.dump(metrics_to_save, json_file, indent=4)
+#with open(experiment_name, 'w') as json_file:
+#    json.dump(metrics_to_save, json_file, indent=4)
 
 print(f"Metrics saved to {experiment_name}")
