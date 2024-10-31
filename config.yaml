@@ -2,7 +2,7 @@
 
 # Dataset settings
 dataset:
-  name: double_cake
+  name: swiss_roll
   n_samples: 100
   n_features: 2
   n_classes: 2
@@ -17,8 +17,8 @@ qkernel:
   trainable: True
   input_scaling: True
   data_reuploading: True
-  ansatz: embedding_paper
-  ansatz_layers: 6
+  ansatz: he
+  ansatz_layers: 24
   entangling: linear
 
 # Training settings
