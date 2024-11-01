@@ -1,5 +1,4 @@
 import pennylane as qml
-from pennylane import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -8,19 +7,20 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
-import numpy as np
 import math
 import yaml
 import time
-import os 
+import os
 
 
-class train_model():
+class TrainModel():
 
     def __init__(self, 
                  kernel,
                  training_data,
                  training_labels,
+                 testing_data,
+                 testing_labels,
                  optimizer,
                  lr,
                  epochs,
@@ -39,10 +39,12 @@ class train_model():
         self._kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, self._kernel)
         self._training_data = training_data
         self._training_labels = training_labels
+        self._testing_data = testing_data
+        self._testing_labels = testing_labels
         self._executions = 0
 
         if optimizer == 'adam':
-        # Define optimizer with centroids as parameters
+            # Define optimizer with centroids as parameters
             self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr=self._lr)
         elif optimizer == 'gd':
             self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr=self._lr)
@@ -94,12 +96,10 @@ class train_model():
             self._loss_arr.append(loss.item())
             if epoch % 50 == 0:
                 current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
+                self.alignment_arr.append(current_alignment.item())
                 print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
-
         
         self._executions = self._kernel._circuit_executions
-
-
 
     def evaluate(self, test_data, test_labels):
         _matrix = self._kernel_matrix(self._training_data, self._training_data)
@@ -126,5 +126,7 @@ class train_model():
             'executions': self._executions,
             'accuracy': accuracy,
             'f1_score': f1,
-            'auc': auc
+            'auc': auc,
+            'alignment_arr': self.alignment_arr,
+            'loss_arr': self._loss_arr
         }

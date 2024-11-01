@@ -4,7 +4,7 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 import torch.optim as optim
 from sklearn.svm import SVC
-from sklearn.metrics import hinge_loss, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import math
@@ -13,7 +13,7 @@ import time
 import os
 
 
-class TrainCCKAModel():
+class TrainModel():
 
     def __init__(self, 
                  kernel,
@@ -27,7 +27,7 @@ class TrainCCKAModel():
                  train_method,
                  lambda_kao=0.01,
                  lambda_co=0.01,
-                 sampling_size=4,
+                 sampling_size=8,
                  clusters=4
                  ):
         super().__init__()
@@ -55,8 +55,6 @@ class TrainCCKAModel():
         self._class_centroid_labels = []
 
         self._get_centroids(self._training_data, self._training_labels)
-        self._loss_function = self._loss_kao
-        self._centroid_loss_function = self.loss_co
         self._loss_arr = []
         self.alignment_arr = []
 
@@ -74,6 +72,25 @@ class TrainCCKAModel():
             {'params': self._flattened_class_centroids, 'lr': self._lr},
             {'params': self._kernel.parameters(), 'lr': self._lr},
         ])
+
+        if self._method == 'random':
+            self._loss_function = self._loss_ta
+            self._sample_function = self._sampler_random_sampling
+        elif self._method == 'full':
+            self._loss_function = self._loss_ta
+            self._sample_function = self._full_data
+        elif self._method == 'centroid':
+            self._loss_function = self._loss_kao
+            self._centroid_loss_function = self.loss_co
+            self._sample_function = self._get_all_centroids
+
+        _matrix = self._kernel_matrix(self._training_data, self._training_data)
+        if torch.is_tensor(_matrix):
+            _matrix = _matrix.detach().numpy()
+        if torch.is_tensor(self._training_labels):
+            self._training_labels = self._training_labels.detach().numpy()
+
+        self._model = SVC(kernel='precomputed').fit(_matrix, self._training_labels)
 
     @property
     def _get_all_centroids(self):
@@ -123,55 +140,59 @@ class TrainCCKAModel():
         regularization_term = torch.sum(torch.clamp(cl_tensor - 1.0, min=0.0) - torch.clamp(cl_tensor, max=0.0))
         return 1 - TA + self.lambda_co * regularization_term
 
-    def _loss_centroid_dist_min(self, centroids, labels, main_centroid):
+    def _loss_ta(self, data, data_labels):
+        return qml.kernels.target_alignment(data, data_labels, self._kernel, assume_normalized_kernel=True)
 
-        intra_class_loss = 0.0
-        inter_class_loss = 0.0
-        n_intra = 0
-        n_inter = 0
-        
-        for i in range(len(centroids)):
-            for j in range(i + 1, len(centroids)):
-                dist = torch.norm(centroids[i] - centroids[j])
-                if labels[i] == labels[j]:  # same class
-                    intra_class_loss += dist
-                    n_intra += 1
-                else:  # different classes
-                    inter_class_loss += dist
-                    n_inter += 1
-            
-        intra_class_loss /= n_intra if n_intra > 0 else 1
-        inter_class_loss /= n_inter if n_inter > 0 else 1
+    def _sampler_random_sampling(self, data, data_labels):
+        subset_indices = torch.randperm(len(data))[:self._sampling_size]
+        return data[subset_indices], data_labels[subset_indices]
 
-        loss = intra_class_loss - inter_class_loss 
-
-        return loss.requires_grad_()
-
+    def _full_data(self, data, data_labels):
+        return data, data_labels
+    
     def fit_kernel(self, training_data, training_labels):
+        optimizer = self._kernel_optimizer
+        epochs = self._epochs
+        loss_func = self._loss_function
+        samples_func = self._sample_function
         self._kernel._circuit_executions = 0
-        for epoch in range(self._epochs):
-            _class = epoch % len(self._n_classes)
-            class_centroids = self._class_centroids[_class]
-            class_labels = torch.tensor(self._class_centroid_labels[_class], dtype=torch.int)
-            
-            # Kao loss
-            loss_kao = -self._loss_kao(class_centroids, class_labels, self._main_centroids[_class])
-            self._kernel_optimizer.zero_grad()
-            loss_kao.backward(retain_graph=True)
-            self._kernel_optimizer.step() 
-            
-            # Co loss
-            self._centroid_optimizer.zero_grad()
-            loss_co = -self.loss_co(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
-            loss_co.backward(retain_graph=True)
-            self._centroid_optimizer.step()
+        for epoch in range(epochs):
+            optimizer.zero_grad()
 
-            print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
-            if  (epoch + 1) % 10 == 0:
-                current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
-                self.alignment_arr.append(current_alignment.item())
-                print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
+            sampled_data, sampled_labels = samples_func(training_data, training_labels)
+            if self._method == 'centroid':
+                _class = epoch % len(self._n_classes)
+                class_centroids = self._class_centroids[_class]
+                class_labels = torch.tensor(self._class_centroid_labels[_class], dtype=torch.int)
+                
+                # Kao loss
+                loss_kao = -self._loss_kao(class_centroids, class_labels, self._main_centroids[_class])
+                loss_kao.backward(retain_graph=True)
+                optimizer.step() 
+                
+                # Co loss
+                self._centroid_optimizer.zero_grad()
+                loss_co = -self.loss_co(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
+                loss_co.backward(retain_graph=True)
+                self._centroid_optimizer.step()
 
+                print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
+                if  (epoch + 1) % 10 == 0:
+                    current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
+                    self.alignment_arr.append(current_alignment.item())
+                    print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
+            else:
+                loss = -loss_func(sampled_data, sampled_labels)
+                loss.backward()
+                optimizer.step()
+
+                # Store and print loss values
+                self._loss_arr.append(loss.item())
+                if epoch % 50 == 0:
+                    current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
+                    self.alignment_arr.append(current_alignment.item())
+                    print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
+        
         self._executions = self._kernel._circuit_executions
 
     def evaluate(self, test_data, test_labels):
@@ -191,11 +212,10 @@ class TrainCCKAModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
-        #auc = roc_auc_score(test_labels, predictions)
+        auc = roc_auc_score(test_labels, predictions)
         print(f"Testing Accuracy: {accuracy}")
         print(f"F1 Score: {f1}")
-        #print(f"AUC: {auc}")
-        auc = 0
+        print(f"AUC: {auc}")
         return {
             'executions': self._executions,
             'accuracy': accuracy,

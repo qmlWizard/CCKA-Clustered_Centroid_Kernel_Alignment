@@ -2,7 +2,7 @@
 
 # Dataset settings
 dataset:
-  name: swiss_roll
+  name: checkerboard
   n_samples: 100
   n_features: 2
   n_classes: 2
@@ -13,20 +13,20 @@ dataset:
 # Hyperparameters for the Quantum Kernel
 qkernel:
   device: default.qubit
-  n_qubits: 5
+  n_qubits: 2
   trainable: True
   input_scaling: True
   data_reuploading: True
   ansatz: he
-  ansatz_layers: 24
+  ansatz_layers: 3
   entangling: linear
 
 # Training settings
 training:
-  method: random
+  method: ccka
   batch_size: 32
   learning_rate: 0.01
-  epochs: 250
+  epochs: 1000
   optimizer: adam
   criterion: cross_entropy
   sampling: 8
