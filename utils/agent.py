@@ -1,4 +1,5 @@
 import pennylane as qml
+from pennylane import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -25,9 +26,12 @@ class TrainModel():
                  lr,
                  epochs,
                  train_method,
+                 target_accuracy=None,  # New parameter for target accuracy
+                 get_alignment_every=10,  # New parameter to select alignment frequency
+                 validate_every_epoch=False,  # New parameter for validation accuracy
+                 base_path=None,  # New parameter for base path to save plots
                  lambda_kao=0.01,
                  lambda_co=0.01,
-                 sampling_size=8,
                  clusters=4
                  ):
         super().__init__()
@@ -36,7 +40,10 @@ class TrainModel():
         self._optimizer = optimizer
         self._method = train_method
         self._epochs = epochs
-        self._sampling_size = sampling_size
+        self._target_accuracy = target_accuracy
+        self._get_alignment_every = get_alignment_every
+        self._validate_every_epoch = validate_every_epoch
+        self._sampling_size = clusters * 2
         self._clusters = clusters
         self._training_data = training_data
         self._training_labels = training_labels
@@ -48,6 +55,7 @@ class TrainModel():
         self._lr = lr
         self.lambda_kao = lambda_kao
         self.lambda_co = lambda_co
+        self._base_path = base_path
 
         self._main_centroids = []
         self._main_centroids_labels = []
@@ -57,6 +65,11 @@ class TrainModel():
         self._get_centroids(self._training_data, self._training_labels)
         self._loss_arr = []
         self.alignment_arr = []
+        self.validation_accuracy_arr = []
+        self.initial_training_accuracy = None
+        self.final_training_accuracy = None
+        self.initial_testing_accuracy = None
+        self.final_testing_accuracy = None
 
         # Flatten the list of class centroids to pass as parameters
         self._flattened_class_centroids = [centroid.clone().detach().requires_grad_() for cluster in self._class_centroids for centroid in cluster]
@@ -79,7 +92,7 @@ class TrainModel():
         elif self._method == 'full':
             self._loss_function = self._loss_ta
             self._sample_function = self._full_data
-        elif self._method == 'centroid':
+        elif self._method == 'ccka':
             self._loss_function = self._loss_kao
             self._centroid_loss_function = self.loss_co
             self._sample_function = self._get_all_centroids
@@ -91,6 +104,7 @@ class TrainModel():
             self._training_labels = self._training_labels.detach().numpy()
 
         self._model = SVC(kernel='precomputed').fit(_matrix, self._training_labels)
+        self.initial_training_accuracy = accuracy_score(self._training_labels, self._model.predict(_matrix))
 
     @property
     def _get_all_centroids(self):
@@ -160,7 +174,7 @@ class TrainModel():
             optimizer.zero_grad()
 
             sampled_data, sampled_labels = samples_func(training_data, training_labels)
-            if self._method == 'centroid':
+            if self._method == 'ccka':
                 _class = epoch % len(self._n_classes)
                 class_centroids = self._class_centroids[_class]
                 class_labels = torch.tensor(self._class_centroid_labels[_class], dtype=torch.int)
@@ -177,7 +191,13 @@ class TrainModel():
                 self._centroid_optimizer.step()
 
                 print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
-                if  (epoch + 1) % 10 == 0:
+                
+                if self._validate_every_epoch:
+                    validation_accuracy = self.evaluate(training_data, training_labels)['accuracy']
+                    self.validation_accuracy_arr.append(validation_accuracy)
+                    print(f"Validation Accuracy at Epoch {epoch + 1}: {validation_accuracy}")
+
+                if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
                     self.alignment_arr.append(current_alignment.item())
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
@@ -188,12 +208,26 @@ class TrainModel():
 
                 # Store and print loss values
                 self._loss_arr.append(loss.item())
-                if epoch % 50 == 0:
+                
+                if self._validate_every_epoch:
+                    validation_accuracy = self.evaluate(training_data, training_labels)['accuracy']
+                    self.validation_accuracy_arr.append(validation_accuracy)
+                    print(f"Validation Accuracy at Epoch {epoch + 1}: {validation_accuracy}")
+
+                if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
                     self.alignment_arr.append(current_alignment.item())
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
+
+            if self._target_accuracy:
+                validation_accuracy = self.evaluate(training_data, training_labels)['accuracy']
+                if validation_accuracy >= self._target_accuracy:
+                    print(f"Target accuracy of {self._target_accuracy} achieved at Epoch {epoch + 1}. Training stopped.")
+                    break
         
         self._executions = self._kernel._circuit_executions
+        # Store final training accuracy
+        self.final_training_accuracy = accuracy_score(self._training_labels, self._model.predict(self._kernel_matrix(self._training_data, self._training_data).detach().numpy()))
 
     def evaluate(self, test_data, test_labels):
         _matrix = self._kernel_matrix(self._training_data, self._training_data)
@@ -216,11 +250,109 @@ class TrainModel():
         print(f"Testing Accuracy: {accuracy}")
         print(f"F1 Score: {f1}")
         print(f"AUC: {auc}")
+
+        # Store initial and final testing accuracies
+        if self.initial_testing_accuracy is None:
+            self.initial_testing_accuracy = accuracy
+        self.final_testing_accuracy = accuracy
+
+        # Plot results
+        if self._base_path:
+            plt.style.use('seaborn-v0_8')
+            width = 0.25
+
+            # Plot Validation Accuracy
+            plt.figure(figsize=(10, 6))
+            plt.plot(range(1, len(self.validation_accuracy_arr) + 1), self.validation_accuracy_arr, label='Validation Accuracy', color='#ff7f0f', alpha=0.8)
+            plt.xlabel('Epochs', fontsize=12, fontweight='bold')
+            plt.ylabel('Accuracy', fontsize=12, fontweight='bold')
+            plt.title('Validation Accuracy per Epoch', fontsize=14, fontweight='bold')
+            plt.legend(fontsize=11, loc='best')
+            plt.gca().spines['top'].set_visible(False)
+            plt.gca().spines['right'].set_visible(False)
+            plt.grid(axis='y', linestyle='--', alpha=0.6)
+            plt.tight_layout()
+            plt.savefig(os.path.join(self._base_path, 'validation_accuracy.png'), dpi=300, bbox_inches='tight')
+
+            # Plot Alignment per Epoch
+            plt.figure(figsize=(10, 6))
+            plt.plot(range(1, len(self.alignment_arr) + 1), self.alignment_arr, label='Alignment', color='#1f77b4', alpha=0.8)
+            plt.xlabel('Epochs', fontsize=12, fontweight='bold')
+            plt.ylabel('Alignment', fontsize=12, fontweight='bold')
+            plt.title('Alignment per Epoch', fontsize=14, fontweight='bold')
+            plt.legend(fontsize=11, loc='best')
+            plt.gca().spines['top'].set_visible(False)
+            plt.gca().spines['right'].set_visible(False)
+            plt.grid(axis='y', linestyle='--', alpha=0.6)
+            plt.tight_layout()
+            plt.savefig(os.path.join(self._base_path, 'alignment_per_epoch.png'), dpi=300, bbox_inches='tight')
+
+            # Plot Training Loss per Epoch
+            plt.figure(figsize=(10, 6))
+            plt.plot(range(1, len(self._loss_arr) + 1), self._loss_arr, label='Training Loss', color='#2ca02c', alpha=0.8)
+            plt.xlabel('Epochs', fontsize=12, fontweight='bold')
+            plt.ylabel('Loss', fontsize=12, fontweight='bold')
+            plt.title('Training Loss per Epoch', fontsize=14, fontweight='bold')
+            plt.legend(fontsize=11, loc='best')
+            plt.gca().spines['top'].set_visible(False)
+            plt.gca().spines['right'].set_visible(False)
+            plt.grid(axis='y', linestyle='--', alpha=0.6)
+            plt.tight_layout()
+            plt.savefig(os.path.join(self._base_path, 'training_loss.png'), dpi=300, bbox_inches='tight')
+
+            # Plot Initial and Final Accuracy
+            algorithms = ['Training', 'Testing']
+            x = np.arange(len(algorithms))
+
+            plt.figure(figsize=(10, 6))
+            bars1 = plt.bar(x - width/2, [self.initial_training_accuracy, self.initial_testing_accuracy], width, label='Initial Accuracy', color='#ff7f0f', edgecolor='black', alpha=0.8)
+            bars2 = plt.bar(x + width/2, [self.final_training_accuracy, self.final_testing_accuracy], width, label='Final Accuracy', color='#1f77b4', edgecolor='black', alpha=0.8)
+
+            # Adding values on top of each bar
+            for bar in bars1:
+                plt.text(bar.get_x() + bar.get_width()/4, bar.get_height() + 0.01, f'{bar.get_height():.2f}', ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+            for bar in bars2:
+                plt.text(bar.get_x() + bar.get_width()/4, bar.get_height() + 0.01, f'{bar.get_height():.2f}', ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+            plt.xlabel('Dataset', fontsize=12, fontweight='bold')
+            plt.ylabel('Accuracy', fontsize=12, fontweight='bold')
+            plt.xticks(x, algorithms, fontsize=11)
+            plt.title('Initial and Final Training and Testing Accuracy', fontsize=14, fontweight='bold')
+            plt.legend(fontsize=11, loc='best')
+            plt.gca().spines['top'].set_visible(False)
+            plt.gca().spines['right'].set_visible(False)
+            plt.grid(axis='y', linestyle='--', alpha=0.6)
+            plt.tight_layout()
+            plt.savefig(os.path.join(self._base_path, 'initial_final_accuracy.png'), dpi=300, bbox_inches='tight')
+
+
+            X_train_2d = self._training_data[:, :2]
+            X_test_2d = test_data[:, :2]
+            x_min, x_max = X_train_2d[:, 0].min() - 1, X_train_2d[:, 0].max() + 1
+            y_min, y_max = X_train_2d[:, 1].min() - 1, X_train_2d[:, 1].max() + 1
+            xx, yy = np.meshgrid(np.arange(x_min, x_max, 0.1), np.arange(y_min, y_max, 0.1))
+            Z = self._model.predict(self._kernel_matrix(np.c_[xx.ravel(), yy.ravel()], self._training_data))
+            Z = Z.reshape(xx.shape)
+
+            plt.figure(figsize=(10, 6))
+            plt.contourf(xx, yy, Z, alpha=0.8)
+            plt.scatter(X_test_2d[:, 0], X_test_2d[:, 1], c=test_labels, edgecolors='k', marker='o')
+            plt.xlabel('Feature 1', fontsize=12, fontweight='bold')
+            plt.ylabel('Feature 2', fontsize=12, fontweight='bold')
+            plt.title('Decision Boundaries', fontsize=14, fontweight='bold')
+            plt.gca().spines['top'].set_visible(False)
+            plt.gca().spines['right'].set_visible(False)
+            plt.grid(axis='y', linestyle='--', alpha=0.6)
+            plt.tight_layout()
+            plt.savefig(os.path.join(self._base_path, 'decision_boundaries.png'), dpi=300, bbox_inches='tight')
+
         return {
             'executions': self._executions,
             'accuracy': accuracy,
             'f1_score': f1,
             'auc': auc,
             'alignment_arr': self.alignment_arr,
-            'loss_arr': self._loss_arr
+            'loss_arr': self._loss_arr,
+            'validation_accuracy_arr': self.validation_accuracy_arr
         }

@@ -50,6 +50,8 @@ class qkernel(nn.Module):
             self._kernel = qml.QNode(qkembedding_paper, dev, diff_method='adjoint', interface='torch')
         if self._ansatz == 'covariant':
             self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
+        else:
+            self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
         
     def forward(self, x1, x2):
         all_zero_state = self._kernel(x1, x2, self._parameters, self._wires, self._layers, self._projector, self._data_reuploading)

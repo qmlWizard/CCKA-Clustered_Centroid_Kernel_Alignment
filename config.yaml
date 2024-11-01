@@ -2,13 +2,15 @@
 
 # Dataset settings
 dataset:
-  name: checkerboard
-  n_samples: 100
-  n_features: 2
-  n_classes: 2
-  noise: 0.1
+  name: 
+    - moons
+  # List of possible dataset names
+  n_samples: [200]  # List of sample sizes to try
+  n_features: [2]
+  n_classes: [2]
+  noise: [0.1]  # List or range of noise levels to try
   random_state: 42
-  figure_path: dataset/
+  figure_path: [./dataset]
 
 # Hyperparameters for the Quantum Kernel
 qkernel:
@@ -23,30 +25,14 @@ qkernel:
 
 # Training settings
 training:
-  method: ccka
-  batch_size: 32
-  learning_rate: 0.01
-  epochs: 1000
-  optimizer: adam
-  criterion: cross_entropy
-  sampling: 8
-  clusters: 4
+  method: [ccka]
 
-
-#Hyperparameters for Optimizers
-gd:
-  learning_rate: 0.2
-  max_iter: 250
-  tolerance: 0.00000001
-
-
-spsa:
-  learning_rate: 0.01
-  max_iter: 200
-  perturbation: 0.01
-
-adam:
-  learning_rate: 0.01
-  max_iter: 200
-  tolerance: 0.00000001
-
+  batch_size: [32]
+  learning_rate: [0.1]  # List of learning rates to try
+  epochs: [250]  # List of epoch values to try
+  optimizer: [adam]
+  criterion: [cross_entropy]
+  sampling: [4]  # List of sampling sizes to try
+  clusters: [2]  # List of cluster sizes to try
+  lambda_kao: [0.001]  # List of lambda values to try
+  lambda_co: [0.001]  # List of lambda values to try

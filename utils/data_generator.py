@@ -1,0 +1,129 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+from sklearn.datasets import make_moons, make_swiss_roll, make_gaussian_quantiles, load_iris, fetch_openml
+
+
+class DataGenerator:
+    def __init__(self, dataset_name, n_samples=1000, noise=0.1, num_sectors=3, points_per_sector=10, grid_size=4, sampling_radius=0.05):
+        self.dataset_name = dataset_name
+        self.n_samples = n_samples
+        self.noise = noise
+        self.num_sectors = num_sectors
+        self.points_per_sector = points_per_sector
+        self.grid_size = grid_size
+        self.sampling_radius = sampling_radius
+        self.dmin, self.dmax = 0, 1
+
+    def generate_dataset(self):
+        if self.dataset_name == 'moons':
+            X, y = make_moons(n_samples=self.n_samples, noise=self.noise, random_state=0)
+            y = np.where(y == 0, -1, 1)  # Replace 0 with -1
+        elif self.dataset_name == 'xor':
+            X, y = self.create_xor()
+        elif self.dataset_name == 'swiss_roll':
+            X, y = make_swiss_roll(n_samples=self.n_samples, noise=self.noise, random_state=0)
+            X = np.hstack((X, np.random.randn(self.n_samples, 2)))  # Add 2 random features to make 4 features
+            y = np.where(y > np.median(y), 1, -1)  # Binarize labels based on median
+        elif self.dataset_name == 'gaussian':
+            X, y = make_gaussian_quantiles(n_samples=self.n_samples, n_features=2, n_classes=2, random_state=0)
+            y = np.where(y == 0, -1, 1)  # Replace 0 with -1
+        elif self.dataset_name == 'double_cake':
+            X, y = self.make_double_cake_data()
+        elif self.dataset_name == 'iris':
+            iris = load_iris()
+            X = iris.data
+            y = iris.target + 1  # Shift labels to start from 1 (1, 2, 3 instead of 0, 1, 2)
+        elif self.dataset_name == 'mnist_fashion':
+            X, y = fetch_openml('Fashion-MNIST', version=1, return_X_y=True)
+            y = y.astype(int)
+        elif self.dataset_name == 'checkerboard':
+            X, y = self.create_checkerboard_data()
+        else:
+            raise ValueError("Dataset not supported. Choose from 'moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake', 'iris', 'mnist_fashion', 'checkerboard'.")
+
+        return pd.DataFrame(X, columns=[f'Feature {i+1}' for i in range(X.shape[1])]), pd.Series(y, name='Label')
+
+    def create_xor(self):
+        np.random.seed(0)
+        X = np.random.rand(self.n_samples, 2) * 2 - 1
+        y = ((X[:, 0] > 0) != (X[:, 1] > 0)).astype(int)
+        X += self.noise * np.random.randn(self.n_samples, 2)
+        y = np.where(y == 0, -1, 1)  # Replace 0 with -1
+        return X, y
+
+    def _make_circular_data(self):
+        """Generate datapoints arranged in an even circle."""
+        center_indices = np.repeat(np.array(range(0, self.num_sectors)), self.points_per_sector)
+        sector_angle = 2 * np.pi / self.num_sectors
+        angles = (center_indices + np.random.rand(center_indices.shape[0])) * sector_angle  # Add randomness for more points
+        
+        x = 0.7 * np.cos(angles)
+        y = 0.7 * np.sin(angles)
+        labels = 2 * np.remainder(np.floor_divide(center_indices, 1), 2) - 1
+
+        return x, y, labels
+
+    def make_double_cake_data(self):
+        x1, y1, labels1 = self._make_circular_data()
+        x2, y2, labels2 = self._make_circular_data()
+
+        # x and y coordinates of the datapoints
+        x = np.hstack([x1, 0.5 * x2])
+        y = np.hstack([y1, 0.5 * y2])
+
+        # Canonical form of dataset
+        X = np.vstack([x, y]).T
+
+        labels = np.hstack([labels1, -1 * labels2])
+
+        # Canonical form of labels
+        Y = labels.astype(int)
+
+        return X, Y
+
+    def create_checkerboard_data(self):
+        cords = []
+        for i in range(self.grid_size):
+            for j in range(self.grid_size):
+                x = (2 * i + 1) / (2 * self.grid_size)
+                y = (2 * j + 1) / (2 * self.grid_size)
+                cords.append((x, y))
+
+        points = []
+        labels = []
+        cluster = 0
+        for (cx, cy) in cords:
+            label = 1 if cluster else -1
+            for _ in range(random.randint(1, 10)):
+                angle = np.random.uniform(0, 2 * np.pi)
+                radius = np.random.uniform(0, self.sampling_radius)
+                x = cx + radius * np.cos(angle)
+                y = cy + radius * np.sin(angle)
+                # Ensure points stay within the domain boundaries
+                x = np.clip(x, self.dmin, self.dmax)
+                y = np.clip(y, self.dmin, self.dmax)
+                points.append((x, y))
+                labels.append(label)
+            cluster = 1 - cluster
+
+        X = np.array(points)
+        y = np.array(labels)
+        return X, y
+
+    def plot_dataset(self, df_features, df_labels):
+        fig, ax = plt.subplots(figsize=(10, 6))
+        plt.style.use('seaborn-v0_8')
+        ax.scatter(df_features.iloc[:, 0], df_features.iloc[:, 1], c=df_labels, cmap='viridis', s=10, edgecolor='black', alpha=0.8)
+        ax.set_xlabel('Feature 1', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Feature 2', fontsize=12, fontweight='bold')
+        ax.set_title(f'{self.dataset_name} Dataset', fontsize=14, fontweight='bold')
+        plt.colorbar(ax.scatter(df_features.iloc[:, 0], df_features.iloc[:, 1], c=df_labels, cmap='viridis', s=10, edgecolor='black', alpha=0.8), label='Label')
+        ax.grid(axis='y', linestyle='--', alpha=0.6)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        plt.tight_layout()
+        plt.show()
+        return fig
+
