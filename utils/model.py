@@ -11,23 +11,24 @@ import os
 torch.manual_seed(42)
 np.random.seed(42)
 
-class qkernel(nn.Module):
+class Qkernel(nn.Module):
     
-    def __init__(self, config):
+    def __init__(self, device, n_qubits, trainable, input_scaling, data_reuploading, ansatz, ansatz_layers):
         super().__init__()
         
-        self._device = config['qkernel']['device']
-        self._n_qubits = config['qkernel']['n_qubits']
-        self._trainable = config['qkernel']['trainable']
-        self._input_scaling = config['qkernel']['input_scaling']
-        self._data_reuploading = config['qkernel']['data_reuploading']
-        self._ansatz = config['qkernel']['ansatz']
-        self._layers = config['qkernel']['ansatz_layers']
+        self._device = device
+        self._n_qubits = n_qubits
+        self._trainable = trainable
+        self._input_scaling = input_scaling
+        self._data_reuploading = data_reuploading
+        self._ansatz = ansatz
+        self._layers = ansatz_layers
         self._wires = range(self._n_qubits)
         self._projector = torch.zeros((2**self._n_qubits,2**self._n_qubits))
         self._projector[0,0] = 1
         self._circuit_executions = 0
 
+        
         if self._ansatz == 'he':
             if self._input_scaling:
                 self.register_parameter(name="input_scaling", param= nn.Parameter(torch.ones(self._layers, self._n_qubits), requires_grad=True))
