@@ -2,7 +2,7 @@
 
 ## DataSet Configuration
 dataset:
-  name: ['moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake', 'iris', 'mnist_fashion', 'checkerboard']
+  name: ['moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake', 'checkerboard']
   n_samples: 200
   noise: 0.1
   num_sectors: 3
@@ -20,19 +20,19 @@ qkernel:
   trainable: True
   input_scaling: True
   data_reuploading: True
-  ansatz: ['he', 'embedding_paper']
+  ansatz: ['he']
   ansatz_layers: 3
 
 ## Model Training Agen Configuration
 agent:
   optimizer: ['gd', 'adam']
-  lr: [0.0001, 0.001, 0.1, 0.2, 0.5]
-  epochs: 500
-  train_method: ['ccka', 'random', 'full']
+  lr: [0.001, 0.1, 0.2, 0.5]
+  epochs: 250
+  train_method: ['ccka', 'random']
   target_accuracy: 0.95
   get_alignment_every: 10
   validate_every_epoch: False
   base_path: results/
-  lambda_kao: [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 3.0, 5]
-  lambda_co: [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 3.0, 5]
+  lambda_kao: [0.1, 0.25, 0.5, 1.0, 5]
+  lambda_co: [0.1, 0.25, 0.5, 1.0, 5]
   clusters: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20] 

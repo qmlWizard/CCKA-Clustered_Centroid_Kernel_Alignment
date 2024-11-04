@@ -28,14 +28,15 @@ else:
 
 def train(config):
     
-    data_generator = DataGenerator(   dataset_name = config['name'], 
+    data_generator = DataGenerator(     
+                                        dataset_name = config['name'], 
                                         n_samples = config['n_samples'], 
                                         noise = config['noise'], 
                                         num_sectors = config['num_sectors'], 
                                         points_per_sector = config['points_per_sector'], 
                                         grid_size = config['grid_size'], 
                                         sampling_radius = config['sampling_radius']
-                                     )
+                                  )
     
     features, target = data_generator.generate_dataset()
     training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.50, random_state=42)
@@ -55,27 +56,34 @@ def train(config):
                     )
     
     agent = TrainModel(
-        kernel=kernel,
-        training_data=training_data,
-        training_labels=training_labels,
-        testing_data=testing_data,
-        testing_labels=testing_labels,
-        optimizer=config['optimizer'],
-        lr=config['lr'],
-        train_method=config['train_method'],
-        target_accuracy=config['target_accuracy'],
-        get_alignment_every=config['get_alignment_every'],  
-        validate_every_epoch=config['validate_every_epoch'], 
-        base_path=config['base_path'],
-        lambda_kao=config['lambda_kao'],
-        lambda_co=config['lambda_co'],
-        clusters=config['clusters']
-    )
+                        kernel=kernel,
+                        training_data=training_data,
+                        training_labels=training_labels,
+                        testing_data=testing_data,
+                        testing_labels=testing_labels,
+                        optimizer=config['optimizer'],
+                        lr=config['lr'],
+                        epochs = config['epochs'],
+                        train_method=config['train_method'],
+                        target_accuracy=config['target_accuracy'],
+                        get_alignment_every=config['get_alignment_every'],  
+                        validate_every_epoch=config['validate_every_epoch'], 
+                        base_path=config['base_path'],
+                        lambda_kao=config['lambda_kao'],
+                        lambda_co=config['lambda_co'],
+                        clusters=config['clusters']
+                      )
 
+    intial_metrics = agent.evaluate(testing_data, testing_labels)
     agent.fit_kernel(training_data, training_labels)
     after_metrics = agent.evaluate(testing_data, testing_labels)
 
-    tune.report(accuracy=after_metrics['accuracy'])
+    results = {
+        'inital_metrics': intial_metrics,
+        'after_metrics': after_metrics,
+    }
+
+    tune.report(accuracy=after_metrics['accuracy'], final_data = results)
 
 if __name__ == "__main__":
 
@@ -119,6 +127,8 @@ if __name__ == "__main__":
         tune.with_parameters(train),
         config=search_space,
         resources_per_trial={"gpu": 1},
+        storage_path=os.path.abspath("ray_results"),
+        name="qkernel_training",
         metric="accuracy",
         mode="max"
     )

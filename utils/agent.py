@@ -97,15 +97,6 @@ class TrainModel():
             self._centroid_loss_function = self.loss_co
             self._sample_function = self._get_all_centroids
 
-        _matrix = self._kernel_matrix(self._training_data, self._training_data)
-        if torch.is_tensor(_matrix):
-            _matrix = _matrix.detach().numpy()
-        if torch.is_tensor(self._training_labels):
-            self._training_labels = self._training_labels.detach().numpy()
-
-        self._model = SVC(kernel='precomputed').fit(_matrix, self._training_labels)
-        self.initial_training_accuracy = accuracy_score(self._training_labels, self._model.predict(_matrix))
-
     @property
     def _get_all_centroids(self):
         centroids = self._main_centroids + [centroid for cluster in self._class_centroids for centroid in cluster]
@@ -201,6 +192,7 @@ class TrainModel():
                     current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
                     self.alignment_arr.append(current_alignment.item())
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
+            
             else:
                 loss = -loss_func(sampled_data, sampled_labels)
                 loss.backward()
@@ -230,6 +222,7 @@ class TrainModel():
         self.final_training_accuracy = accuracy_score(self._training_labels, self._model.predict(self._kernel_matrix(self._training_data, self._training_data).detach().numpy()))
 
     def evaluate(self, test_data, test_labels):
+        current_alignment = qml.kernels.target_alignment(self._training_data, self._training_labels, self._kernel, assume_normalized_kernel=True)
         _matrix = self._kernel_matrix(self._training_data, self._training_data)
         if torch.is_tensor(_matrix):
             _matrix = _matrix.detach().numpy()
@@ -237,6 +230,8 @@ class TrainModel():
             self._training_labels = self._training_labels.detach().numpy()
 
         self._model = SVC(kernel='precomputed').fit(_matrix, self._training_labels)
+        training_accuracy = accuracy_score(test_labels, predictions)
+
 
         _matrix = self._kernel_matrix(test_data, self._training_data)
         if torch.is_tensor(_matrix):
@@ -251,105 +246,11 @@ class TrainModel():
         print(f"F1 Score: {f1}")
         print(f"AUC: {auc}")
 
-        # Store initial and final testing accuracies
-        if self.initial_testing_accuracy is None:
-            self.initial_testing_accuracy = accuracy
-        self.final_testing_accuracy = accuracy
-
-        # Plot results
-        if self._base_path:
-            plt.style.use('seaborn-v0_8')
-            width = 0.25
-
-            # Plot Validation Accuracy
-            plt.figure(figsize=(10, 6))
-            plt.plot(range(1, len(self.validation_accuracy_arr) + 1), self.validation_accuracy_arr, label='Validation Accuracy', color='#ff7f0f', alpha=0.8)
-            plt.xlabel('Epochs', fontsize=12, fontweight='bold')
-            plt.ylabel('Accuracy', fontsize=12, fontweight='bold')
-            plt.title('Validation Accuracy per Epoch', fontsize=14, fontweight='bold')
-            plt.legend(fontsize=11, loc='best')
-            plt.gca().spines['top'].set_visible(False)
-            plt.gca().spines['right'].set_visible(False)
-            plt.grid(axis='y', linestyle='--', alpha=0.6)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self._base_path, 'validation_accuracy.png'), dpi=300, bbox_inches='tight')
-
-            # Plot Alignment per Epoch
-            plt.figure(figsize=(10, 6))
-            plt.plot(range(1, len(self.alignment_arr) + 1), self.alignment_arr, label='Alignment', color='#1f77b4', alpha=0.8)
-            plt.xlabel('Epochs', fontsize=12, fontweight='bold')
-            plt.ylabel('Alignment', fontsize=12, fontweight='bold')
-            plt.title('Alignment per Epoch', fontsize=14, fontweight='bold')
-            plt.legend(fontsize=11, loc='best')
-            plt.gca().spines['top'].set_visible(False)
-            plt.gca().spines['right'].set_visible(False)
-            plt.grid(axis='y', linestyle='--', alpha=0.6)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self._base_path, 'alignment_per_epoch.png'), dpi=300, bbox_inches='tight')
-
-            # Plot Training Loss per Epoch
-            plt.figure(figsize=(10, 6))
-            plt.plot(range(1, len(self._loss_arr) + 1), self._loss_arr, label='Training Loss', color='#2ca02c', alpha=0.8)
-            plt.xlabel('Epochs', fontsize=12, fontweight='bold')
-            plt.ylabel('Loss', fontsize=12, fontweight='bold')
-            plt.title('Training Loss per Epoch', fontsize=14, fontweight='bold')
-            plt.legend(fontsize=11, loc='best')
-            plt.gca().spines['top'].set_visible(False)
-            plt.gca().spines['right'].set_visible(False)
-            plt.grid(axis='y', linestyle='--', alpha=0.6)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self._base_path, 'training_loss.png'), dpi=300, bbox_inches='tight')
-
-            # Plot Initial and Final Accuracy
-            algorithms = ['Training', 'Testing']
-            x = np.arange(len(algorithms))
-
-            plt.figure(figsize=(10, 6))
-            bars1 = plt.bar(x - width/2, [self.initial_training_accuracy, self.initial_testing_accuracy], width, label='Initial Accuracy', color='#ff7f0f', edgecolor='black', alpha=0.8)
-            bars2 = plt.bar(x + width/2, [self.final_training_accuracy, self.final_testing_accuracy], width, label='Final Accuracy', color='#1f77b4', edgecolor='black', alpha=0.8)
-
-            # Adding values on top of each bar
-            for bar in bars1:
-                plt.text(bar.get_x() + bar.get_width()/4, bar.get_height() + 0.01, f'{bar.get_height():.2f}', ha='center', va='bottom', fontsize=9, fontweight='bold')
-
-            for bar in bars2:
-                plt.text(bar.get_x() + bar.get_width()/4, bar.get_height() + 0.01, f'{bar.get_height():.2f}', ha='center', va='bottom', fontsize=9, fontweight='bold')
-
-            plt.xlabel('Dataset', fontsize=12, fontweight='bold')
-            plt.ylabel('Accuracy', fontsize=12, fontweight='bold')
-            plt.xticks(x, algorithms, fontsize=11)
-            plt.title('Initial and Final Training and Testing Accuracy', fontsize=14, fontweight='bold')
-            plt.legend(fontsize=11, loc='best')
-            plt.gca().spines['top'].set_visible(False)
-            plt.gca().spines['right'].set_visible(False)
-            plt.grid(axis='y', linestyle='--', alpha=0.6)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self._base_path, 'initial_final_accuracy.png'), dpi=300, bbox_inches='tight')
-
-
-            X_train_2d = self._training_data[:, :2]
-            X_test_2d = test_data[:, :2]
-            x_min, x_max = X_train_2d[:, 0].min() - 1, X_train_2d[:, 0].max() + 1
-            y_min, y_max = X_train_2d[:, 1].min() - 1, X_train_2d[:, 1].max() + 1
-            xx, yy = np.meshgrid(np.arange(x_min, x_max, 0.1), np.arange(y_min, y_max, 0.1))
-            Z = self._model.predict(self._kernel_matrix(np.c_[xx.ravel(), yy.ravel()], self._training_data))
-            Z = Z.reshape(xx.shape)
-
-            plt.figure(figsize=(10, 6))
-            plt.contourf(xx, yy, Z, alpha=0.8)
-            plt.scatter(X_test_2d[:, 0], X_test_2d[:, 1], c=test_labels, edgecolors='k', marker='o')
-            plt.xlabel('Feature 1', fontsize=12, fontweight='bold')
-            plt.ylabel('Feature 2', fontsize=12, fontweight='bold')
-            plt.title('Decision Boundaries', fontsize=14, fontweight='bold')
-            plt.gca().spines['top'].set_visible(False)
-            plt.gca().spines['right'].set_visible(False)
-            plt.grid(axis='y', linestyle='--', alpha=0.6)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self._base_path, 'decision_boundaries.png'), dpi=300, bbox_inches='tight')
-
         return {
+            'alignment': current_alignment,
             'executions': self._executions,
-            'accuracy': accuracy,
+            'training_accuracy': training_accuracy,
+            'testing_accuracy': accuracy,
             'f1_score': f1,
             'auc': auc,
             'alignment_arr': self.alignment_arr,
