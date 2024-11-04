@@ -9,8 +9,8 @@ dataset:
   points_per_sector: 15
   grid_size: 4
   sampling_radius: 0.05
-  training_size: 0.75
-  testing_size: 0.25
+  training_size: 0.60
+  testing_size: 0.40
   validation_size: 0.0
 
 ## Quantum Kernel Model Configuration
@@ -31,7 +31,7 @@ agent:
   train_method: ['ccka', 'random']
   target_accuracy: 0.95
   get_alignment_every: 10
-  validate_every_epoch: False
+  validate_every_epoch: 10
   base_path: results/
   lambda_kao: [0.1, 0.25, 0.5, 1.0, 5]
   lambda_co: [0.1, 0.25, 0.5, 1.0, 5]

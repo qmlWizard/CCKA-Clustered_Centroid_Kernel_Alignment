@@ -126,7 +126,7 @@ if __name__ == "__main__":
     analysis = tune.run(
         tune.with_parameters(train),
         config=search_space,
-        resources_per_trial={"gpu": 1},
+        resources_per_trial={"gpu": 1, "cpu": 20},
         storage_path=os.path.abspath("ray_results"),
         name="qkernel_training",
         metric="accuracy",

@@ -28,7 +28,7 @@ class TrainModel():
                  train_method,
                  target_accuracy=None,  # New parameter for target accuracy
                  get_alignment_every=10,  # New parameter to select alignment frequency
-                 validate_every_epoch=False,  # New parameter for validation accuracy
+                 validate_every_epoch=10,  # New parameter for validation accuracy
                  base_path=None,  # New parameter for base path to save plots
                  lambda_kao=0.01,
                  lambda_co=0.01,
@@ -70,6 +70,7 @@ class TrainModel():
         self.final_training_accuracy = None
         self.initial_testing_accuracy = None
         self.final_testing_accuracy = None
+        self._per_epoch_executions = None
 
         # Flatten the list of class centroids to pass as parameters
         self._flattened_class_centroids = [centroid.clone().detach().requires_grad_() for cluster in self._class_centroids for centroid in cluster]
@@ -161,9 +162,9 @@ class TrainModel():
         loss_func = self._loss_function
         samples_func = self._sample_function
         self._kernel._circuit_executions = 0
+        self._per_epoch_executions = 0
         for epoch in range(epochs):
             optimizer.zero_grad()
-
             sampled_data, sampled_labels = samples_func(training_data, training_labels)
             if self._method == 'ccka':
                 _class = epoch % len(self._n_classes)
@@ -182,7 +183,7 @@ class TrainModel():
                 self._centroid_optimizer.step()
 
                 print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
-                
+                self._per_epoch_executions += self._kernel._circuit_executions
                 if self._validate_every_epoch:
                     validation_accuracy = self.evaluate(training_data, training_labels)['accuracy']
                     self.validation_accuracy_arr.append(validation_accuracy)
@@ -200,24 +201,24 @@ class TrainModel():
 
                 # Store and print loss values
                 self._loss_arr.append(loss.item())
-                
-                if self._validate_every_epoch:
+                self._per_epoch_executions = self._kernel._circuit_executions
+                if self._validate_every_epoch and (epoch + 1) % self._validate_every_epoch == 0:
                     validation_accuracy = self.evaluate(training_data, training_labels)['accuracy']
                     self.validation_accuracy_arr.append(validation_accuracy)
                     print(f"Validation Accuracy at Epoch {epoch + 1}: {validation_accuracy}")
+
+                    if self._target_accuracy:
+                        if validation_accuracy >= self._target_accuracy:
+                            print(f"Target accuracy of {self._target_accuracy} achieved at Epoch {epoch + 1}. Training stopped.")
+                            break
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
                     self.alignment_arr.append(current_alignment.item())
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
-
-            if self._target_accuracy:
-                validation_accuracy = self.evaluate(training_data, training_labels)['accuracy']
-                if validation_accuracy >= self._target_accuracy:
-                    print(f"Target accuracy of {self._target_accuracy} achieved at Epoch {epoch + 1}. Training stopped.")
-                    break
         
         self._executions = self._kernel._circuit_executions
+        self._kernel._circuit_executions = 0
         # Store final training accuracy
         self.final_training_accuracy = accuracy_score(self._training_labels, self._model.predict(self._kernel_matrix(self._training_data, self._training_data).detach().numpy()))
 
@@ -230,7 +231,8 @@ class TrainModel():
             self._training_labels = self._training_labels.detach().numpy()
 
         self._model = SVC(kernel='precomputed').fit(_matrix, self._training_labels)
-        training_accuracy = accuracy_score(test_labels, predictions)
+        predictions = self._model.predict(_matrix)
+        training_accuracy = accuracy_score(self._training_labels, predictions)
 
 
         _matrix = self._kernel_matrix(test_data, self._training_data)
@@ -248,7 +250,7 @@ class TrainModel():
 
         return {
             'alignment': current_alignment,
-            'executions': self._executions,
+            'executions': self._per_epoch_executions,
             'training_accuracy': training_accuracy,
             'testing_accuracy': accuracy,
             'f1_score': f1,
