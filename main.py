@@ -83,7 +83,7 @@ def train(config):
         'after_metrics': after_metrics,
     }
 
-    tune.report(accuracy=after_metrics['accuracy'], final_data = results)
+    session.report(accuracy=after_metrics['accuracy'], final_data = results)
 
 if __name__ == "__main__":
 

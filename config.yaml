@@ -26,13 +26,13 @@ qkernel:
 ## Model Training Agen Configuration
 agent:
   optimizer: ['gd', 'adam']
-  lr: [0.001, 0.1, 0.2, 0.5]
+  lr: [0.01, 0.1, 0.2, 0.5]
   epochs: 250
   train_method: ['ccka', 'random']
   target_accuracy: 0.95
   get_alignment_every: 10
   validate_every_epoch: 10
   base_path: results/
-  lambda_kao: [0.1, 0.25, 0.5, 1.0, 5]
-  lambda_co: [0.1, 0.25, 0.5, 1.0, 5]
+  lambda_kao: [0.01]
+  lambda_co: [0.1]
   clusters: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20] 
