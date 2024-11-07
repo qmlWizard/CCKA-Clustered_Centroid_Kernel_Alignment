@@ -165,8 +165,8 @@ class TrainModel():
         self._per_epoch_executions = 0
         for epoch in range(epochs):
             optimizer.zero_grad()
-            sampled_data, sampled_labels = samples_func(training_data, training_labels)
             if self._method == 'ccka':
+                print(self._kernel._circuit_executions)
                 _class = epoch % len(self._n_classes)
                 class_centroids = self._class_centroids[_class]
                 class_labels = torch.tensor(self._class_centroid_labels[_class], dtype=torch.int)
@@ -182,12 +182,12 @@ class TrainModel():
                 loss_co.backward(retain_graph=True)
                 self._centroid_optimizer.step()
 
-                print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
+                #print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
                 self._per_epoch_executions += self._kernel._circuit_executions
-                if self._validate_every_epoch:
-                    validation_accuracy = self.evaluate(training_data, training_labels)['accuracy']
-                    self.validation_accuracy_arr.append(validation_accuracy)
-                    print(f"Validation Accuracy at Epoch {epoch + 1}: {validation_accuracy}")
+                #if self._validate_every_epoch:
+                #    validation_accuracy = self.evaluate(training_data, training_labels)['accuracy']
+                #    self.validation_accuracy_arr.append(validation_accuracy)
+                #    print(f"Validation Accuracy at Epoch {epoch + 1}: {validation_accuracy}")
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
@@ -195,6 +195,7 @@ class TrainModel():
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
             
             else:
+                sampled_data, sampled_labels = samples_func(training_data, training_labels)
                 loss = -loss_func(sampled_data, sampled_labels)
                 loss.backward()
                 optimizer.step()
@@ -202,15 +203,15 @@ class TrainModel():
                 # Store and print loss values
                 self._loss_arr.append(loss.item())
                 self._per_epoch_executions = self._kernel._circuit_executions
-                if self._validate_every_epoch and (epoch + 1) % self._validate_every_epoch == 0:
-                    validation_accuracy = self.evaluate(training_data, training_labels)['accuracy']
-                    self.validation_accuracy_arr.append(validation_accuracy)
-                    print(f"Validation Accuracy at Epoch {epoch + 1}: {validation_accuracy}")
+                #if self._validate_every_epoch and (epoch + 1) % self._validate_every_epoch == 0:
+                #    validation_accuracy = self.evaluate(training_data, training_labels)['accuracy']
+                #    self.validation_accuracy_arr.append(validation_accuracy)
+                #    print(f"Validation Accuracy at Epoch {epoch + 1}: {validation_accuracy}")
 
-                    if self._target_accuracy:
-                        if validation_accuracy >= self._target_accuracy:
-                            print(f"Target accuracy of {self._target_accuracy} achieved at Epoch {epoch + 1}. Training stopped.")
-                            break
+                #    if self._target_accuracy:
+                #        if validation_accuracy >= self._target_accuracy:
+                #            print(f"Target accuracy of {self._target_accuracy} achieved at Epoch {epoch + 1}. Training stopped.")
+                #            break
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)

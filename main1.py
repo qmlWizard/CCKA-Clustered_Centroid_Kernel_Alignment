@@ -1,26 +1,21 @@
 import pennylane as qml
 import torch
-from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
-import torch.optim as optim
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
+import ray
+from ray import tune
+from ray.air import session
 from sklearn.model_selection import train_test_split
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 import numpy as np
-import math
 import yaml
 import json
 import time
 import os
 import pandas as pd
 
-import ray
-from ray import tune
 
 # Custom Libraries
-from utils.model import qkernel
-from archive.classification_data import plot_and_save
+from utils.model import Qkernel
+from utils.data_generator import DataGenerator
 from utils.agent import TrainModel
 
 # Backend Configuration
@@ -38,105 +33,64 @@ else:
 with open('config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
-def train_model(config, checkpoint_dir=None):
-    # Dataset generation and splitting
-    features, target = plot_and_save(config['dataset']['name'],
-                                     config['dataset']['n_samples'],
-                                     config['dataset']['noise'],
-                                     save_path=f"{config['dataset']['figure_path']}/{config['dataset']['name']}.png")
+data = np.load('checkerboard_dataset.npy', allow_pickle=True).item()
+x_train, x_test, y_train, y_test = data['x_train'], data['x_test'], data['y_train'], data['y_test']
 
-    training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.50, random_state=42)
+training_data = torch.tensor(x_train, dtype=torch.float32, requires_grad=True)
+testing_data = torch.tensor(x_test, dtype=torch.float32, requires_grad=True)
+training_labels = torch.tensor(y_train, dtype=torch.int)
+testing_labels = torch.tensor(y_test, dtype=torch.int)
+kernel = Qkernel(   
+                        device = config['qkernel']['device'], 
+                        n_qubits = 2, 
+                        trainable = True, 
+                        input_scaling = True, 
+                        data_reuploading = True, 
+                        ansatz = 'he', 
+                        ansatz_layers = 5
+                    )
+    
+agent = TrainModel(
+                        kernel=kernel,
+                        training_data=training_data,
+                        training_labels=training_labels,
+                        testing_data=testing_data,
+                        testing_labels=testing_labels,
+                        optimizer= 'gd',
+                        lr= 0.2,
+                        epochs = 500,
+                        train_method= 'random',
+                        target_accuracy=0.95,
+                        get_alignment_every=10,  
+                        validate_every_epoch=10, 
+                        base_path='.',
+                        lambda_kao=0.01,
+                        lambda_co=0.1,
+                        clusters=4
+                      )
 
-    print(f"* Train Shape: {training_data.shape}")
-    print(f"* Train Labels Shape:  {training_labels.shape}")
-    print(f"* Test Shape: {testing_data.shape}")
-    print(f"* Test Labels Shape:  {testing_labels.shape}")
-    print(" ")
+intial_metrics = agent.evaluate(testing_data, testing_labels)
+agent.fit_kernel(training_data, training_labels)
+after_metrics = agent.evaluate(testing_data, testing_labels)
 
-    print(config)
-
-    # Convert each data point to a torch tensor
-    training_data = torch.tensor(training_data, dtype=torch.float32, requires_grad=True)
-    testing_data = torch.tensor(testing_data, dtype=torch.float32, requires_grad=True)
-    training_labels = torch.tensor(training_labels, dtype=torch.int)
-    testing_labels = torch.tensor(testing_labels, dtype=torch.int)
-
-    kernel = qkernel(config)
-    print(f"Sample Distance between x[0] and x[1]: ", kernel(training_data[0], training_data[1]))
-
-    # Initialize TrainModel agent and perform training
-    agent = TrainModel(
-        kernel=kernel,
-        training_data=training_data,
-        training_labels=training_labels,
-        testing_data=testing_data,
-        testing_labels=testing_labels,
-        optimizer=config['training']['optimizer'],
-        lr=config['training']['learning_rate'],
-        train_method=config['training']['method'],
-        clusters=config['training']['clusters'],
-        epochs=config['training']['epochs'],
-        lambda_kao=config['training']['lambda_kao'],
-        lambda_co=config['training']['lambda_co'],
-        base_path=config['training']['base_path']
-    )
-
-    # Fit kernel and re-evaluate
-    agent.fit_kernel(training_data, training_labels)
-    after_metrics = agent.evaluate(testing_data, testing_labels)
-
-    # Report final metrics to Ray Tune
-    tune.report(accuracy=after_metrics['accuracy'], f1_score=after_metrics['f1_score'])
-
-
-with open('config.yaml', 'r') as file:
-    config = yaml.safe_load(file)
-
-search_space = {
-    'training': {
-        'method': tune.choice(config['training']['method']),
-        'optimizer': tune.choice(config['training']['optimizer']),
-        'learning_rate': tune.choice(config['training']['learning_rate']),
-        'clusters': tune.choice(config['training']['clusters']),
-        'sampling': tune.choice(config['training']['sampling']),
-        'epochs': tune.choice(config['training']['epochs']),
-        'lambda_kao': tune.choice(config['training']['lambda_kao']),
-        'lambda_co': tune.choice(config['training']['lambda_co']),
-        'batch_size': tune.choice(config['training']['batch_size']),
-        'criterion': config['training']['criterion'],
-        'base_path': tune.sample_from(lambda config: f"embedded_results/{config['training']['method']}_opt-{config['training']['optimizer']}_lr-{config['training']['learning_rate']:.4f}_clusters-{config['training']['clusters']}_sampling-{config['training']['sampling']}")
-    },
-    'dataset': {
-        'name': tune.choice(config['dataset']['name']),
-        'n_samples': tune.choice(config['dataset']['n_samples']),
-        'noise': tune.choice(config['dataset']['noise']),
-        'figure_path': config['dataset']['figure_path'],
-        'n_features': config['dataset']['n_features'],
-        'n_classes': config['dataset']['n_classes'],
-        'random_state': config['dataset']['random_state']
-    },
-    'qkernel': {
-        'device': config['qkernel']['device'],
-        'n_qubits': config['qkernel']['n_qubits'],
-        'trainable': config['qkernel']['trainable'],
-        'input_scaling': config['qkernel']['input_scaling'],
-        'data_reuploading': config['qkernel']['data_reuploading'],
-        'ansatz': config['qkernel']['ansatz'],
-        'ansatz_layers': config['qkernel']['ansatz_layers'],
-        'entangling': config['qkernel']['entangling']
-    }
+def tensor_to_list(data):
+    if isinstance(data, torch.Tensor):
+        return data.tolist()  # Convert tensor to list
+    elif isinstance(data, dict):
+        return {k: tensor_to_list(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [tensor_to_list(v) for v in data]
+    else:
+        return data
+    
+results = {
+    'initial_metrics': tensor_to_list(intial_metrics),
+    'after_metrics': tensor_to_list(after_metrics),
 }
 
-# Run Ray Tune
-analysis = tune.run(
-    train_model,
-    config=search_space,
-    num_samples=10,  # Number of hyperparameter combinations to try
-    resources_per_trial={"cpu": 2, "gpu": 1 if torch.cuda.is_available() else 0},
-    storage_path=os.path.abspath("ray_results"),
-    name="qkernel_training",
-    metric="accuracy",
-    mode="max"
-)
+# Specify the filename
+filename = "checkerboard_rodrigo_data_random.json"
 
-print("Best hyperparameters found were: ", analysis.best_config)
+# Write the JSON-serializable results to a file
+with open(filename, "w") as file:
+    json.dump(results, file, indent=4)
