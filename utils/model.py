@@ -47,12 +47,13 @@ class Qkernel(nn.Module):
         dev = qml.device(self._device, wires = range(self._n_qubits))
         if self._ansatz == 'he':
             self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
-        if self._ansatz == 'embedding_paper':
+        elif self._ansatz == 'embedding_paper':
             self._kernel = qml.QNode(qkembedding_paper, dev, diff_method='adjoint', interface='torch')
-        if self._ansatz == 'covariant':
+        elif self._ansatz == 'covariant':
             self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
         else:
-            self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
+            #self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
+            print("No Kernel Ansatz selected!")
         
     def forward(self, x1, x2):
         all_zero_state = self._kernel(x1, x2, self._parameters, self._wires, self._layers, self._projector, self._data_reuploading)

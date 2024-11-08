@@ -44,7 +44,7 @@ class TrainModel():
         self._get_alignment_every = get_alignment_every
         self._validate_every_epoch = validate_every_epoch
         self._sampling_size = clusters
-        self._clusters = clusters
+        self._clusters = clusters 
         self._training_data = training_data
         self._training_labels = training_labels
         self._testing_data = testing_data
@@ -146,6 +146,19 @@ class TrainModel():
         regularization_term = torch.sum(torch.clamp(cl_tensor - 1.0, min=0.0) - torch.clamp(cl_tensor, max=0.0))
         return 1 - TA + self.lambda_co * regularization_term
 
+    def _centroid_loss(self, X, Y, centroid, cl):
+        
+        TA = self.centroid_target_alignment(X, Y, centroid)
+        r = self.lambda_kao * sum((param ** 2).sum() for param in self._kernel.parameters())
+        kao_loss = 1 - TA + r
+
+        cl_tensor = torch.tensor(float(cl), dtype=torch.float32)
+        regularization_term = torch.sum(torch.clamp(cl_tensor - 1.0, min=0.0) - torch.clamp(cl_tensor, max=0.0))
+        co_loss =  1 - TA + self.lambda_co * regularization_term
+
+        return -kao_loss, -co_loss
+
+ 
     def _loss_ta(self, data, data_labels):
         return qml.kernels.target_alignment(data, data_labels, self._kernel, assume_normalized_kernel=True)
 
@@ -172,6 +185,7 @@ class TrainModel():
                 class_centroids = self._class_centroids[_class]
                 class_labels = torch.tensor(self._class_centroid_labels[_class], dtype=torch.int)
                 
+                """
                 # Kao loss
                 loss_kao = -self._loss_kao(class_centroids, class_labels, self._main_centroids[_class])
                 loss_kao.backward(retain_graph=True)
@@ -182,9 +196,18 @@ class TrainModel():
                 loss_co = -self.loss_co(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
                 loss_co.backward(retain_graph=True)
                 self._centroid_optimizer.step()
+                """
+
+                loss_kao, loss_co = self._centroid_loss(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
+                loss_kao.backward(retain_graph=True)
+                optimizer.step() 
+                
+                loss_co.backward(retain_graph=True)
+                self._centroid_optimizer.step()
 
                 self._per_epoch_executions += self._kernel._circuit_executions
-                print(f"Epoch {epoch + 1}th, Kernel Loss: {loss_kao} and Centroid Loss: {loss_co}" )
+                print(self._per_epoch_executions)
+                print(f"Epoch {epoch + 1}th, Kernel Loss: {loss}" )
                 
                 if self._validate_every_epoch and (epoch + 1) % self._validate_every_epoch == 0:
                     validation_accuracy = self.evaluate(training_data, training_labels)['testing_accuracy']
@@ -203,14 +226,15 @@ class TrainModel():
             
             else:
                 sampled_data, sampled_labels = samples_func(training_data, training_labels)
+                print(sampled_data)
                 loss = -loss_func(sampled_data, sampled_labels)
                 loss.backward()
                 optimizer.step()
 
                 # Store and print loss values
                 self._loss_arr.append(loss.item())
-                print(self._kernel._circuit_executions)
                 self._per_epoch_executions += self._kernel._circuit_executions
+                print(self._per_epoch_executions)
                 if self._validate_every_epoch and (epoch + 1) % self._validate_every_epoch == 0:
                     validation_accuracy = self.evaluate(training_data, training_labels)['testing_accuracy']
                     self.validation_accuracy_arr.append(validation_accuracy)
