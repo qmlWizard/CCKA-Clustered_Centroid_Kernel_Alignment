@@ -91,7 +91,6 @@ if __name__ == "__main__":
         config = yaml.safe_load(file)
 
     search_space = {
-
         'name':  tune.grid_search(config['dataset']['name']),
         'n_samples': config['dataset']['n_samples'],
         'noise': config['dataset']['noise'],
@@ -120,7 +119,6 @@ if __name__ == "__main__":
         'lambda_kao': tune.grid_search(config['agent']['lambda_kao']),
         'lambda_co': tune.grid_search(config['agent']['lambda_co']),
         'clusters': tune.grid_search(config['agent']['clusters'])
-
     }
 
     analysis = tune.run(

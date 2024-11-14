@@ -47,8 +47,10 @@ class TrainModel():
         self._clusters = clusters 
         self._training_data = training_data
         self._training_labels = training_labels
+        self._training_labels = self._training_labels.to(torch.float32)
         self._testing_data = testing_data
         self._testing_labels = testing_labels
+        self._testing_labels = self._testing_labels.to(torch.float32)
         self._n_classes = torch.unique(training_labels)
         self._kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, self._kernel)
         self._executions = 0
@@ -73,19 +75,27 @@ class TrainModel():
         self._per_epoch_executions = None
 
         # Flatten the list of class centroids to pass as parameters
-        self._flattened_class_centroids = [centroid.clone().detach().requires_grad_() for cluster in self._class_centroids for centroid in cluster]
+        #self._flattened_class_centroids = [centroid.clone().detach().requires_grad_() for cluster in self._class_centroids for centroid in cluster]
+
+        print(self._main_centroids)
+        print(self._class_centroids)
 
         if optimizer == 'adam':
             # Define optimizer with centroids as parameters
             self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr=self._lr)
-            self._centroid_optimizer = optim.Adam(self._flattened_class_centroids, lr=self._lr)
+            self._centroid_optimizer = optim.Adam([
+            {'params': self._main_centroids, 'lr': self._lr},
+            {'params': self._class_centroids, 'lr': self._lr},
+        ])
+            #self._centroid_optimizer = optim.Adam(self._flattened_class_centroids, lr=self._lr)
+        
         elif optimizer == 'gd':
             self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr=self._lr)
-            self._centroid_optimizer = optim.SGD(self._flattened_class_centroids, lr=self._lr)
-        self._centroid_minimization_opt = optim.Adam([
-            {'params': self._flattened_class_centroids, 'lr': self._lr},
-            {'params': self._kernel.parameters(), 'lr': self._lr},
+            self._centroid_optimizer = optim.SGD([
+            {'params': self._main_centroids, 'lr': self._lr},
+            {'params': self._class_centroids, 'lr': self._lr},
         ])
+            #self._centroid_optimizer = optim.SGD(self._flattened_class_centroids, lr=self._lr)
 
         if self._method == 'random':
             self._loss_function = self._loss_ta
@@ -96,7 +106,7 @@ class TrainModel():
         elif self._method == 'ccka':
             self._loss_function = self._loss_kao
             self._centroid_loss_function = self.loss_co
-            self._sample_function = self._get_all_centroids
+
 
     @property
     def _get_all_centroids(self):
@@ -107,7 +117,7 @@ class TrainModel():
     def _get_all_centroid_labels(self):
         labels = self._main_centroids_labels + [label for cluster in self._class_centroid_labels for label in cluster]
         return torch.tensor(labels, dtype=torch.int)
-
+    """
     def _get_centroids(self, data, data_labels):
         for c in self._n_classes:
             class_data = data[data_labels == c]
@@ -117,6 +127,36 @@ class TrainModel():
             class_centroids = [torch.mean(cluster, dim=0) for cluster in torch.chunk(class_data, self._clusters)]
             self._class_centroids.append([centroid.requires_grad_() for centroid in class_centroids])
             self._class_centroid_labels.append([c] * self._clusters)
+    """
+
+    def _get_centroids(self, data, data_labels):
+        # Initialize empty lists for main centroids and class centroids
+        main_centroids = []
+        class_centroids = []
+        main_centroid_labels = []
+        class_centroid_labels = []
+
+        for c in self._n_classes:
+            class_data = np.array(data[data_labels == c].detach())
+            # Calculate the main centroid and add it to main_centroids
+            main_centroid = np.mean(class_data, axis = 0)  # Shape [1, feature_dim]
+            main_centroids.append(main_centroid.tolist())
+            main_centroid_labels.append(c)
+    
+            # Calculate centroids for each cluster in the class and stack them into a single tensor
+            class_centroids.append([np.mean(cluster.tolist(), axis=0) for cluster in np.array_split(class_data, self._clusters)])
+            class_centroid_labels.append([c] * self._clusters)
+
+        print(main_centroids)
+        # Concatenate all main centroids into a single tensor
+        self._main_centroids = torch.tensor(main_centroids, requires_grad=True)
+        self._main_centroids_labels = torch.tensor(main_centroid_labels)
+        
+        # Concatenate all class centroids into a single tensor
+        self._class_centroids = torch.tensor(class_centroids, requires_grad=True)
+        self._class_centroid_labels = torch.tensor(class_centroid_labels)
+
+
 
     def _centered_kernel_matrix(self, x):
         return qml.kernels.kernel_matrix(x, self._get_all_centroids, self._kernel)
@@ -157,10 +197,30 @@ class TrainModel():
         co_loss =  1 - TA + self.lambda_co * regularization_term
 
         return -kao_loss, -co_loss
-
  
-    def _loss_ta(self, data, data_labels):
-        return qml.kernels.target_alignment(data, data_labels, self._kernel, assume_normalized_kernel=True)
+    def _loss_ta(self, K, y):
+        
+        """
+        Implements the KTA as defined in https://pennylane.ai/qml/demos/tutorial_kernels_module/.
+
+        Denominator is the square root of the trace of the kernel matrix squared times the number of training samples
+        """
+        # Ensure that K has the correct shape
+        
+        N = y.shape[0]
+        assert K.shape == (N,N), "Shape of K must be (N,N)"
+
+        yT = y.view(1,-1) #Transpose of y, shape (1,N)
+        Ky = torch.matmul(K,y) # K*y, shape (N,)
+        yTKy = torch.matmul(yT,Ky) #yT * Ky, shape (1,1) which is a scalar
+
+        K2 = torch.matmul(K,K) #K^2, shape (N,N)
+        trace_K2 = torch.trace(K2)
+
+        result = yTKy / (torch.sqrt(trace_K2)* N)
+
+        return result.squeeze()
+    
 
     def _sampler_random_sampling(self, data, data_labels):
         subset_indices = torch.randperm(len(data))[:self._sampling_size]
@@ -185,7 +245,14 @@ class TrainModel():
                 class_centroids = self._class_centroids[_class]
                 class_labels = torch.tensor(self._class_centroid_labels[_class], dtype=torch.int)
                 
-                """
+                
+                x_0 = self._main_centroids[_class].repeat_interleave(self._clusters, dim=1)
+                x_1 = class_centroids
+                
+                K = self._kernel(x_0, x_1).to(torch.float32)
+                print(K)
+
+                
                 # Kao loss
                 loss_kao = -self._loss_kao(class_centroids, class_labels, self._main_centroids[_class])
                 loss_kao.backward(retain_graph=True)
@@ -196,6 +263,7 @@ class TrainModel():
                 loss_co = -self.loss_co(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
                 loss_co.backward(retain_graph=True)
                 self._centroid_optimizer.step()
+                
                 """
 
                 loss_kao, loss_co = self._centroid_loss(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
@@ -208,56 +276,56 @@ class TrainModel():
                 self._per_epoch_executions += self._kernel._circuit_executions
                 print(self._per_epoch_executions)
                 print(f"Epoch {epoch + 1}th, Kernel Loss: {loss}" )
-                
-                if self._validate_every_epoch and (epoch + 1) % self._validate_every_epoch == 0:
-                    validation_accuracy = self.evaluate(training_data, training_labels)['testing_accuracy']
-                    self.validation_accuracy_arr.append(validation_accuracy)
-                    print(f"Validation Accuracy at Epoch {epoch + 1}: {validation_accuracy}")
-
-                    if self._target_accuracy:
-                        if validation_accuracy >= self._target_accuracy:
-                            print(f"Target accuracy of {self._target_accuracy} achieved at Epoch {epoch + 1}. Training stopped.")
-                            break
+                """
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
-                    current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
-                    self.alignment_arr.append(current_alignment.item())
+                    x_0 = training_data.repeat(training_data.shape[0],1)
+                    x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
+
+                    
+                    K = self._kernel(x_0, x_1).to(torch.float32)
+                    self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
+                    current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
             
             else:
                 sampled_data, sampled_labels = samples_func(training_data, training_labels)
-                print(sampled_data)
-                loss = -loss_func(sampled_data, sampled_labels)
+                sampled_labels = sampled_labels.to(torch.float32)
+
+                x_0 = sampled_data.repeat(sampled_data.shape[0],1)
+                x_1 = sampled_data.repeat_interleave(sampled_data.shape[0], dim=0)
+                print(x_0)
+                K = self._kernel(x_0, x_1).to(torch.float32) 
+                loss = -loss_func(K.reshape(sampled_data.shape[0],sampled_data.shape[0]), sampled_labels)
                 loss.backward()
                 optimizer.step()
 
                 # Store and print loss values
                 self._loss_arr.append(loss.item())
-                self._per_epoch_executions += self._kernel._circuit_executions
+                self._per_epoch_executions += x_0.shape[0]
                 print(self._per_epoch_executions)
-                if self._validate_every_epoch and (epoch + 1) % self._validate_every_epoch == 0:
-                    validation_accuracy = self.evaluate(training_data, training_labels)['testing_accuracy']
-                    self.validation_accuracy_arr.append(validation_accuracy)
-                    print(f"Validation Accuracy at Epoch {epoch + 1}: {validation_accuracy}")
-
-                    if self._target_accuracy:
-                        if validation_accuracy >= self._target_accuracy:
-                            print(f"Target accuracy of {self._target_accuracy} achieved at Epoch {epoch + 1}. Training stopped.")
-                            break
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
-                    current_alignment = qml.kernels.target_alignment(training_data, training_labels, self._kernel, assume_normalized_kernel=True)
-                    self.alignment_arr.append(current_alignment.item())
+                    x_0 = training_data.repeat(training_data.shape[0],1)
+                    x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
+                
+                    K = self._kernel(x_0, x_1).to(torch.float32)
+                    self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
+                    current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
         
         self._executions = self._kernel._circuit_executions
         self._kernel._circuit_executions = 0
      
-        self.final_training_accuracy = accuracy_score(self._training_labels, self._model.predict(self._kernel_matrix(self._training_data, self._training_data).detach().numpy()))
+        #self.final_training_accuracy = accuracy_score(self._training_labels, self._model.predict(self._kernel_matrix(self._training_data, self._training_data).detach().numpy()))
 
     def evaluate(self, test_data, test_labels):
-        current_alignment = qml.kernels.target_alignment(self._training_data, self._training_labels, self._kernel, assume_normalized_kernel=True)
-        _matrix = self._kernel_matrix(self._training_data, self._training_data)
+        
+        ##Training Accuracy
+        x_0 = self._training_data.repeat(self._training_data.shape[0],1)
+        x_1 = self._training_data.repeat_interleave(self._training_data.shape[0], dim=0)    
+        _matrix = self._kernel(x_0, x_1).to(torch.float32).reshape(self._training_data.shape[0],self._training_data.shape[0])
+        current_alignment = self._loss_ta(_matrix, self._training_labels)
         if torch.is_tensor(_matrix):
             _matrix = _matrix.detach().numpy()
         if torch.is_tensor(self._training_labels):
@@ -267,8 +335,10 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         training_accuracy = accuracy_score(self._training_labels, predictions)
 
-
-        _matrix = self._kernel_matrix(test_data, self._training_data)
+        ##Testing Accuracy
+        x_0 = self._testing_data.repeat_interleave(self._training_data.shape[0],dim=0)
+        x_1 = self._training_data.repeat(test_data.shape[0], 1)
+        _matrix = self._kernel(x_0, x_1).to(torch.float32).reshape(test_data.shape[0],self._training_data.shape[0])
         if torch.is_tensor(_matrix):
             _matrix = _matrix.detach().numpy()
         if torch.is_tensor(test_labels):
@@ -280,6 +350,7 @@ class TrainModel():
         print(f"Testing Accuracy: {accuracy}")
         print(f"F1 Score: {f1}")
         print(f"AUC: {auc}")
+
 
         return {
             'alignment': current_alignment,

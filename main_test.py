@@ -40,6 +40,7 @@ training_data = torch.tensor(x_train, dtype=torch.float32, requires_grad=True)
 testing_data = torch.tensor(x_test, dtype=torch.float32, requires_grad=True)
 training_labels = torch.tensor(y_train, dtype=torch.int)
 testing_labels = torch.tensor(y_test, dtype=torch.int)
+
 kernel = Qkernel(   
                         device = config['qkernel']['device'], 
                         n_qubits = 4, 
@@ -56,10 +57,10 @@ agent = TrainModel(
                         training_labels=training_labels,
                         testing_data=testing_data,
                         testing_labels=testing_labels,
-                        optimizer= 'gd',
+                        optimizer= 'adam',
                         lr= 0.1,
                         epochs = 200,
-                        train_method= 'ccka',
+                        train_method= 'random',
                         target_accuracy=0.95,
                         get_alignment_every=10,  
                         validate_every_epoch=None, 
@@ -89,7 +90,7 @@ results = {
 }
 
 # Specify the filename
-filename = "checkerboard_rodrigo_data_ccka_exp2.json"
+filename = "checkerboard_rodrigo_data_ccka_exp3.json"
 
 # Write the JSON-serializable results to a file
 with open(filename, "w") as file:
