@@ -60,17 +60,17 @@ agent = TrainModel(
                         optimizer= 'adam',
                         lr= 0.1,
                         epochs = 200,
-                        train_method= 'random',
+                        train_method= 'ccka',
                         target_accuracy=0.95,
                         get_alignment_every=10,  
                         validate_every_epoch=None, 
                         base_path='.',
-                        lambda_kao=0.01,
+                        lambda_kao=0.1,
                         lambda_co=0.1,
                         clusters=4
                       )
 
-intial_metrics = agent.evaluate(testing_data, testing_labels)
+#intial_metrics = agent.evaluate(testing_data, testing_labels)
 agent.fit_kernel(training_data, training_labels)
 after_metrics = agent.evaluate(testing_data, testing_labels)
 
