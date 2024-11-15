@@ -15,7 +15,7 @@ dataset:
 
 ## Quantum Kernel Model Configuration
 qkernel:
-  device:           default.qubit
+  device:           lightning.qubit
   n_qubits:         2
   trainable:        True
   input_scaling:    True
