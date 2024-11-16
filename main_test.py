@@ -33,6 +33,7 @@ else:
 with open('config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
+"""
 data = np.load('checkerboard_dataset.npy', allow_pickle=True).item()
 x_train, x_test, y_train, y_test = data['x_train'], data['x_test'], data['y_train'], data['y_test']
 
@@ -40,15 +41,32 @@ training_data = torch.tensor(x_train, dtype=torch.float32, requires_grad=True)
 testing_data = torch.tensor(x_test, dtype=torch.float32, requires_grad=True)
 training_labels = torch.tensor(y_train, dtype=torch.int)
 testing_labels = torch.tensor(y_test, dtype=torch.int)
+"""
+data_generator = DataGenerator(     
+                                        dataset_name = 'checkerboard', 
+                                        n_samples = 200, 
+                                        noise = 0.1, 
+                                        num_sectors = 3, 
+                                        points_per_sector = 15, 
+                                        grid_size = 4, 
+                                        sampling_radius = 0.05
+                                  )
+    
+features, target = data_generator.generate_dataset()
+training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.50, random_state=42)
+training_data = torch.tensor(training_data.to_numpy(), dtype=torch.float32, requires_grad=True)
+testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
+training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
+testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
 
 kernel = Qkernel(   
                         device = config['qkernel']['device'], 
-                        n_qubits = 4, 
+                        n_qubits = 2, 
                         trainable = True, 
                         input_scaling = True, 
                         data_reuploading = True, 
-                        ansatz = 'embedding_paper', 
-                        ansatz_layers = 5
+                        ansatz = 'he', 
+                        ansatz_layers = 3
                     )
     
 agent = TrainModel(
@@ -65,7 +83,7 @@ agent = TrainModel(
                         get_alignment_every=10,  
                         validate_every_epoch=None, 
                         base_path='.',
-                        lambda_kao=0.1,
+                        lambda_kao=0.01,
                         lambda_co=0.1,
                         clusters=4
                       )

@@ -74,24 +74,24 @@ class TrainModel():
         self.final_testing_accuracy = None
         self._per_epoch_executions = None
 
-        if optimizer == 'adam':
-            # Define optimizer with centroids as parameters
-            #self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr=self._lr)
-            self._kernel_optimizer = optim.Adam([
-            {'params': self._kernel.parameters(), 'lr': self._lr},
-            {'params': self._main_centroids, 'lr': self._lr},
-            {'params': self._class_centroids, 'lr': self._lr},
-        ])
-            #self._centroid_optimizer = optim.Adam(self._flattened_class_centroids, lr=self._lr)
         
-        elif optimizer == 'gd':
-            #self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr=self._lr)
-            self._kernel_optimizer = optim.SGD([
-            {'params': self._kernel.parameters(), 'lr': self._lr},
-            {'params': self._main_centroids, 'lr': self._lr},
-            {'params': self._class_centroids, 'lr': self._lr},
-        ])
-            #self._centroid_optimizer = optim.SGD(self._flattened_class_centroids, lr=self._lr)
+        if self._method == 'random':
+            if optimizer == 'adam':
+                self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
+            elif optimizer == 'gd':
+                self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
+        
+        elif self._method == 'ccka':
+            if optimizer == 'adam':
+                self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
+                self._optimizers = []
+                for tensor in self._class_centroids:
+                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': self._lr},]))
+            elif optimizer == 'gd':
+                self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
+                self._optimizers = []
+                for tensor in self._class_centroids:
+                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': self._lr},]))    
 
         if self._method == 'random':
             self._loss_function = self._loss_ta
@@ -101,48 +101,28 @@ class TrainModel():
             self._sample_function = self._full_data
         elif self._method == 'ccka':
             self._loss_function = self._loss_kao
-            self._centroid_loss_function = self.loss_co
+            self._centroid_loss_function = self._loss_co
             self._sample_function = self._get_centroids
 
 
-    """
-    def _get_centroids(self, data, data_labels):
-        for c in self._n_classes:
-            class_data = data[data_labels == c]
-            main_centroid = torch.mean(class_data, dim=0)
-            self._main_centroids.append(main_centroid.requires_grad_())
-            self._main_centroids_labels.append(c)
-            class_centroids = [torch.mean(cluster, dim=0) for cluster in torch.chunk(class_data, self._clusters)]
-            self._class_centroids.append([centroid.requires_grad_() for centroid in class_centroids])
-            self._class_centroid_labels.append([c] * self._clusters)
-    """
+    def _get_centroids(self, training_data, training_labels):
+        data = training_data.detach().numpy()
+        data_labels = training_labels.detach().numpy()
+        _class_centroids = []
+        _class_centroids_labels = []
 
-    def _get_centroids(self, data, data_labels):
-        # Initialize empty lists for main centroids and class centroids
-        main_centroids = []
-        class_centroids = []
-        main_centroid_labels = []
-        class_centroid_labels = []
-
-        for c in self._n_classes:
-            class_data = np.array(data[data_labels == c].detach())
-            # Calculate the main centroid and add it to main_centroids
-            main_centroid = np.mean(class_data, axis = 0)  # Shape [1, feature_dim]
-            main_centroids.append(main_centroid.tolist())
-            main_centroid_labels.append(c)
-    
-            # Calculate centroids for each cluster in the class and stack them into a single tensor
-            class_centroids.append([np.mean(cluster.tolist(), axis=0).tolist() for cluster in np.array_split(class_data, self._clusters)])
-            class_centroid_labels.append([c] * self._clusters)
-
-        self._main_centroids = torch.tensor(main_centroids, requires_grad=True)
-        self._main_centroids_labels = torch.tensor(main_centroid_labels)
-        self._class_centroids = torch.tensor(class_centroids, requires_grad=True)
-        self._class_centroid_labels = torch.tensor(class_centroid_labels)
-    
-    def centroid_kernel_matrix(self, X, centroid):
-        kernel_matrix = [self._kernel(centroid, x_i) for x_i in X]
-        return torch.stack(kernel_matrix)
+        for c in [1, -1]:
+            cdata = data[data_labels == c]
+            mc = [np.mean(cdata, axis=0)]
+            sub_centroids = [np.mean(cluster, axis=0) for cluster in np.array_split(cdata, self._clusters)]
+            sub_centroids_labels = [c] * self._clusters
+            class_centroids = np.array(mc + sub_centroids)
+            _class_centroids.append(torch.tensor(class_centroids, requires_grad=True))
+            _class_centroids_labels.append(torch.tensor(np.array(sub_centroids_labels)))
+        
+        self._class_centroids = _class_centroids
+        self._class_centroid_labels = _class_centroids_labels
+        
 
     def centroid_target_alignment(self, K, Y, l=0.1):
         
@@ -154,38 +134,19 @@ class TrainModel():
         TA = numerator / denominator
         return TA.requires_grad_()
     
-    def _loss_kao(self, X, Y, centroid):
-        TA = self.centroid_target_alignment(X, Y, centroid)
+    def _loss_kao(self, K, Y):
+        TA = self.centroid_target_alignment(K, Y)
         r = self.lambda_kao * sum((param ** 2).sum() for param in self._kernel.parameters())
         return 1 - TA + r
 
-    def loss_co(self, X, Y, centroid, cl):
+    def _loss_co(self, X, Y, cl):
         TA = self.centroid_target_alignment(X, Y)
-        cl_tensor = torch.tensor(float(cl), dtype=torch.float32)
+        cl_tensor = torch.tensor(float(cl), dtype=torch.float32, requires_grad = True)
         regularization_term = torch.sum(torch.clamp(cl_tensor - 1.0, min=0.0) - torch.clamp(cl_tensor, max=0.0))
         return 1 - TA + self.lambda_co * regularization_term
-
-    def _centroid_loss(self, K, Y, centroid, cl):
-        
-        TA = self.centroid_target_alignment(K, Y, centroid)
-        r = self.lambda_kao * sum((param ** 2).sum() for param in self._kernel.parameters())
-        kao_loss = 1 - TA + r
-
-        cl_tensor = torch.tensor(float(cl), dtype=torch.float32)
-        regularization_term = torch.sum(torch.clamp(cl_tensor - 1.0, min=0.0) - torch.clamp(cl_tensor, max=0.0))
-        co_loss =  1 - TA + self.lambda_co * regularization_term
-
-        return -kao_loss + co_loss
  
     def _loss_ta(self, K, y):
-        
-        """
-        Implements the KTA as defined in https://pennylane.ai/qml/demos/tutorial_kernels_module/.
 
-        Denominator is the square root of the trace of the kernel matrix squared times the number of training samples
-        """
-        # Ensure that K has the correct shape
-        
         N = y.shape[0]
         assert K.shape == (N,N), "Shape of K must be (N,N)"
 
@@ -217,62 +178,33 @@ class TrainModel():
         for epoch in range(epochs):
             optimizer.zero_grad()
             if self._method == 'ccka':
-                
+              
                 _class = epoch % len(self._n_classes)
-                class_centroids = torch.tensor(self._class_centroids[_class], requires_grad=True)
-                class_labels = self._class_centroid_labels[_class]
-                main_centroid = torch.tensor(self._main_centroids[_class], requires_grad=True)
+                main_centroid = self._class_centroids[_class][0]
+                class_centroids = self._class_centroids[_class][1:]
+                class_centroid_labels = self._class_centroid_labels[_class]
+                self._optimizers[_class].zero_grad()
 
-                x_0 = main_centroid.repeat(self._clusters, 1)
-                x_1 = class_centroids
-                
-                K = self._kernel(x_0, x_1).to(torch.float32)
+                #create interleave
+                x_0 = main_centroid.repeat(class_centroids.shape[0],1)
+                x_1 = class_centroids 
 
-                loss = self._centroid_loss(K = K, Y=class_labels, centroid=main_centroid, cl=_class + 1)
-                loss = loss.mean()
-                loss.backward()
-
-                for param in self._kernel.parameters():
-                    if param.grad is not None:
-                        print(f"Kernel Gradient: {param.grad}")
-                for param in [self._main_centroids[_class], K]:
-                    print(f"Centroid Gradient: {param.grad}")
-            
+                K = self._kernel(x_0, x_1).to(torch.float32) 
+                print(K.requires_grad)
+                loss_kao = -self._loss_kao(K, class_centroid_labels)
+                loss_kao.backward()
                 optimizer.step()
-                print(f"Epoch {epoch + 1}th, Kernel Loss: {loss}" )
+                self._optimizers[_class].step()
 
-                self._loss_arr.append(loss.item())
-                self._per_epoch_executions += x_0.shape[0]
-                """
-                # Kao loss
-                loss_kao = -self._loss_kao(class_centroids, class_labels, self._main_centroids[_class])
-                loss_kao.backward(retain_graph=True)
-                optimizer.step() 
-
-                # Co loss
-                self._centroid_optimizer.zero_grad()
-                loss_co = -self.loss_co(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
-                loss_co.backward(retain_graph=True)
-                self._centroid_optimizer.step()
-                
-                
-
-                loss_kao, loss_co = self._centroid_loss(class_centroids, class_labels, self._main_centroids[_class], _class + 1)
-                loss_kao.backward(retain_graph=True)
-                optimizer.step() 
-                
-                loss_co.backward(retain_graph=True)
-                self._centroid_optimizer.step()
-
-                self._per_epoch_executions += self._kernel._circuit_executions
-                print(self._per_epoch_executions)
-                print(f"Epoch {epoch + 1}th, Kernel Loss: {loss}" )
-                """
+                #K = self._kernel(x_0, x_1).to(torch.float32)
+                #loss_co = -self._loss_co(K, class_centroid_labels, _class + 1)
+                #loss_co.backward()
+                #self._optimizers[_class].step()
+        
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     x_0 = training_data.repeat(training_data.shape[0],1)
                     x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
-
                     
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
