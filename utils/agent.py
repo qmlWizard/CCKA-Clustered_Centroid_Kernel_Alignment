@@ -141,7 +141,7 @@ class TrainModel():
 
     def _loss_co(self, X, Y, cl):
         TA = self.centroid_target_alignment(X, Y)
-        cl_tensor = torch.tensor(float(cl), dtype=torch.float32, requires_grad = True)
+        cl_tensor = cl #torch.tensor(cl, dtype=torch.float32, requires_grad = True)
         regularization_term = torch.sum(torch.clamp(cl_tensor - 1.0, min=0.0) - torch.clamp(cl_tensor, max=0.0))
         return 1 - TA + self.lambda_co * regularization_term
  
@@ -194,12 +194,12 @@ class TrainModel():
                 loss_kao = -self._loss_kao(K, class_centroid_labels)
                 loss_kao.backward()
                 optimizer.step()
-                self._optimizers[_class].step()
+                
 
-                #K = self._kernel(x_0, x_1).to(torch.float32)
-                #loss_co = -self._loss_co(K, class_centroid_labels, _class + 1)
-                #loss_co.backward()
-                #self._optimizers[_class].step()
+                K = self._kernel(x_0, x_1).to(torch.float32)
+                loss_co = -self._loss_co(K, class_centroid_labels, main_centroid)
+                loss_co.backward()
+                self._optimizers[_class].step()
         
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
