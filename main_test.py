@@ -5,6 +5,7 @@ import ray
 from ray import tune
 from ray.air import session
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import yaml
 import json
@@ -33,17 +34,24 @@ else:
 with open('config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
-
+"""
+# Load the dataset
 data = np.load('checkerboard_dataset.npy', allow_pickle=True).item()
 x_train, x_test, y_train, y_test = data['x_train'], data['x_test'], data['y_train'], data['y_test']
 
-training_data = torch.tensor(x_train, dtype=torch.float32, requires_grad=True)
-testing_data = torch.tensor(x_test, dtype=torch.float32, requires_grad=True)
+# Apply Min-Max Scaling to the range [0, π]
+scaler = MinMaxScaler(feature_range=(0, np.pi))
+x_train_scaled = scaler.fit_transform(x_train)
+x_test_scaled = scaler.transform(x_test)
+
+# Convert scaled data to PyTorch tensors
+training_data = torch.tensor(x_train_scaled, dtype=torch.float32, requires_grad=True)
+testing_data = torch.tensor(x_test_scaled, dtype=torch.float32, requires_grad=True)
 training_labels = torch.tensor(y_train, dtype=torch.int)
 testing_labels = torch.tensor(y_test, dtype=torch.int)
 """
 data_generator = DataGenerator(     
-                                        dataset_name = 'checkerboard', 
+                                        dataset_name = 'swiss_roll', 
                                         n_samples = 200, 
                                         noise = 0.1, 
                                         num_sectors = 3, 
@@ -58,7 +66,7 @@ training_data = torch.tensor(training_data.to_numpy(), dtype=torch.float32, requ
 testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
 training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
 testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
-"""
+
 kernel = Qkernel(   
                         device = config['qkernel']['device'], 
                         n_qubits = 4, 
@@ -66,7 +74,7 @@ kernel = Qkernel(
                         input_scaling = True, 
                         data_reuploading = True, 
                         ansatz = 'embedding_paper', 
-                        ansatz_layers = 5
+                        ansatz_layers = 3
                     )
     
 agent = TrainModel(
@@ -76,19 +84,19 @@ agent = TrainModel(
                         testing_data=testing_data,
                         testing_labels=testing_labels,
                         optimizer= 'adam',
-                        lr= 0.01,
-                        epochs = 40,
+                        lr= 0.5,
+                        epochs = 100,
                         train_method= 'ccka',
                         target_accuracy=0.95,
-                        get_alignment_every=10  ,  
+                        get_alignment_every=20  ,  
                         validate_every_epoch=None, 
                         base_path='.',
                         lambda_kao=0.001,
                         lambda_co=0.001,
                         clusters=4
-                      )
+                  )
 
-#intial_metrics = agent.evaluate(testing_data, testing_labels)
+intial_metrics = agent.evaluate(testing_data, testing_labels)
 agent.fit_kernel(training_data, training_labels)
 after_metrics = agent.evaluate(testing_data, testing_labels)
 

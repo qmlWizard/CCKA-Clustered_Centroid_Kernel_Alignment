@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from sklearn.datasets import make_moons, make_swiss_roll, make_gaussian_quantiles, load_iris, fetch_openml
+from sklearn.preprocessing import MinMaxScaler
 
 
 class DataGenerator:
@@ -43,7 +44,13 @@ class DataGenerator:
         else:
             raise ValueError("Dataset not supported. Choose from 'moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake', 'iris', 'mnist_fashion', 'checkerboard'.")
 
-        return pd.DataFrame(X, columns=[f'Feature {i+1}' for i in range(X.shape[1])]), pd.Series(y, name='Label')
+        # Apply MinMax scaling to the range [0, π]
+        scaler = MinMaxScaler(feature_range=(- np.pi / 2, np.pi / 2))
+        X_scaled = scaler.fit_transform(X)
+
+        # Return the scaled data as a DataFrame and the labels as a Series
+        return pd.DataFrame(X_scaled, columns=[f'Feature {i+1}' for i in range(X_scaled.shape[1])]), pd.Series(y, name='Label')
+
 
     def create_xor(self):
         np.random.seed(0)
