@@ -121,7 +121,7 @@ if __name__ == "__main__":
         'clusters': tune.grid_search(config['agent']['clusters'])
     }
 
-    analysis = tune.run(
+    analysis = tune.Tuner(
         tune.with_parameters(train),
         config=search_space,
         resources_per_trial={"gpu": 1, "cpu": 20},

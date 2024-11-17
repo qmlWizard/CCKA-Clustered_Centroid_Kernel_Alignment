@@ -84,14 +84,17 @@ class TrainModel():
         elif self._method == 'ccka':
             if optimizer == 'adam':
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
+                self._centroid_optimizer = optim.Adam([ {'params': self._class_centroids[0], 'lr': 0.01}, 
+                                                        {'params': self._class_centroids[1], 'lr': 0.01}, 
+                                                      ])
                 self._optimizers = []
-                for tensor in self._class_centroids:
-                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.05},]))
+                for tensor in self._main_centroids:
+                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.01}, ]))
             elif optimizer == 'gd':
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
                 for tensor in self._class_centroids:
-                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': 0.05},]))    
+                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': 0.01},]))    
 
         if self._method == 'random':
             self._loss_function = self._loss_ta
@@ -110,10 +113,11 @@ class TrainModel():
         data_labels = training_labels.detach().numpy()
         _class_centroids = []
         _class_centroids_labels = []
-
+        _main_centroids = []
         for c in [1, -1]:
             cdata = data[data_labels == c]
             mc = [np.mean(cdata, axis=0)]
+            _main_centroids.append(torch.tensor(np.array(mc), requires_grad= True))
             sub_centroids = [np.mean(cluster, axis=0) for cluster in np.array_split(cdata, self._clusters)]
             sub_centroids_labels = [c] * self._clusters
             class_centroids = np.array(mc + sub_centroids)
@@ -122,6 +126,8 @@ class TrainModel():
         
         self._class_centroids = _class_centroids
         self._class_centroid_labels = _class_centroids_labels
+        self._main_centroids = _main_centroids
+        
         
 
     def centroid_target_alignment(self, K, Y, l):
@@ -180,7 +186,7 @@ class TrainModel():
                 for i in range(10):
                     
                     _class = epoch % len(self._n_classes)
-                    main_centroid = self._class_centroids[_class][0]
+                    main_centroid = self._main_centroids[_class]
                     class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) #self._class_centroids[_class][1:]
                     class_centroid_labels = torch.cat(self._class_centroid_labels) #self._class_centroid_labels[_class]
 
@@ -206,12 +212,17 @@ class TrainModel():
                     x_0 = main_centroid.repeat(class_centroids.shape[0],1)
                     x_1 = class_centroids 
 
+                    #print("Before: ", self._main_centroids)
                     self._optimizers[_class].zero_grad()
+                    #self._centroid_optimizer.zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     loss_co = -self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
                     loss_co.backward()
                     self._optimizers[_class].step()
-                    
+                    #self._centroid_optimizer.step()
+                    #print("After: ", self._main_centroids)
+
+
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     x_0 = training_data.repeat(training_data.shape[0], 1)
                     x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
