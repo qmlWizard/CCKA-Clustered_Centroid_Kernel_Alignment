@@ -86,12 +86,12 @@ class TrainModel():
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
                 for tensor in self._class_centroids:
-                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': self._lr},]))
+                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.05},]))
             elif optimizer == 'gd':
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
                 for tensor in self._class_centroids:
-                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': self._lr},]))    
+                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': 0.05},]))    
 
         if self._method == 'random':
             self._loss_function = self._loss_ta
@@ -124,25 +124,23 @@ class TrainModel():
         self._class_centroid_labels = _class_centroids_labels
         
 
-    def centroid_target_alignment(self, K, Y, l=0.1):
-        
-        min_size = min(K.size(0), Y.size(0))
-        K = K[:min_size]
-        Y = Y[:min_size]
-        numerator = l * torch.sum(Y * K)  
-        denominator = torch.sqrt(torch.sum(K ** 2) * torch.sum(Y ** 2))
-        TA = numerator / denominator
-        return TA.requires_grad_()
+    def centroid_target_alignment(self, K, Y, l):
+        num = l * torch.sum(Y * K)
+        den = torch.sqrt(torch.sum(K ** 2) * torch.sum(Y ** 2))
+        result = num / den       
+        return result.squeeze()
     
-    def _loss_kao(self, K, Y):
-        TA = self.centroid_target_alignment(K, Y)
+    def _loss_kao(self, K, Y, cl):
+        TA = self.centroid_target_alignment(K, Y, cl)
         r = self.lambda_kao * sum((param ** 2).sum() for param in self._kernel.parameters())
         return 1 - TA + r
 
-    def _loss_co(self, X, Y, cl):
-        TA = self.centroid_target_alignment(X, Y)
-        cl_tensor = cl #torch.tensor(cl, dtype=torch.float32, requires_grad = True)
-        regularization_term = torch.sum(torch.clamp(cl_tensor - 1.0, min=0.0) - torch.clamp(cl_tensor, max=0.0))
+    def _loss_co(self, K, Y, centroid, cl):
+        TA = self.centroid_target_alignment(K, Y, cl)
+        regularization_term = 0
+        for d in centroid:
+            regularization_term += torch.amax(d - 1, 0) - torch.amin(d, 0)
+
         return 1 - TA + self.lambda_co * regularization_term
  
     def _loss_ta(self, K, y):
@@ -176,39 +174,58 @@ class TrainModel():
         self._kernel._circuit_executions = 0
         self._per_epoch_executions = 0
         for epoch in range(epochs):
-            optimizer.zero_grad()
+            
             if self._method == 'ccka':
               
-                _class = epoch % len(self._n_classes)
-                main_centroid = self._class_centroids[_class][0]
-                class_centroids = self._class_centroids[_class][1:]
-                class_centroid_labels = self._class_centroid_labels[_class]
-                self._optimizers[_class].zero_grad()
-
-                #create interleave
-                x_0 = main_centroid.repeat(class_centroids.shape[0],1)
-                x_1 = class_centroids 
-
-                K = self._kernel(x_0, x_1).to(torch.float32) 
-                print(K.requires_grad)
-                loss_kao = -self._loss_kao(K, class_centroid_labels)
-                loss_kao.backward()
-                optimizer.step()
-                
-
-                K = self._kernel(x_0, x_1).to(torch.float32)
-                loss_co = -self._loss_co(K, class_centroid_labels, main_centroid)
-                loss_co.backward()
-                self._optimizers[_class].step()
-        
-
-                if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
-                    x_0 = training_data.repeat(training_data.shape[0],1)
-                    x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
+                for i in range(10):
                     
+                    _class = epoch % len(self._n_classes)
+                    main_centroid = self._class_centroids[_class][0]
+                    class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) #self._class_centroids[_class][1:]
+                    class_centroid_labels = torch.cat(self._class_centroid_labels) #self._class_centroid_labels[_class]
+
+                    #create interleave
+                    x_0 = main_centroid.repeat(class_centroids.shape[0],1)
+                    x_1 = class_centroids 
+
+                    optimizer.zero_grad()
+                    K = self._kernel(x_0, x_1).to(torch.float32) 
+                    loss_kao = -self._loss_kao(K, class_centroid_labels, class_centroid_labels[0])
+                    loss_kao.backward()
+                    optimizer.step()
+        
+                for i in range(10):
+
+                    _class = epoch % len(self._n_classes)
+                    main_centroid = self._class_centroids[_class][0]
+                    class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) #self._class_centroids[_class][1:]
+                    class_centroid_labels = torch.cat(self._class_centroid_labels) #self._class_centroid_labels[_class]
+                    
+
+                    #create interleave
+                    x_0 = main_centroid.repeat(class_centroids.shape[0],1)
+                    x_1 = class_centroids 
+
+                    self._optimizers[_class].zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
-                    self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
-                    current_alignment = self._loss_ta(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
+                    loss_co = -self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
+                    loss_co.backward()
+                    self._optimizers[_class].step()
+                    
+                if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
+                    x_0 = training_data.repeat(training_data.shape[0], 1)
+                    x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
+
+                    K = self._kernel(x_0, x_1).to(torch.float32)
+
+                    # Check if _training_labels is already a tensor
+                    if not isinstance(self._training_labels, torch.Tensor):
+                        self._training_labels = torch.tensor(self._training_labels, dtype=torch.float32)
+
+                    current_alignment = self._loss_ta(
+                        K.reshape(self._training_data.shape[0], self._training_data.shape[0]), 
+                        self._training_labels
+                    )
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
             
             else:
