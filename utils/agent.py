@@ -90,6 +90,7 @@ class TrainModel():
                 self._optimizers = []
                 for tensor in self._main_centroids:
                     self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.01}, ]))
+
             elif optimizer == 'gd':
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
@@ -199,11 +200,12 @@ class TrainModel():
                     loss_kao = -self._loss_kao(K, class_centroid_labels, class_centroid_labels[0])
                     loss_kao.backward()
                     optimizer.step()
-        
+
                 for i in range(10):
 
                     _class = epoch % len(self._n_classes)
-                    main_centroid = self._class_centroids[_class][0]
+                    print(_class)
+                    main_centroid = self._main_centroids[_class]
                     class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) #self._class_centroids[_class][1:]
                     class_centroid_labels = torch.cat(self._class_centroid_labels) #self._class_centroid_labels[_class]
                     
@@ -212,16 +214,12 @@ class TrainModel():
                     x_0 = main_centroid.repeat(class_centroids.shape[0],1)
                     x_1 = class_centroids 
 
-                    #print("Before: ", self._main_centroids)
                     self._optimizers[_class].zero_grad()
                     #self._centroid_optimizer.zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     loss_co = -self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
                     loss_co.backward()
-                    self._optimizers[_class].step()
-                    #self._centroid_optimizer.step()
-                    #print("After: ", self._main_centroids)
-
+                    self._optimizers[_class].step()                    
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     x_0 = training_data.repeat(training_data.shape[0], 1)
