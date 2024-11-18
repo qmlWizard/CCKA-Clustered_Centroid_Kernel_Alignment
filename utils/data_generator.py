@@ -45,12 +45,12 @@ class DataGenerator:
             raise ValueError("Dataset not supported. Choose from 'moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake', 'iris', 'mnist_fashion', 'checkerboard'.")
 
         # Apply MinMax scaling to the range [0, π]
-        scaler = MinMaxScaler(feature_range=(- np.pi / 2, np.pi / 2))
+        scaler = MinMaxScaler(feature_range=(- np.pi, np.pi))
         X_scaled = scaler.fit_transform(X)
 
         # Return the scaled data as a DataFrame and the labels as a Series
         return pd.DataFrame(X_scaled, columns=[f'Feature {i+1}' for i in range(X_scaled.shape[1])]), pd.Series(y, name='Label')
-
+    
 
     def create_xor(self):
         np.random.seed(0)

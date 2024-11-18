@@ -1,22 +1,20 @@
 {
     "initial_metrics": {
-        "alignment": 0.283072292804718,
+        "alignment": 0.07295791059732437,
         "executions": null,
-        "training_accuracy": 0.98,
-        "testing_accuracy": 0.9,
-        "f1_score": 0.8997564935064934,
-        "auc": 0.896969696969697,
+        "training_accuracy": 0.8,
+        "testing_accuracy": 0.5666666666666667,
+        "f1_score": 0.5671486837226548,
         "alignment_arr": [],
         "loss_arr": [],
         "validation_accuracy_arr": []
     },
     "after_metrics": {
-        "alignment": 0.10202908515930176,
-        "executions": 0,
-        "training_accuracy": 0.97,
-        "testing_accuracy": 0.8,
-        "f1_score": 0.8004807692307694,
-        "auc": 0.8040404040404041,
+        "alignment": 0.19959858059883118,
+        "executions": 800,
+        "training_accuracy": 1.0,
+        "testing_accuracy": 0.9,
+        "f1_score": 0.8996662958843159,
         "alignment_arr": [],
         "loss_arr": [],
         "validation_accuracy_arr": []

@@ -34,13 +34,13 @@ else:
 with open('config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
-"""
+
 # Load the dataset
 data = np.load('checkerboard_dataset.npy', allow_pickle=True).item()
 x_train, x_test, y_train, y_test = data['x_train'], data['x_test'], data['y_train'], data['y_test']
 
 # Apply Min-Max Scaling to the range [0, π]
-scaler = MinMaxScaler(feature_range=(0, np.pi))
+scaler = MinMaxScaler(feature_range=(-np.pi, np.pi))
 x_train_scaled = scaler.fit_transform(x_train)
 x_test_scaled = scaler.transform(x_test)
 
@@ -49,12 +49,13 @@ training_data = torch.tensor(x_train_scaled, dtype=torch.float32, requires_grad=
 testing_data = torch.tensor(x_test_scaled, dtype=torch.float32, requires_grad=True)
 training_labels = torch.tensor(y_train, dtype=torch.int)
 testing_labels = torch.tensor(y_test, dtype=torch.int)
+
 """
 data_generator = DataGenerator(     
-                                        dataset_name = 'swiss_roll', 
+                                        dataset_name = 'double_cake', 
                                         n_samples = 200, 
                                         noise = 0.1, 
-                                        num_sectors = 3, 
+                                        num_sectors = 6, 
                                         points_per_sector = 15, 
                                         grid_size = 4, 
                                         sampling_radius = 0.05
@@ -66,7 +67,7 @@ training_data = torch.tensor(training_data.to_numpy(), dtype=torch.float32, requ
 testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
 training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
 testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
-
+"""
 kernel = Qkernel(   
                         device = config['qkernel']['device'], 
                         n_qubits = 4, 
@@ -74,7 +75,7 @@ kernel = Qkernel(
                         input_scaling = True, 
                         data_reuploading = True, 
                         ansatz = 'embedding_paper', 
-                        ansatz_layers = 3
+                        ansatz_layers = 5   
                     )
     
 agent = TrainModel(
@@ -84,8 +85,8 @@ agent = TrainModel(
                         testing_data=testing_data,
                         testing_labels=testing_labels,
                         optimizer= 'adam',
-                        lr= 0.5,
-                        epochs = 100,
+                        lr= 0.1,
+                        epochs = 20,
                         train_method= 'ccka',
                         target_accuracy=0.95,
                         get_alignment_every=20  ,  

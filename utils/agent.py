@@ -84,18 +84,15 @@ class TrainModel():
         elif self._method == 'ccka':
             if optimizer == 'adam':
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
-                self._centroid_optimizer = optim.Adam([ {'params': self._class_centroids[0], 'lr': 0.01}, 
-                                                        {'params': self._class_centroids[1], 'lr': 0.01}, 
-                                                      ])
                 self._optimizers = []
                 for tensor in self._main_centroids:
-                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.1}, ]))
+                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.1}, {'params': self._class_centroids, 'lr': 0.1}]))
 
             elif optimizer == 'gd':
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
-                for tensor in self._class_centroids:
-                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': 0.1},]))    
+                for tensor in self._main_centroids:
+                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': 0.1}, {'params': self._class_centroids, 'lr': 0.01}]))
 
         if self._method == 'random':
             self._loss_function = self._loss_ta
@@ -184,7 +181,7 @@ class TrainModel():
             
             if self._method == 'ccka':
               
-                for i in range(10):
+                for i in range(5):
                     
                     _class = epoch % len(self._n_classes)
                     main_centroid = self._main_centroids[_class]
@@ -194,14 +191,16 @@ class TrainModel():
                     #create interleave
                     x_0 = main_centroid.repeat(class_centroids.shape[0],1)
                     x_1 = class_centroids 
-
+                    self._per_epoch_executions += x_0.shape[0]
                     optimizer.zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32) 
                     loss_kao = self._loss_kao(K, class_centroid_labels, class_centroid_labels[0])
                     loss_kao.backward()
                     optimizer.step()
+                    
+                    
 
-                for i in range(10):
+                for i in range(5):
 
                     _class = epoch % len(self._n_classes)
                     main_centroid = self._main_centroids[_class]
@@ -219,6 +218,7 @@ class TrainModel():
                     loss_co = self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
                     loss_co.backward()
                     self._optimizers[_class].step()                    
+                print(self._per_epoch_executions)
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     x_0 = training_data.repeat(training_data.shape[0], 1)
@@ -235,6 +235,7 @@ class TrainModel():
                         self._training_labels
                     )
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
+                
             
             else:
 
@@ -244,6 +245,7 @@ class TrainModel():
                 x_0 = sampled_data.repeat(sampled_data.shape[0],1)
                 x_1 = sampled_data.repeat_interleave(sampled_data.shape[0], dim=0)
 
+                optimizer.zero_grad()   
                 K = self._kernel(x_0, x_1).to(torch.float32) 
                 loss = -loss_func(K.reshape(sampled_data.shape[0],sampled_data.shape[0]), sampled_labels)
                 loss.backward()
@@ -252,7 +254,7 @@ class TrainModel():
                 # Store and print loss values
                 self._loss_arr.append(loss.item())
                 self._per_epoch_executions += x_0.shape[0]
-                print(self._per_epoch_executions)
+                #print(self._per_epoch_executions)
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     x_0 = training_data.repeat(training_data.shape[0],1)
@@ -295,10 +297,10 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
-        auc = roc_auc_score(test_labels, predictions)
+        #auc = roc_auc_score(test_labels, predictions)
         print(f"Testing Accuracy: {accuracy}")
         print(f"F1 Score: {f1}")
-        print(f"AUC: {auc}")
+        #print(f"AUC: {auc}")
 
 
         return {
@@ -307,7 +309,6 @@ class TrainModel():
             'training_accuracy': training_accuracy,
             'testing_accuracy': accuracy,
             'f1_score': f1,
-            'auc': auc,
             'alignment_arr': self.alignment_arr,
             'loss_arr': self._loss_arr,
             'validation_accuracy_arr': self.validation_accuracy_arr
