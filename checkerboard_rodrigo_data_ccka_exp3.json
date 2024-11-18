@@ -10,11 +10,11 @@
         "validation_accuracy_arr": []
     },
     "after_metrics": {
-        "alignment": 0.19959858059883118,
-        "executions": 800,
+        "alignment": 0.22782403230667114,
+        "executions": 1600,
         "training_accuracy": 1.0,
-        "testing_accuracy": 0.9,
-        "f1_score": 0.8996662958843159,
+        "testing_accuracy": 0.9666666666666667,
+        "f1_score": 0.9665544332210999,
         "alignment_arr": [],
         "loss_arr": [],
         "validation_accuracy_arr": []

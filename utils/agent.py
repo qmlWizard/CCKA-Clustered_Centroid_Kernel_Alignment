@@ -13,6 +13,8 @@ import yaml
 import time
 import os
 
+from utils.helper import to_python_native
+
 
 class TrainModel():
 
@@ -86,7 +88,7 @@ class TrainModel():
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
                 for tensor in self._main_centroids:
-                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.1}, {'params': self._class_centroids, 'lr': 0.1}]))
+                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.1}, {'params': self._class_centroids, 'lr': 0.01}]))
 
             elif optimizer == 'gd':
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
@@ -185,8 +187,8 @@ class TrainModel():
                     
                     _class = epoch % len(self._n_classes)
                     main_centroid = self._main_centroids[_class]
-                    class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) #self._class_centroids[_class][1:]
-                    class_centroid_labels = torch.cat(self._class_centroid_labels) #self._class_centroid_labels[_class]
+                    class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) 
+                    class_centroid_labels = torch.cat(self._class_centroid_labels) 
 
                     #create interleave
                     x_0 = main_centroid.repeat(class_centroids.shape[0],1)
@@ -204,8 +206,8 @@ class TrainModel():
 
                     _class = epoch % len(self._n_classes)
                     main_centroid = self._main_centroids[_class]
-                    class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) #self._class_centroids[_class][1:]
-                    class_centroid_labels = torch.cat(self._class_centroid_labels) #self._class_centroid_labels[_class]
+                    class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) 
+                    class_centroid_labels = torch.cat(self._class_centroid_labels) 
                     
 
                     #create interleave
@@ -218,7 +220,6 @@ class TrainModel():
                     loss_co = self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
                     loss_co.backward()
                     self._optimizers[_class].step()                    
-                print(self._per_epoch_executions)
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     x_0 = training_data.repeat(training_data.shape[0], 1)
@@ -234,6 +235,7 @@ class TrainModel():
                         K.reshape(self._training_data.shape[0], self._training_data.shape[0]), 
                         self._training_labels
                     )
+                    self.alignment_arr.append(current_alignment)
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
                 
             
@@ -263,13 +265,12 @@ class TrainModel():
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
                     current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
+                    self.alignment_arr.append(current_alignment)
                     print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
         
         self._executions = self._kernel._circuit_executions
         self._kernel._circuit_executions = 0
      
-        #self.final_training_accuracy = accuracy_score(self._training_labels, self._model.predict(self._kernel_matrix(self._training_data, self._training_data).detach().numpy()))
-
     def evaluate(self, test_data, test_labels):
         
         ##Training Accuracy
@@ -302,8 +303,7 @@ class TrainModel():
         print(f"F1 Score: {f1}")
         #print(f"AUC: {auc}")
 
-
-        return {
+        metrics = {
             'alignment': current_alignment,
             'executions': self._per_epoch_executions,
             'training_accuracy': training_accuracy,
@@ -313,3 +313,7 @@ class TrainModel():
             'loss_arr': self._loss_arr,
             'validation_accuracy_arr': self.validation_accuracy_arr
         }
+
+        metrics = to_python_native(metrics)
+
+        return metrics

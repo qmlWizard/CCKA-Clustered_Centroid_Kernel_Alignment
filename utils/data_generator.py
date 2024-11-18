@@ -7,8 +7,10 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 class DataGenerator:
-    def __init__(self, dataset_name, n_samples=1000, noise=0.1, num_sectors=3, points_per_sector=10, grid_size=4, sampling_radius=0.05):
+
+    def __init__(self, dataset_name=None, file_path=None, n_samples=1000, noise=0.1, num_sectors=3, points_per_sector=10, grid_size=4, sampling_radius=0.05):
         self.dataset_name = dataset_name
+        self.file_path = file_path
         self.n_samples = n_samples
         self.noise = noise
         self.num_sectors = num_sectors
@@ -18,6 +20,9 @@ class DataGenerator:
         self.dmin, self.dmax = 0, 1
 
     def generate_dataset(self):
+
+        if self.file_path:  # Load dataset from a file if file_path is provided
+            return self.load_from_file()
         if self.dataset_name == 'moons':
             X, y = make_moons(n_samples=self.n_samples, noise=self.noise, random_state=0)
             y = np.where(y == 0, -1, 1)  # Replace 0 with -1
@@ -43,15 +48,33 @@ class DataGenerator:
             X, y = self.create_checkerboard_data()
         else:
             raise ValueError("Dataset not supported. Choose from 'moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake', 'iris', 'mnist_fashion', 'checkerboard'.")
-
         # Apply MinMax scaling to the range [0, π]
         scaler = MinMaxScaler(feature_range=(- np.pi, np.pi))
         X_scaled = scaler.fit_transform(X)
-
-        # Return the scaled data as a DataFrame and the labels as a Series
+        # Reurn the scaled data as a DataFrame and the labels as a Series
         return pd.DataFrame(X_scaled, columns=[f'Feature {i+1}' for i in range(X_scaled.shape[1])]), pd.Series(y, name='Label')
-    
 
+    def load_from_file(self):
+        """Load a dataset from a file and return a merged pandas DataFrame and Series."""
+        data = np.load(self.file_path, allow_pickle=True).item()
+        x_train, x_test = data['x_train'], data['x_test']
+        y_train, y_test = data['y_train'], data['y_test']
+
+        # Apply Min-Max Scaling to the range [0, π]
+        scaler = MinMaxScaler(feature_range=(-np.pi, np.pi))
+        x_train_scaled = scaler.fit_transform(x_train)
+        x_test_scaled = scaler.transform(x_test)
+
+        # Merge train and test data
+        X_scaled = np.vstack([x_train_scaled, x_test_scaled])
+        y = np.hstack([y_train, y_test])
+
+        # Return as pandas DataFrame and Series
+        return (
+            pd.DataFrame(X_scaled, columns=[f'Feature {i+1}' for i in range(X_scaled.shape[1])]),
+            pd.Series(y, name='Label')
+        )
+    
     def create_xor(self):
         np.random.seed(0)
         X = np.random.rand(self.n_samples, 2) * 2 - 1
