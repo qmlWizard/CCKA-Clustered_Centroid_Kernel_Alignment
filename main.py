@@ -19,6 +19,7 @@ import datetime
 from utils.model import Qkernel
 from utils.data_generator import DataGenerator
 from utils.agent import TrainModel
+from utils.helper import tensor_to_list, to_python_native
 
 # Backend Configuration
 if torch.backends.mps.is_available():
@@ -30,71 +31,81 @@ else:
 
 
 def train(config):
-    
-    data_generator = DataGenerator(     
-                                        dataset_name = config['name'], 
-                                        file_path= config['file'],
-                                        n_samples = config['n_samples'], 
-                                        noise = config['noise'], 
-                                        num_sectors = config['num_sectors'], 
-                                        points_per_sector = config['points_per_sector'], 
-                                        grid_size = config['grid_size'], 
-                                        sampling_radius = config['sampling_radius']
-                                  )
+    # Dataset generation
+    data_generator = DataGenerator(
+        dataset_name=config['name'],
+        file_path=config['file'],
+        n_samples=config['n_samples'],
+        noise=config['noise'],
+        num_sectors=config['num_sectors'],
+        points_per_sector=config['points_per_sector'],
+        grid_size=config['grid_size'],
+        sampling_radius=config['sampling_radius']
+    )
     print("Dataset", config['clusters'])
     features, target = data_generator.generate_dataset()
-    training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.50, random_state=42)
-    training_data = torch.tensor(training_data.to_numpy(), dtype=torch.float32, requires_grad=True)
-    testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
+    training_data, testing_data, training_labels, testing_labels = train_test_split(
+        features, target, test_size=0.50, random_state=42)
+    training_data = torch.tensor(
+        training_data.to_numpy(), dtype=torch.float32, requires_grad=True)
+    testing_data = torch.tensor(
+        testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
     training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
     testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
 
-    kernel = Qkernel(   
-                        device = config['device'], 
-                        n_qubits = config['n_qubits'], 
-                        trainable = config['trainable'], 
-                        input_scaling = config['input_scaling'], 
-                        data_reuploading = config['data_reuploading'], 
-                        ansatz = config['ansatz'], 
-                        ansatz_layers = config['ansatz_layers']
-                    )
-    
-    agent = TrainModel(
-                        kernel=kernel,
-                        training_data=training_data,
-                        training_labels=training_labels,
-                        testing_data=testing_data,
-                        testing_labels=testing_labels,
-                        optimizer=config['optimizer'],
-                        lr=config['lr'],
-                        epochs = config['epochs'],
-                        train_method=config['train_method'],
-                        target_accuracy=config['target_accuracy'],
-                        get_alignment_every=config['get_alignment_every'],  
-                        validate_every_epoch=config['validate_every_epoch'], 
-                        base_path=config['base_path'],
-                        lambda_kao=config['lambda_kao'],
-                        lambda_co=config['lambda_co'],
-                        clusters=config['clusters']
-                      )
+    # Kernel initialization
+    kernel = Qkernel(
+        device=config['device'],
+        n_qubits=config['n_qubits'],
+        trainable=config['trainable'],
+        input_scaling=config['input_scaling'],
+        data_reuploading=config['data_reuploading'],
+        ansatz=config['ansatz'],
+        ansatz_layers=config['ansatz_layers']
+    )
 
-    intial_metrics = agent.evaluate(testing_data, testing_labels)
+    # Agent initialization
+    agent = TrainModel(
+        kernel=kernel,
+        training_data=training_data,
+        training_labels=training_labels,
+        testing_data=testing_data,
+        testing_labels=testing_labels,
+        optimizer=config['optimizer'],
+        lr=config['lr'],
+        epochs=config['epochs'],
+        train_method=config['train_method'],
+        target_accuracy=config['target_accuracy'],
+        get_alignment_every=config['get_alignment_every'],
+        validate_every_epoch=config['validate_every_epoch'],
+        base_path=config['base_path'],
+        lambda_kao=config['lambda_kao'],
+        lambda_co=config['lambda_co'],
+        clusters=config['clusters']
+    )
+
+    # Initial evaluation
+    initial_metrics = agent.evaluate(testing_data, testing_labels)
     agent.fit_kernel(training_data, training_labels)
     after_metrics = agent.evaluate(testing_data, testing_labels)
 
+    # Metrics for logging
     metrics = {
         "num_layers": config['ansatz_layers'],
-        "accuracy_train_init": intial_metrics['training_accuracy'],
-        "accuracy_test_init": intial_metrics['testing_accuracy'],
-        "alignment_train_init": intial_metrics['alignment'],
+        "accuracy_train_init": initial_metrics['training_accuracy'],
+        "accuracy_test_init": initial_metrics['testing_accuracy'],
+        "alignment_train_init": initial_metrics['alignment'],
         "accuracy_train_final": after_metrics['training_accuracy'],
-        "accuracy_test_final": after_metrics['training_accuracy'],
+        "accuracy_test_final": after_metrics['testing_accuracy'],
         "alignment_train_epochs": after_metrics['alignment_arr'],
         "circuit_executions": after_metrics['executions'],
     }
 
-    ray.train.report(metrics = metrics)
-    
+    metrics = to_python_native(metrics)
+    # Log results for the trial
+    print("Reporting metrics:", metrics)
+    ray.train.report(metrics)
+
 
 if __name__ == "__main__":
 
@@ -110,13 +121,12 @@ if __name__ == "__main__":
              local_mode = config.ray_config['ray_local_mode'],
              num_cpus = config.ray_config['num_cpus'],
              num_gpus=config.ray_config['num_gpus'],
-             _temp_dir=os.path.dirname(os.path.dirname(os.getcwd())) + 'ray_logs',
              include_dashboard = False
             )
     
     search_space = {
         'name':  config.dataset['name'],
-        'file':  config.dataset['file'],
+        'file':  None if config.dataset['file'] == 'None' else config.dataset['file'],
         'n_samples': config.dataset['n_samples'],
         'noise': config.dataset['noise'],
         'num_sectors': config.dataset['num_sectors'],
@@ -143,11 +153,12 @@ if __name__ == "__main__":
         'base_path': config.agent['base_path'],
         'lambda_kao': config.agent['lambda_kao'],
         'lambda_co': config.agent['lambda_co'],
-        'clusters': tune.grid_search(config.agent['clusters'])
+        'clusters': tune.grid_search(config.agent['clusters']),
+        'ray_logging_path': config.ray_config['ray_logging_path']
     }
 
     name = datetime.datetime.now().strftime("%Y-%m-%d--%H-%M-%S") + '_' + config.agent['train_method'] + '_'
-    ray_path = os.getcwd() + '/' + config.ray_config['ray_logging_path']
+    ray_path = os.getcwd() + '/Documents/developer/greedy_kernel_alignment/' + config.ray_config['ray_logging_path']
     path = ray_path + "/" + name
 
     os.makedirs(os.path.dirname(path + '/'), exist_ok=True)
@@ -158,10 +169,11 @@ if __name__ == "__main__":
     
 
     tuner = tune.Tuner(
-            tune.with_resources(train, resources={"cpu": 5, "gpu": 2}),
+            tune.with_resources(train, resources={"cpu": 20, "gpu": 2}),
             tune_config=tune.TuneConfig(num_samples=config.ray_config['ray_num_trial_samples'],
                                         trial_dirname_creator=trial_name_creator),
-            param_space= search_space,)
+            param_space= search_space,
+            )
         
     tuner.fit()
     ray.shutdown()

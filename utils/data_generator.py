@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 import random
 from sklearn.datasets import make_moons, make_swiss_roll, make_gaussian_quantiles, load_iris, fetch_openml
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.decomposition import PCA
 
 
 class DataGenerator:
 
-    def __init__(self, dataset_name=None, file_path=None, n_samples=1000, noise=0.1, num_sectors=3, points_per_sector=10, grid_size=4, sampling_radius=0.05):
+    def __init__(self, dataset_name=None, file_path=None, n_samples=1000, noise=0.1, num_sectors=3, points_per_sector=10,
+                 grid_size=4, sampling_radius=0.05, n_pca_features=None):
         self.dataset_name = dataset_name
         self.file_path = file_path
         self.n_samples = n_samples
@@ -17,10 +19,10 @@ class DataGenerator:
         self.points_per_sector = points_per_sector
         self.grid_size = grid_size
         self.sampling_radius = sampling_radius
+        self.n_pca_features = n_pca_features
         self.dmin, self.dmax = 0, 1
 
     def generate_dataset(self):
-
         if self.file_path:  # Load dataset from a file if file_path is provided
             return self.load_from_file()
         if self.dataset_name == 'moons':
@@ -44,15 +46,60 @@ class DataGenerator:
         elif self.dataset_name == 'mnist_fashion':
             X, y = fetch_openml('Fashion-MNIST', version=1, return_X_y=True)
             y = y.astype(int)
+
+            # Filter for shirts (class 6) and pants (class 1)
+            binary_classes = [1, 6]  # Pants: 1, Shirts: 6
+            mask = np.isin(y, binary_classes)
+            X = X[mask]
+            y = y[mask]
+
+            # Map labels: Pants -> 1, Shirts -> -1
+            y = np.where(y == 1, 1, -1)
+
+            # Separate the data for each class
+            X_class_1 = X[y == 1]
+            X_class_neg_1 = X[y == -1]
+            y_class_1 = y[y == 1]
+            y_class_neg_1 = y[y == -1]
+
+            # Calculate the number of samples per class (equal distribution)
+            samples_per_class = min(len(X_class_1), len(X_class_neg_1), self.n_samples // 2)
+
+            # Randomly select samples for each class
+            indices_1 = np.random.choice(len(X_class_1), samples_per_class, replace=False)
+            indices_neg_1 = np.random.choice(len(X_class_neg_1), samples_per_class, replace=False)
+
+            X_class_1 = X_class_1[indices_1]
+            y_class_1 = y_class_1[indices_1]
+            X_class_neg_1 = X_class_neg_1[indices_neg_1]
+            y_class_neg_1 = y_class_neg_1[indices_neg_1]
+
+            # Combine the two classes back together
+            X = np.vstack((X_class_1, X_class_neg_1))
+            y = np.hstack((y_class_1, y_class_neg_1))
         elif self.dataset_name == 'checkerboard':
             X, y = self.create_checkerboard_data()
         else:
             raise ValueError("Dataset not supported. Choose from 'moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake', 'iris', 'mnist_fashion', 'checkerboard'.")
+
         # Apply MinMax scaling to the range [0, π]
-        scaler = MinMaxScaler(feature_range=(- np.pi, np.pi))
+        scaler = MinMaxScaler(feature_range=(-np.pi, np.pi))
         X_scaled = scaler.fit_transform(X)
-        # Reurn the scaled data as a DataFrame and the labels as a Series
+
+        # Apply PCA if specified
+        if self.n_pca_features:
+            X_scaled = self.apply_pca(X_scaled)
+
+        # Return the scaled data as a DataFrame and the labels as a Series
         return pd.DataFrame(X_scaled, columns=[f'Feature {i+1}' for i in range(X_scaled.shape[1])]), pd.Series(y, name='Label')
+
+    def apply_pca(self, X):
+        """Apply PCA to reduce features."""
+        if not self.n_pca_features:
+            raise ValueError("Number of PCA features not specified.")
+        pca = PCA(n_components=self.n_pca_features)
+        X_pca = pca.fit_transform(X)
+        return X_pca
 
     def load_from_file(self):
         """Load a dataset from a file and return a merged pandas DataFrame and Series."""
@@ -68,6 +115,10 @@ class DataGenerator:
         # Merge train and test data
         X_scaled = np.vstack([x_train_scaled, x_test_scaled])
         y = np.hstack([y_train, y_test])
+
+        # Apply PCA if specified
+        if self.n_pca_features:
+            X_scaled = self.apply_pca(X_scaled)
 
         # Return as pandas DataFrame and Series
         return (
@@ -156,4 +207,3 @@ class DataGenerator:
         plt.tight_layout()
         plt.show()
         return fig
-

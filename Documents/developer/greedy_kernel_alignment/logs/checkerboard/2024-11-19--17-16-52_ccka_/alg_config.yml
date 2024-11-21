@@ -36,7 +36,7 @@ qkernel:
 ## Model Training Agen Configuration
 agent:
   optimizer:            adam
-  lr:                   [ 0.2, 0.1, 0.01]
+  lr:                   [0.5, 0.2, 0.1, 0.01, 0.001]
   epochs:               20
   train_method:         ccka
   target_accuracy:      0.95

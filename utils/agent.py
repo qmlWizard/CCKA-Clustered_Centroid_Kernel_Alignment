@@ -5,7 +5,8 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 import torch.optim as optim
 from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
+from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import hinge_loss
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import math
@@ -88,13 +89,13 @@ class TrainModel():
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
                 for tensor in self._main_centroids:
-                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.1}, {'params': self._class_centroids, 'lr': 0.01}]))
+                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.01}, {'params': self._class_centroids, 'lr': 0.001}]))
 
             elif optimizer == 'gd':
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
                 for tensor in self._main_centroids:
-                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': 0.1}, {'params': self._class_centroids, 'lr': 0.01}]))
+                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': 0.01}, {'params': self._class_centroids, 'lr': 0.001}]))
 
         if self._method == 'random':
             self._loss_function = self._loss_ta
@@ -165,6 +166,22 @@ class TrainModel():
 
         return result.squeeze()
 
+    def _loss_hinge(self, K, y):
+        # Initialize alpha as a parameter to be learned
+        if not hasattr(self, 'alpha'):
+            self.alpha = torch.nn.Parameter(torch.zeros(K.shape[0], requires_grad=True))
+
+        # Compute the decision function f(x) = K @ alpha
+        f = K @ self.alpha
+
+        # Compute hinge loss
+        hinge_loss = torch.clamp(1 - y * f, min=0)
+
+        # Regularization term
+        reg_term = self.lambda_kao * (self.alpha ** 2).sum()
+
+        return hinge_loss.mean() + reg_term
+
     def _sampler_random_sampling(self, data, data_labels):
         subset_indices = torch.randperm(len(data))[:self._sampling_size]
         return data[subset_indices], data_labels[subset_indices]
@@ -183,7 +200,7 @@ class TrainModel():
             
             if self._method == 'ccka':
               
-                for i in range(5):
+                for i in range(10):
                     
                     _class = epoch % len(self._n_classes)
                     main_centroid = self._main_centroids[_class]
@@ -200,9 +217,7 @@ class TrainModel():
                     loss_kao.backward()
                     optimizer.step()
                     
-                    
-
-                for i in range(5):
+                for i in range(10):
 
                     _class = epoch % len(self._n_classes)
                     main_centroid = self._main_centroids[_class]
@@ -219,7 +234,7 @@ class TrainModel():
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     loss_co = self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
                     loss_co.backward()
-                    self._optimizers[_class].step()                    
+                    self._optimizers[_class].step()              
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     x_0 = training_data.repeat(training_data.shape[0], 1)
@@ -236,11 +251,9 @@ class TrainModel():
                         self._training_labels
                     )
                     self.alignment_arr.append(current_alignment)
-                    print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
-                
+                    #print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
             
             else:
-
                 sampled_data, sampled_labels = samples_func(training_data, training_labels)
                 sampled_labels = sampled_labels.to(torch.float32)
 
@@ -266,13 +279,12 @@ class TrainModel():
                     self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
                     current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
                     self.alignment_arr.append(current_alignment)
-                    print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
+                    #print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
         
         self._executions = self._kernel._circuit_executions
         self._kernel._circuit_executions = 0
      
     def evaluate(self, test_data, test_labels):
-        
         ##Training Accuracy
         x_0 = self._training_data.repeat(self._training_data.shape[0],1)
         x_1 = self._training_data.repeat_interleave(self._training_data.shape[0], dim=0)    
@@ -298,11 +310,6 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
-        #auc = roc_auc_score(test_labels, predictions)
-        print(f"Testing Accuracy: {accuracy}")
-        print(f"F1 Score: {f1}")
-        #print(f"AUC: {auc}")
-
         metrics = {
             'alignment': current_alignment,
             'executions': self._per_epoch_executions,
@@ -313,7 +320,5 @@ class TrainModel():
             'loss_arr': self._loss_arr,
             'validation_accuracy_arr': self.validation_accuracy_arr
         }
-
-        metrics = to_python_native(metrics)
 
         return metrics

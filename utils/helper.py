@@ -24,3 +24,14 @@ def to_python_native(obj):
     elif isinstance(obj, dict):  # Handle nested dictionaries
         return {k: to_python_native(v) for k, v in obj.items()}
     return obj  # Return Python-native types as is
+
+
+def tensor_to_list(data):
+    if isinstance(data, torch.Tensor):
+        return data.tolist()  # Convert tensor to list
+    elif isinstance(data, dict):
+        return {k: tensor_to_list(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [tensor_to_list(v) for v in data]
+    else:
+        return data
