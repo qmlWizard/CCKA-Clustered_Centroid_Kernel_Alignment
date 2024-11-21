@@ -1,0 +1,25 @@
+Failure # 1 (occurred at 2024-11-20_18-06-42)
+[36mray::ImplicitFunc.train()[39m (pid=81320, ip=172.24.11.109, actor_id=90b001760130d9f86417afb001000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/kgreedy/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/kgreedy/lib/python3.12/site-packages/ray/air/_internal/util.py", line 104, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/kgreedy/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 45, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/kgreedy/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 250, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/main.py", line 68, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/utils/agent.py", line 70, in __init__
+    self._get_centroids(self._training_data, self._training_labels)
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/utils/agent.py", line 123, in _get_centroids
+    sub_centroids_labels = [c] * self._clusters
+                           ~~~~^~~~~~~~~~~~~~~~
+TypeError: can't multiply sequence by non-int of type 'list'
