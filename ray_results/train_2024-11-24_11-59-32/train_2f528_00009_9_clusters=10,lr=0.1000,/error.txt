@@ -1,0 +1,9 @@
+Failure # 1 (occurred at 2024-11-24_13-31-22)
+The actor died unexpectedly before finishing this task.
+	class_name: ImplicitFunc
+	actor_id: 5ce0c2b9eb81f3261b4974de01000000
+	pid: 421381
+	namespace: 315a47e4-e7ed-42cf-b192-52492f2ee64f
+	ip: 172.24.11.109
+The actor died because its node has died. Node Id: 4b93304a7c5bd2b589c4cb427568d42f5182a84395b2752c4314488f
+	the actor's node was terminated unexpectedly: health check failed due to missing too many heartbeats

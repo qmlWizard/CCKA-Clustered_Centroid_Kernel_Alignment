@@ -25,7 +25,7 @@ class DataGenerator:
     def generate_dataset(self):
         if self.file_path:  # Load dataset from a file if file_path is provided
             return self.load_from_file()
-        if self.dataset_name == 'moons':
+        elif self.dataset_name == 'moons':
             X, y = make_moons(n_samples=self.n_samples, noise=self.noise, random_state=0)
             y = np.where(y == 0, -1, 1)  # Replace 0 with -1
         elif self.dataset_name == 'xor':

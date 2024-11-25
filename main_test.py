@@ -34,32 +34,16 @@ else:
 with open('config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
-"""
-# Load the dataset
-data = np.load('/home/digvijay/Documents/developer/greedy_kernel_alignment/data/checkerboard_dataset.npy', allow_pickle=True).item()
-x_train, x_test, y_train, y_test = data['x_train'], data['x_test'], data['y_train'], data['y_test']
-
-# Apply Min-Max Scaling to the range [0, π]
-scaler = MinMaxScaler(feature_range=(-np.pi, np.pi))
-x_train_scaled = scaler.fit_transform(x_train)
-x_test_scaled = scaler.transform(x_test)
-
-# Convert scaled data to PyTorch tensors
-training_data = torch.tensor(x_train_scaled, dtype=torch.float32, requires_grad=True)
-testing_data = torch.tensor(x_test_scaled, dtype=torch.float32, requires_grad=True)
-training_labels = torch.tensor(y_train, dtype=torch.int)
-testing_labels = torch.tensor(y_test, dtype=torch.int)
-
-"""
 data_generator = DataGenerator(     
-                                        dataset_name = 'mnist_fashion', 
+                                        dataset_name = 'swiss_roll', 
+                                        file_path = None,#'/home/digvijay/Documents/developer/greedy_kernel_alignment/data/checkerboard_dataset.npy',
                                         n_samples = 200, 
                                         noise = 0.1, 
                                         num_sectors = 6, 
                                         points_per_sector = 15, 
                                         grid_size = 4, 
                                         sampling_radius = 0.05,
-                                        n_pca_features=4
+                                        n_pca_features=None
                                   )
     
 features, target = data_generator.generate_dataset()
@@ -86,8 +70,8 @@ agent = TrainModel(
                         testing_data=testing_data,
                         testing_labels=testing_labels,
                         optimizer= 'adam',
-                        lr= 0.5,
-                        epochs = 20,
+                        lr= 0.1,
+                        epochs = 40,
                         train_method= 'ccka',
                         target_accuracy=0.95,
                         get_alignment_every=5,  
@@ -99,9 +83,7 @@ agent = TrainModel(
                   )
 
 intial_metrics = agent.evaluate(testing_data, testing_labels)
-print(intial_metrics)
 agent.fit_kernel(training_data, training_labels)
-print(intial_metrics)
 after_metrics = agent.evaluate(testing_data, testing_labels)
 
 def tensor_to_list(data):

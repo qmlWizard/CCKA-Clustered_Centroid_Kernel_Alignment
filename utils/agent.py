@@ -46,7 +46,7 @@ class TrainModel():
         self._target_accuracy = target_accuracy
         self._get_alignment_every = get_alignment_every
         self._validate_every_epoch = validate_every_epoch
-        self._sampling_size = clusters
+        self._sampling_size = clusters 
         self._clusters = clusters 
         self._training_data = training_data
         self._training_labels = training_labels
@@ -89,7 +89,7 @@ class TrainModel():
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
                 for tensor in self._main_centroids:
-                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.01}, {'params': self._class_centroids, 'lr': 0.001}]))
+                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.001}, {'params': self._class_centroids, 'lr': 0.001}]))
 
             elif optimizer == 'gd':
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
@@ -228,7 +228,7 @@ class TrainModel():
                     #create interleave
                     x_0 = main_centroid.repeat(class_centroids.shape[0],1)
                     x_1 = class_centroids 
-
+                    
                     self._optimizers[_class].zero_grad()
                     #self._centroid_optimizer.zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
@@ -269,7 +269,7 @@ class TrainModel():
                 # Store and print loss values
                 self._loss_arr.append(loss.item())
                 self._per_epoch_executions += x_0.shape[0]
-                #print(self._per_epoch_executions)
+                print(self._per_epoch_executions)
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     x_0 = training_data.repeat(training_data.shape[0],1)
