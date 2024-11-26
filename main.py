@@ -145,6 +145,8 @@ if __name__ == "__main__":
         'ansatz_layers': config.qkernel['ansatz_layers'],
         'optimizer': config.agent['optimizer'],
         'lr': tune.grid_search(config.agent['lr']),
+        'mclr': tune.grid_search(config.agent['mclr']),
+        'cclr': tune.grid_search(config.agent['cclr']),
         'epochs': config.agent['epochs'],
         'train_method': config.agent['train_method'],
         'target_accuracy': config.agent['target_accuracy'],
@@ -169,9 +171,10 @@ if __name__ == "__main__":
     
 
     tuner = tune.Tuner(
-            tune.with_resources(train, resources={"cpu": 5, "gpu": 1}),
+            tune.with_resources(train, resources={"cpu": 10, "gpu": 2}),
             tune_config=tune.TuneConfig(num_samples=config.ray_config['ray_num_trial_samples'],
-                                        trial_dirname_creator=trial_name_creator),
+                                        trial_dirname_creator=trial_name_creator,
+                                       ),
             param_space= search_space,
             )
         

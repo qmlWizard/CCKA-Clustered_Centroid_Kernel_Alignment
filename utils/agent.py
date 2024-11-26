@@ -13,12 +13,10 @@ import math
 import yaml
 import time
 import os
-
 from utils.helper import to_python_native
-
+from utils.plotter import Plotter
 
 class TrainModel():
-
     def __init__(self, 
                  kernel,
                  training_data,
@@ -27,6 +25,8 @@ class TrainModel():
                  testing_labels,
                  optimizer,
                  lr,
+                 mclr,
+                 cclr,
                  epochs,
                  train_method,
                  target_accuracy=None,  # New parameter for target accuracy
@@ -38,7 +38,6 @@ class TrainModel():
                  clusters=4
                  ):
         super().__init__()
-
         self._kernel = kernel
         self._optimizer = optimizer
         self._method = train_method
@@ -58,15 +57,15 @@ class TrainModel():
         self._kernel_matrix = lambda X1, X2: qml.kernels.kernel_matrix(X1, X2, self._kernel)
         self._executions = 0
         self._lr = lr
+        self._mclr = mclr
+        self._cclr = cclr
         self.lambda_kao = lambda_kao
         self.lambda_co = lambda_co
         self._base_path = base_path
-
         self._main_centroids = []
         self._main_centroids_labels = []
         self._class_centroids = []
         self._class_centroid_labels = []
-
         self._get_centroids(self._training_data, self._training_labels)
         self._loss_arr = []
         self.alignment_arr = []
@@ -76,27 +75,22 @@ class TrainModel():
         self.initial_testing_accuracy = None
         self.final_testing_accuracy = None
         self._per_epoch_executions = None
-
-        
         if self._method == 'random':
             if optimizer == 'adam':
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
             elif optimizer == 'gd':
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
-        
         elif self._method == 'ccka':
             if optimizer == 'adam':
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
                 for tensor in self._main_centroids:
-                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': 0.001}, {'params': self._class_centroids, 'lr': 0.001}]))
-
+                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': self._mclr}, {'params': self._class_centroids, 'lr': self._cclr}]))
             elif optimizer == 'gd':
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
                 for tensor in self._main_centroids:
-                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': 0.01}, {'params': self._class_centroids, 'lr': 0.001}]))
-
+                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': self._mclr}, {'params': self._class_centroids, 'lr': self._cclr}]))
         if self._method == 'random':
             self._loss_function = self._loss_ta
             self._sample_function = self._sampler_random_sampling
@@ -107,7 +101,10 @@ class TrainModel():
             self._loss_function = self._loss_kao
             self._centroid_loss_function = self._loss_co
             self._sample_function = self._get_centroids
-
+        elif self._method == 'quack':
+            self._loss_function = self._loss_kao
+            self._centroid_loss_function = self._loss_co
+            self._sample_function = self._get_main_centroids
 
     def _get_centroids(self, training_data, training_labels):
         data = training_data.detach().numpy()
@@ -124,13 +121,10 @@ class TrainModel():
             class_centroids = np.array(mc + sub_centroids)
             _class_centroids.append(torch.tensor(class_centroids, requires_grad=True))
             _class_centroids_labels.append(torch.tensor(np.array(sub_centroids_labels)))
-        
         self._class_centroids = _class_centroids
         self._class_centroid_labels = _class_centroids_labels
         self._main_centroids = _main_centroids
         
-        
-
     def centroid_target_alignment(self, K, Y, l):
         num = l * torch.sum(Y * K)
         den = torch.sqrt(torch.sum(K ** 2) * torch.sum(Y ** 2))
@@ -147,39 +141,27 @@ class TrainModel():
         regularization_term = 0
         for d in centroid:
             regularization_term += torch.amax(d - 1, 0) - torch.amin(d, 0)
-
         return 1 - TA + self.lambda_co * regularization_term
  
     def _loss_ta(self, K, y):
-
         N = y.shape[0]
         assert K.shape == (N,N), "Shape of K must be (N,N)"
-
         yT = y.view(1,-1) #Transpose of y, shape (1,N)
         Ky = torch.matmul(K,y) # K*y, shape (N,)
         yTKy = torch.matmul(yT,Ky) #yT * Ky, shape (1,1) which is a scalar
-
         K2 = torch.matmul(K,K) #K^2, shape (N,N)
         trace_K2 = torch.trace(K2)
-
         result = yTKy / (torch.sqrt(trace_K2)* N)
-
         return result.squeeze()
 
     def _loss_hinge(self, K, y):
-        # Initialize alpha as a parameter to be learned
         if not hasattr(self, 'alpha'):
             self.alpha = torch.nn.Parameter(torch.zeros(K.shape[0], requires_grad=True))
-
-        # Compute the decision function f(x) = K @ alpha
         f = K @ self.alpha
-
         # Compute hinge loss
         hinge_loss = torch.clamp(1 - y * f, min=0)
-
         # Regularization term
         reg_term = self.lambda_kao * (self.alpha ** 2).sum()
-
         return hinge_loss.mean() + reg_term
 
     def _sampler_random_sampling(self, data, data_labels):
@@ -194,19 +176,18 @@ class TrainModel():
         epochs = self._epochs
         loss_func = self._loss_function
         samples_func = self._sample_function
-        self._kernel._circuit_executions = 0
         self._per_epoch_executions = 0
         for epoch in range(epochs):
-            
-            if self._method == 'ccka':
-              
+            if self._method in ['ccka', 'quack']:
                 for i in range(10):
-                    
                     _class = epoch % len(self._n_classes)
                     main_centroid = self._main_centroids[_class]
-                    class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) 
-                    class_centroid_labels = torch.cat(self._class_centroid_labels) 
-
+                    if self._method == 'ccka':
+                        class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) 
+                        class_centroid_labels = torch.cat(self._class_centroid_labels) 
+                    else:
+                        class_centroids = training_data
+                        class_centroid_labels = training_labels
                     #create interleave
                     x_0 = main_centroid.repeat(class_centroids.shape[0],1)
                     x_1 = class_centroids 
@@ -216,21 +197,19 @@ class TrainModel():
                     loss_kao = self._loss_kao(K, class_centroid_labels, class_centroid_labels[0])
                     loss_kao.backward()
                     optimizer.step()
-                    
+                main_centroid = -main_centroid
                 for i in range(10):
-
                     _class = epoch % len(self._n_classes)
                     main_centroid = self._main_centroids[_class]
-                    class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) 
-                    class_centroid_labels = torch.cat(self._class_centroid_labels) 
-                    
-
-                    #create interleave
+                    if self._method == 'ccka':
+                        class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) 
+                        class_centroid_labels = torch.cat(self._class_centroid_labels) 
+                    else:
+                        class_centroids = training_data
+                        class_centroid_labels = training_labels 
                     x_0 = main_centroid.repeat(class_centroids.shape[0],1)
                     x_1 = class_centroids 
-                    
                     self._optimizers[_class].zero_grad()
-                    #self._centroid_optimizer.zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     loss_co = self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
                     loss_co.backward()
@@ -239,53 +218,37 @@ class TrainModel():
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     x_0 = training_data.repeat(training_data.shape[0], 1)
                     x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
-
                     K = self._kernel(x_0, x_1).to(torch.float32)
-
-                    # Check if _training_labels is already a tensor
                     if not isinstance(self._training_labels, torch.Tensor):
                         self._training_labels = torch.tensor(self._training_labels, dtype=torch.float32)
-
                     current_alignment = self._loss_ta(
                         K.reshape(self._training_data.shape[0], self._training_data.shape[0]), 
                         self._training_labels
                     )
                     self.alignment_arr.append(current_alignment)
-                    #print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
-            
             else:
                 sampled_data, sampled_labels = samples_func(training_data, training_labels)
                 sampled_labels = sampled_labels.to(torch.float32)
-
                 x_0 = sampled_data.repeat(sampled_data.shape[0],1)
                 x_1 = sampled_data.repeat_interleave(sampled_data.shape[0], dim=0)
-
                 optimizer.zero_grad()   
                 K = self._kernel(x_0, x_1).to(torch.float32) 
                 loss = -loss_func(K.reshape(sampled_data.shape[0],sampled_data.shape[0]), sampled_labels)
                 loss.backward()
                 optimizer.step()
-
-                # Store and print loss values
                 self._loss_arr.append(loss.item())
                 self._per_epoch_executions += x_0.shape[0]
-                print(self._per_epoch_executions)
-
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
                     x_0 = training_data.repeat(training_data.shape[0],1)
                     x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
-                
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
                     current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
                     self.alignment_arr.append(current_alignment)
-                    #print(f"Epoch {epoch + 1}th, Alignment : {current_alignment}")
-        
         self._executions = self._kernel._circuit_executions
         self._kernel._circuit_executions = 0
      
     def evaluate(self, test_data, test_labels):
-        ##Training Accuracy
         x_0 = self._training_data.repeat(self._training_data.shape[0],1)
         x_1 = self._training_data.repeat_interleave(self._training_data.shape[0], dim=0)    
         _matrix = self._kernel(x_0, x_1).to(torch.float32).reshape(self._training_data.shape[0],self._training_data.shape[0])
@@ -294,12 +257,9 @@ class TrainModel():
             _matrix = _matrix.detach().numpy()
         if torch.is_tensor(self._training_labels):
             self._training_labels = self._training_labels.detach().numpy()
-
         self._model = SVC(kernel='precomputed').fit(_matrix, self._training_labels)
         predictions = self._model.predict(_matrix)
         training_accuracy = accuracy_score(self._training_labels, predictions)
-
-        ##Testing Accuracy
         x_0 = self._testing_data.repeat_interleave(self._training_data.shape[0],dim=0)
         x_1 = self._training_data.repeat(test_data.shape[0], 1)
         _matrix = self._kernel(x_0, x_1).to(torch.float32).reshape(test_data.shape[0],self._training_data.shape[0])
@@ -320,5 +280,4 @@ class TrainModel():
             'loss_arr': self._loss_arr,
             'validation_accuracy_arr': self.validation_accuracy_arr
         }
-
         return metrics

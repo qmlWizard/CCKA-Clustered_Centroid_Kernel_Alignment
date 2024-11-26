@@ -37,6 +37,8 @@ qkernel:
 agent:
   optimizer:            adam
   lr:                   [ 0.2, 0.1, 0.01]
+  mclr:                 [0.1, 0.01, 0.001]
+  cclr:                 [0.1, 0.01, 0.001]
   epochs:               20
   train_method:         ccka
   target_accuracy:      0.95

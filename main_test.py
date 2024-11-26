@@ -31,12 +31,12 @@ else:
     print(f"Neither MPS nor CUDA is available. Using CPU: {device}")
 
 # Read Configs
-with open('config.yaml', 'r') as file:
+with open('configs/config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 data_generator = DataGenerator(     
-                                        dataset_name = 'swiss_roll', 
-                                        file_path = None,#'/home/digvijay/Documents/developer/greedy_kernel_alignment/data/checkerboard_dataset.npy',
+                                        dataset_name = 'corners', 
+                                        file_path = '/home/digvijay/Documents/developer/greedy_kernel_alignment/data/corners.npy',
                                         n_samples = 200, 
                                         noise = 0.1, 
                                         num_sectors = 6, 
@@ -45,7 +45,7 @@ data_generator = DataGenerator(
                                         sampling_radius = 0.05,
                                         n_pca_features=None
                                   )
-    
+
 features, target = data_generator.generate_dataset()
 training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.50, random_state=42)
 training_data = torch.tensor(training_data.to_numpy(), dtype=torch.float32, requires_grad=True)
@@ -69,9 +69,11 @@ agent = TrainModel(
                         training_labels=training_labels,
                         testing_data=testing_data,
                         testing_labels=testing_labels,
-                        optimizer= 'adam',
+                        optimizer= 'gd',
                         lr= 0.1,
-                        epochs = 200,
+                        mclr= 0.01,
+                        cclr= 0.001,
+                        epochs = 100,
                         train_method= 'ccka',
                         target_accuracy=0.95,
                         get_alignment_every=5,  
