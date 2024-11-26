@@ -35,3 +35,19 @@ def tensor_to_list(data):
         return [tensor_to_list(v) for v in data]
     else:
         return data
+    
+
+def gen_experiment_name(config):
+
+    experiment_name = f"{config['name']}_"
+    experiment_name = f"{config['train_method']}_"
+    experiment_name += f"lr{config['lr']}_"
+    experiment_name += f"lr{config['mclr']}_"
+    experiment_name += f"lr{config['cclr']}_"
+    experiment_name += f"opt{config['optimizer']}_"
+    experiment_name += f"epochs{config['epochs']}_"
+    experiment_name += f"epochs{config['lambda_kao']}_"
+    experiment_name += f"epochs{config['lambda_co']}_"
+    experiment_name += f"clusters{config['clusters']}_"
+
+    return experiment_name.replace(" ", "_").replace(".", "_").lower()

@@ -75,6 +75,9 @@ class TrainModel():
         self.initial_testing_accuracy = None
         self.final_testing_accuracy = None
         self._per_epoch_executions = None
+        if self._method in ['ccka', 'quack']:
+            self._epochs = int(epochs / 10)
+            
         if self._method == 'random':
             if optimizer == 'adam':
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
@@ -104,8 +107,9 @@ class TrainModel():
         elif self._method == 'quack':
             self._loss_function = self._loss_kao
             self._centroid_loss_function = self._loss_co
-            self._sample_function = self._get_main_centroids
-
+            self._sample_function = self._get_centroids
+            
+        print("Epochs: ", self._epochs)
     def _get_centroids(self, training_data, training_labels):
         data = training_data.detach().numpy()
         data_labels = training_labels.detach().numpy()
@@ -158,9 +162,7 @@ class TrainModel():
         if not hasattr(self, 'alpha'):
             self.alpha = torch.nn.Parameter(torch.zeros(K.shape[0], requires_grad=True))
         f = K @ self.alpha
-        # Compute hinge loss
         hinge_loss = torch.clamp(1 - y * f, min=0)
-        # Regularization term
         reg_term = self.lambda_kao * (self.alpha ** 2).sum()
         return hinge_loss.mean() + reg_term
 
@@ -226,6 +228,7 @@ class TrainModel():
                         self._training_labels
                     )
                     self.alignment_arr.append(current_alignment)
+                    print(current_alignment)
             else:
                 sampled_data, sampled_labels = samples_func(training_data, training_labels)
                 sampled_labels = sampled_labels.to(torch.float32)
@@ -245,8 +248,7 @@ class TrainModel():
                     self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
                     current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
                     self.alignment_arr.append(current_alignment)
-        self._executions = self._kernel._circuit_executions
-        self._kernel._circuit_executions = 0
+                    print(current_alignment)
      
     def evaluate(self, test_data, test_labels):
         x_0 = self._training_data.repeat(self._training_data.shape[0],1)

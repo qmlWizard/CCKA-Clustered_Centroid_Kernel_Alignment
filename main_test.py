@@ -35,16 +35,16 @@ with open('configs/config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 data_generator = DataGenerator(     
-                                        dataset_name = 'corners', 
-                                        file_path = '/home/digvijay/Documents/developer/greedy_kernel_alignment/data/corners.npy',
-                                        n_samples = 200, 
-                                        noise = 0.1, 
-                                        num_sectors = 6, 
-                                        points_per_sector = 15, 
-                                        grid_size = 4, 
-                                        sampling_radius = 0.05,
-                                        n_pca_features=None
-                                  )
+                                dataset_name = 'corners', 
+                                file_path = '/home/digvijay/Documents/developer/greedy_kernel_alignment/data/corners.npy',
+                                n_samples = 200, 
+                                noise = 0.1, 
+                                num_sectors = 6, 
+                                points_per_sector = 15, 
+                                grid_size = 4, 
+                                sampling_radius = 0.05,
+                                n_pca_features=None
+                              )
 
 features, target = data_generator.generate_dataset()
 training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.50, random_state=42)
@@ -54,35 +54,35 @@ training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
 testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
 
 kernel = Qkernel(   
-                        device = config['qkernel']['device'], 
-                        n_qubits = 4, 
-                        trainable = True, 
-                        input_scaling = True, 
-                        data_reuploading = True, 
-                        ansatz = 'he', 
-                        ansatz_layers = 5   
-                    )
+                    device = config['qkernel']['device'], 
+                    n_qubits = 4, 
+                    trainable = True, 
+                    input_scaling = True, 
+                    data_reuploading = True, 
+                    ansatz = 'he', 
+                    ansatz_layers = 5   
+                )
     
 agent = TrainModel(
-                        kernel=kernel,
-                        training_data=training_data,
-                        training_labels=training_labels,
-                        testing_data=testing_data,
-                        testing_labels=testing_labels,
-                        optimizer= 'gd',
-                        lr= 0.1,
-                        mclr= 0.01,
-                        cclr= 0.001,
-                        epochs = 100,
-                        train_method= 'ccka',
-                        target_accuracy=0.95,
-                        get_alignment_every=5,  
-                        validate_every_epoch=None, 
-                        base_path='.',
-                        lambda_kao=0.001,
-                        lambda_co=0.001,
-                        clusters=4
-                  )
+                    kernel=kernel,
+                    training_data=training_data,
+                    training_labels=training_labels,
+                    testing_data=testing_data,
+                    testing_labels=testing_labels,
+                    optimizer= 'gd',
+                    lr= 0.1,
+                    mclr= 0.01,
+                    cclr= 0.001,
+                    epochs = 100,
+                    train_method= 'ccka',
+                    target_accuracy=0.95,
+                    get_alignment_every=5,  
+                    validate_every_epoch=None, 
+                    base_path='.',
+                    lambda_kao=0.001,
+                    lambda_co=0.001,
+                    clusters=4
+                )
 
 intial_metrics = agent.evaluate(testing_data, testing_labels)
 agent.fit_kernel(training_data, training_labels)
