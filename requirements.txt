@@ -2,6 +2,7 @@ pennylane
 torch
 torchvision
 torchaudio
+ray
 scikit-learn
 pandas
 matplotlib

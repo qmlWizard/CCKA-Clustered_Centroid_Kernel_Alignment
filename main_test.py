@@ -35,8 +35,8 @@ with open('configs/config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 data_generator = DataGenerator(     
-                                dataset_name = 'corners', 
-                                file_path = '/home/digvijay/Documents/developer/greedy_kernel_alignment/data/corners.npy',
+                                dataset_name = 'checkerboard', 
+                                file_path = '/Users/digvijaysinhajarekar/Developer/greedy_kernel_alignment/data/checkerboard_dataset.npy',
                                 n_samples = 200, 
                                 noise = 0.1, 
                                 num_sectors = 6, 
@@ -69,11 +69,11 @@ agent = TrainModel(
                     training_labels=training_labels,
                     testing_data=testing_data,
                     testing_labels=testing_labels,
-                    optimizer= 'gd',
-                    lr= 0.1,
-                    mclr= 0.01,
-                    cclr= 0.001,
-                    epochs = 100,
+                    optimizer= 'adam',
+                    lr= 0.2,
+                    mclr= 0.1,
+                    cclr= 0.1,
+                    epochs = 800,
                     train_method= 'ccka',
                     target_accuracy=0.95,
                     get_alignment_every=5,  

@@ -157,6 +157,26 @@ class TrainModel():
         trace_K2 = torch.trace(K2)
         result = yTKy / (torch.sqrt(trace_K2)* N)
         return result.squeeze()
+    
+    def _loss_combined(self, K, Y, cluster_centroids, main_centroid, cl):
+        # Compute target alignment
+        TA = self.centroid_target_alignment(K, Y, cl)
+
+        # Regularization for cluster centroids
+        cluster_regularization = 0
+        for cluster in cluster_centroids:
+            cluster_regularization += torch.amax(cluster - 1, 0) - torch.amin(cluster, 0)
+
+        # Regularization for the main centroid
+        main_regularization = torch.amax(main_centroid - 1, 0) - torch.amin(main_centroid, 0)
+
+        # Interaction term to minimize the distance between the main centroid and cluster centroids
+        interaction_term = 0
+        for cluster in cluster_centroids:
+            interaction_term += torch.norm(cluster - main_centroid, p=2)
+
+        # Combined loss
+        return  1 - TA + 0.01 * cluster_regularization + self.lambda_co * main_regularization + 0.01 * interaction_term  
 
     def _loss_hinge(self, K, y):
         if not hasattr(self, 'alpha'):
@@ -213,7 +233,8 @@ class TrainModel():
                     x_1 = class_centroids 
                     self._optimizers[_class].zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
-                    loss_co = self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
+                    #loss_co = self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
+                    loss_co = self._loss_combined(K, class_centroid_labels, class_centroids, main_centroid, class_centroid_labels[0]).mean()
                     loss_co.backward()
                     self._optimizers[_class].step()              
 
