@@ -78,7 +78,7 @@ class TrainModel():
         if self._method in ['ccka', 'quack']:
             self._epochs = int(epochs / 10)
             
-        if self._method == 'random':
+        if self._method in ['random', 'full']:
             if optimizer == 'adam':
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
             elif optimizer == 'gd':
@@ -94,6 +94,17 @@ class TrainModel():
                 self._optimizers = []
                 for tensor in self._main_centroids:
                     self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': self._mclr}, {'params': self._class_centroids, 'lr': self._cclr}]))
+        elif self._method == 'quack':
+            if optimizer == 'adam':
+                self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
+                self._optimizers = []
+                for tensor in self._main_centroids:
+                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': self._mclr}]))
+            elif optimizer == 'gd':
+                self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
+                self._optimizers = []
+                for tensor in self._main_centroids:
+                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': self._mclr}]))
         if self._method == 'random':
             self._loss_function = self._loss_ta
             self._sample_function = self._sampler_random_sampling
@@ -139,7 +150,7 @@ class TrainModel():
         TA = self.centroid_target_alignment(K, Y, cl)
         r = self.lambda_kao * sum((param ** 2).sum() for param in self._kernel.parameters())
         return 1 - TA + r
-
+        
     def _loss_co(self, K, Y, centroid, cl):
         TA = self.centroid_target_alignment(K, Y, cl)
         regularization_term = 0
@@ -161,22 +172,18 @@ class TrainModel():
     def _loss_combined(self, K, Y, cluster_centroids, main_centroid, cl):
         # Compute target alignment
         TA = self.centroid_target_alignment(K, Y, cl)
+        
+        regularization_term = 0
+        for d in main_centroid:
+            regularization_term += torch.amax(d - 1, 0) - torch.amin(d, 0)
 
-        # Regularization for cluster centroids
-        cluster_regularization = 0
+        rterm_cl = 0
         for cluster in cluster_centroids:
-            cluster_regularization += torch.amax(cluster - 1, 0) - torch.amin(cluster, 0)
-
-        # Regularization for the main centroid
-        main_regularization = torch.amax(main_centroid - 1, 0) - torch.amin(main_centroid, 0)
-
-        # Interaction term to minimize the distance between the main centroid and cluster centroids
-        interaction_term = 0
-        for cluster in cluster_centroids:
-            interaction_term += torch.norm(cluster - main_centroid, p=2)
+            for d in cluster:
+                rterm_cl += torch.amax(d - 1, 0) - torch.amin(d, 0)
 
         # Combined loss
-        return  1 - TA + 0.01 * cluster_regularization + self.lambda_co * main_regularization + 0.01 * interaction_term  
+        return  1 - TA + self.lambda_co * regularization_term + self.lambda_co * rterm_cl
 
     def _loss_hinge(self, K, y):
         if not hasattr(self, 'alpha'):
@@ -199,6 +206,8 @@ class TrainModel():
         loss_func = self._loss_function
         samples_func = self._sample_function
         self._per_epoch_executions = 0
+        self.kernel_params_history = []  # Array to store kernel parameters at each alignment update
+        self.best_kernel_params = None
         for epoch in range(epochs):
             if self._method in ['ccka', 'quack']:
                 for i in range(10):
@@ -233,8 +242,8 @@ class TrainModel():
                     x_1 = class_centroids 
                     self._optimizers[_class].zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
-                    #loss_co = self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
-                    loss_co = self._loss_combined(K, class_centroid_labels, class_centroids, main_centroid, class_centroid_labels[0]).mean()
+                    loss_co = self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
+                    #loss_co = self._loss_combined(K, class_centroid_labels, class_centroids, main_centroid, class_centroid_labels[0]).mean()
                     loss_co.backward()
                     self._optimizers[_class].step()              
 
@@ -270,6 +279,23 @@ class TrainModel():
                     current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
                     self.alignment_arr.append(current_alignment)
                     print(current_alignment)
+
+    def prediction_stage(self, data, labels):
+
+        main_centroids = torch.stack([centroid.detach()[0] for centroid in self._main_centroids])
+        x_0 = main_centroids.repeat(data.shape[0],1)
+        x_1 = data.repeat_interleave(main_centroids.shape[0], dim=0)
+        K = self._kernel(x_0, x_1).to(torch.float32).reshape(data.shape[0],main_centroids.shape[0])
+        pred_labels = torch.sign(K[:, 0] - K[:, 1])
+        correct_predictions = (pred_labels == labels).sum().item()  # Count matches
+        total_predictions = len(labels)  # Total number of predictions
+        accuracy = correct_predictions / total_predictions
+
+        # Display results
+        print(f"Correct Predictions: {correct_predictions}")
+        print(f"Total Predictions: {total_predictions}")
+        print(f"Accuracy: {accuracy * 100:.2f}%")
+
      
     def evaluate(self, test_data, test_labels):
         x_0 = self._training_data.repeat(self._training_data.shape[0],1)

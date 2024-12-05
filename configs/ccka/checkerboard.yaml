@@ -39,12 +39,12 @@ agent:
   lr:                   [ 0.2, 0.1, 0.01]
   mclr:                 [0.1, 0.01, 0.001]
   cclr:                 [0.1, 0.01, 0.001]
-  epochs:               [200]
+  epochs:               [40]
   train_method:         ['ccka']
   target_accuracy:      0.95
   get_alignment_every:  5
   validate_every_epoch: 10
   base_path:            results/
-  lambda_kao:           [0.001]
-  lambda_co:            [0.001]
+  lambda_kao:           [0.001, 0.01]
+  lambda_co:            [0.001, 0.01]
   clusters:             [2, 4, 6, 8, 10]

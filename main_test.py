@@ -70,23 +70,25 @@ agent = TrainModel(
                     testing_data=testing_data,
                     testing_labels=testing_labels,
                     optimizer= 'adam',
-                    lr= 0.2,
-                    mclr= 0.1,
-                    cclr= 0.1,
-                    epochs = 800,
+                    lr= 0.1,
+                    mclr= 0.01,
+                    cclr= 0.001,
+                    epochs = 1600,
                     train_method= 'ccka',
                     target_accuracy=0.95,
-                    get_alignment_every=5,  
+                    get_alignment_every=1,  
                     validate_every_epoch=None, 
                     base_path='.',
-                    lambda_kao=0.001,
-                    lambda_co=0.001,
+                    lambda_kao=0.0001,
+                    lambda_co=0.0001,
                     clusters=4
                 )
 
+agent.prediction_stage(testing_data, testing_labels)
 intial_metrics = agent.evaluate(testing_data, testing_labels)
 agent.fit_kernel(training_data, training_labels)
 after_metrics = agent.evaluate(testing_data, testing_labels)
+agent.prediction_stage(testing_data, testing_labels)
 
 def tensor_to_list(data):
     if isinstance(data, torch.Tensor):
