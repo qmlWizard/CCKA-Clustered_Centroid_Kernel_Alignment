@@ -85,10 +85,11 @@ class TrainModel():
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
         elif self._method == 'ccka':
             if optimizer == 'adam':
-                self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
+                #self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
+                self._kernel_optimizer = optim.Adam([ {'params': self._kernel.parameters(), 'lr': self._lr}, {'params': self._class_centroids, 'lr': self._cclr}])
                 self._optimizers = []
                 for tensor in self._main_centroids:
-                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': self._mclr}, {'params': self._class_centroids, 'lr': self._cclr}]))
+                    self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': self._mclr}]))
             elif optimizer == 'gd':
                 self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
                 self._optimizers = []
@@ -210,7 +211,7 @@ class TrainModel():
         self.best_kernel_params = None
         for epoch in range(epochs):
             if self._method in ['ccka', 'quack']:
-                for i in range(10):
+                for nkao in range(10):
                     _class = epoch % len(self._n_classes)
                     main_centroid = self._main_centroids[_class]
                     if self._method == 'ccka':
@@ -223,15 +224,14 @@ class TrainModel():
                     x_0 = main_centroid.repeat(class_centroids.shape[0],1)
                     x_1 = class_centroids 
                     self._per_epoch_executions += x_0.shape[0]
+                    K = self._kernel(x_0, x_1).to(torch.float32)
                     optimizer.zero_grad()
-                    K = self._kernel(x_0, x_1).to(torch.float32) 
                     loss_kao = self._loss_kao(K, class_centroid_labels, class_centroid_labels[0])
                     loss_kao.backward()
                     optimizer.step()
-                main_centroid = -main_centroid
-                for i in range(10):
+                for nco in range(10):
                     _class = epoch % len(self._n_classes)
-                    main_centroid = self._main_centroids[_class]
+                    main_centroid = -self._main_centroids[_class]
                     if self._method == 'ccka':
                         class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) 
                         class_centroid_labels = torch.cat(self._class_centroid_labels) 
@@ -286,7 +286,7 @@ class TrainModel():
         x_0 = main_centroids.repeat(data.shape[0],1)
         x_1 = data.repeat_interleave(main_centroids.shape[0], dim=0)
         K = self._kernel(x_0, x_1).to(torch.float32).reshape(data.shape[0],main_centroids.shape[0])
-        pred_labels = torch.sign(K[:, 0] - K[:, 1])
+        pred_labels = torch.sign(K[:, 0] - K[:, 1]) 
         correct_predictions = (pred_labels == labels).sum().item()  # Count matches
         total_predictions = len(labels)  # Total number of predictions
         accuracy = correct_predictions / total_predictions

@@ -70,17 +70,17 @@ agent = TrainModel(
                     testing_data=testing_data,
                     testing_labels=testing_labels,
                     optimizer= 'adam',
-                    lr= 0.1,
-                    mclr= 0.01,
-                    cclr= 0.001,
+                    lr= 0.2,
+                    mclr= 0.1,
+                    cclr= 0.01,
                     epochs = 1600,
                     train_method= 'ccka',
                     target_accuracy=0.95,
                     get_alignment_every=1,  
                     validate_every_epoch=None, 
                     base_path='.',
-                    lambda_kao=0.0001,
-                    lambda_co=0.0001,
+                    lambda_kao=0.01,
+                    lambda_co=0.01,
                     clusters=4
                 )
 
