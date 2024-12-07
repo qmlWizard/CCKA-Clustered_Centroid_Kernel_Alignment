@@ -91,10 +91,11 @@ class TrainModel():
                 for tensor in self._main_centroids:
                     self._optimizers.append(optim.Adam([ {'params': tensor, 'lr': self._mclr}]))
             elif optimizer == 'gd':
-                self._kernel_optimizer = optim.SGD(self._kernel.parameters(), lr = self._lr)
+                #self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
+                self._kernel_optimizer = optim.SGD([ {'params': self._kernel.parameters(), 'lr': self._lr}, {'params': self._class_centroids, 'lr': self._cclr}])
                 self._optimizers = []
                 for tensor in self._main_centroids:
-                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': self._mclr}, {'params': self._class_centroids, 'lr': self._cclr}]))
+                    self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': self._mclr}]))
         elif self._method == 'quack':
             if optimizer == 'adam':
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)

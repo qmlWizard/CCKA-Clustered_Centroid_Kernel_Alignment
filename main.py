@@ -95,6 +95,7 @@ def train(config):
     }
     metrics = to_python_native(metrics)
     exp_name = gen_experiment_name(config)
+    
     plotter.compare_accuracy( init_train_accuracy = before_metrics['training_accuracy'], 
                                init_test_accuracy = before_metrics['testing_accuracy'], 
                                final_train_accuracy = after_metrics['training_accuracy'], 
@@ -106,7 +107,7 @@ def train(config):
     plotter.plot_alignment(alignments = after_metrics['alignment_arr'], 
                            init_alignment = before_metrics['alignment'], 
                            dataset = config['name'], 
-                           plot_name = exp_name + '_alignent.png'
+                           plot_name = exp_name + '_aligment.png'
                           )
     ray.train.report(metrics)
 
@@ -167,7 +168,7 @@ if __name__ == "__main__":
     
 
     tuner = tune.Tuner(
-            tune.with_resources(train, resources={"cpu": 10, "gpu": 2}),
+            tune.with_resources(train, resources={"cpu": 2, "gpu": 1}),
             tune_config=tune.TuneConfig(num_samples=config.ray_config['ray_num_trial_samples'],
                                         trial_dirname_creator=trial_name_creator,
                                        ),
