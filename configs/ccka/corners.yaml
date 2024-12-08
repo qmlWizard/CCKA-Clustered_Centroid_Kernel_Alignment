@@ -2,8 +2,8 @@
 
 ray_config:
   ray_local_mode:         False
-  num_cpus:               20
-  num_gpus:               2
+  num_cpus:               2
+  num_gpus:               1
   method:                 QuantumKernels
   ray_logging_path:       logs/checkerboard
   ray_num_trial_samples:  5
@@ -35,16 +35,16 @@ qkernel:
 
 ## Model Training Agen Configuration
 agent:
-  optimizer:            adam
-  lr:                   [ 0.2, 0.1, 0.01]
-  mclr:                 [0.1, 0.01, 0.001]
-  cclr:                 [0.1, 0.01, 0.001]
-  epochs:               20
-  train_method:         ccka
+  optimizer:            gd
+  lr:                   [0.01]
+  mclr:                 [0.1]
+  cclr:                 [0.1]
+  epochs:               [500]
+  train_method:         ['ccka', 'random']
   target_accuracy:      0.95
-  get_alignment_every:  5
-  validate_every_epoch: 10
+  get_alignment_every:  10
+  validate_every_epoch: 1
   base_path:            results/
-  lambda_kao:           0.001
-  lambda_co:            0.001
-  clusters:             [2, 4, 6, 8, 10]
+  lambda_kao:           [0.01]
+  lambda_co:            [0.01]
+  clusters:             [2, 4]
