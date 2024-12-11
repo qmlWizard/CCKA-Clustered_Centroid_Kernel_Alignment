@@ -307,7 +307,7 @@ class TrainModel():
             _matrix = _matrix.detach().numpy()
         if torch.is_tensor(self._training_labels):
             self._training_labels = self._training_labels.detach().numpy()
-        self._model = SVC(kernel='precomputed').fit(_matrix, self._training_labels)
+        self._model = SVC(kernel='precomputed', max_iter=10000).fit(_matrix, self._training_labels)
         predictions = self._model.predict(_matrix)
         training_accuracy = accuracy_score(self._training_labels, predictions)
         x_0 = self._testing_data.repeat_interleave(self._training_data.shape[0],dim=0)

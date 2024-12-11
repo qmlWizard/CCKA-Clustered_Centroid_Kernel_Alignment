@@ -5,6 +5,8 @@ import random
 from sklearn.datasets import make_moons, make_swiss_roll, make_gaussian_quantiles, load_iris, fetch_openml
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
+from matplotlib.colors import ListedColormap
+from sklearn.inspection import DecisionBoundaryDisplay
 
 
 class DataGenerator:
@@ -192,7 +194,7 @@ class DataGenerator:
         X = np.array(points)
         y = np.array(labels)
         return X, y
-
+    """
     def plot_dataset(self, df_features, df_labels):
         fig, ax = plt.subplots(figsize=(10, 6))
         plt.style.use('seaborn-v0_8')
@@ -207,3 +209,78 @@ class DataGenerator:
         plt.tight_layout()
         plt.show()
         return fig
+    """
+    def plot_dataset(self, train_features, train_labels, test_features, test_labels, classifier=None):
+        """
+        Plots the training and testing datasets. Training points are solid circles,
+        while testing points are hollow circles. Class 1 is orange and Class 2 is blue.
+        Additionally, plots the decision boundary if a classifier is provided.
+
+        Parameters:
+        train_features (torch.Tensor): Features for training data.
+        train_labels (torch.Tensor): Labels for training data.
+        test_features (torch.Tensor): Features for testing data.
+        test_labels (torch.Tensor): Labels for testing data.
+        classifier: A trained classifier with a `predict` method (optional).
+        """
+        # Convert torch tensors to numpy arrays for compatibility with matplotlib
+        train_features = train_features.detach().cpu().numpy()
+        train_labels = train_labels.detach().cpu().numpy()
+        test_features = test_features.detach().cpu().numpy()
+        test_labels = test_labels.detach().cpu().numpy()
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+        plt.style.use('seaborn-v0_8')
+
+        # Set background color to gray
+        ax.set_facecolor("#eaeaf2")
+
+        # Plot decision boundary if classifier is provided
+        if classifier:
+            x_min, x_max = min(train_features[:, 0].min(), test_features[:, 0].min()) - 1, max(train_features[:, 0].max(), test_features[:, 0].max()) + 1
+            y_min, y_max = min(train_features[:, 1].min(), test_features[:, 1].min()) - 1, max(train_features[:, 1].max(), test_features[:, 1].max()) + 1
+            xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))
+            Z = classifier.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+            cmap_background = ListedColormap(["#ffcccb", "#add8e6"])
+            ax.contourf(xx, yy, Z, alpha=0.3, cmap=cmap_background)
+
+        # Plot training data as solid circles
+        ax.scatter(
+            train_features[train_labels == 1][:, 0], train_features[train_labels == 1][:, 1],
+            c='#ff7f0f', s=160, edgecolor='#ff7f0f', alpha=0.8
+        )
+        ax.scatter(
+            train_features[train_labels == -1][:, 0], train_features[train_labels == -1][:, 1],
+            c='#1f77b4', s=160, edgecolor='#1f77b4', alpha=0.8
+        )
+
+        # Plot testing data as hollow circles
+        ax.scatter(
+            test_features[test_labels == 1][:, 0], test_features[test_labels == 1][:, 1],
+            edgecolor='#ff7f0f', facecolors='none', s=160, alpha=1, linewidth=1.5
+        )
+        ax.scatter(
+            test_features[test_labels == -1][:, 0], test_features[test_labels == -1][:, 1],
+            edgecolor='#1f77b4', facecolors='none', s=160, alpha=1, linewidth=1.5
+        )
+
+        ax.set_xlabel('Feature 1', fontsize=12)
+        ax.set_ylabel('Feature 2', fontsize=12)
+        ax.set_title(f'{self.dataset_name} Dataset', fontsize=14, fontweight='bold')
+
+        # Remove grid
+        ax.grid(axis='y', linestyle='--', alpha=0.6)
+        ax.grid(axis='x', linestyle='--', alpha=0.6)
+
+
+        # Remove spines for a clean look
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        plt.tight_layout()
+
+        return fig
+
+
+
+

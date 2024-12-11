@@ -35,18 +35,19 @@ with open('configs/config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 data_generator = DataGenerator(     
-                                dataset_name = 'corners', 
-                                file_path = '/Users/digvijaysinhajarekar/Developer/greedy_kernel_alignment/data/corners.npy',
-                                n_samples = 200, 
+                                dataset_name = 'double_cake', 
+                                file_path = None,
+                                n_samples = 60, 
                                 noise = 0.1, 
-                                num_sectors = 6, 
-                                points_per_sector = 15, 
+                                num_sectors = 3, 
+                                points_per_sector = 10, 
                                 grid_size = 4, 
                                 sampling_radius = 0.05,
                                 n_pca_features=None
                               )
 
 features, target = data_generator.generate_dataset()
+print(len(features))
 training_data, testing_data, training_labels, testing_labels = train_test_split(features, target, test_size=0.50, random_state=42)
 training_data = torch.tensor(training_data.to_numpy(), dtype=torch.float32, requires_grad=True)
 testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
