@@ -2,8 +2,8 @@
 
 ray_config:
   ray_local_mode:         False
-  num_cpus:               4
-  num_gpus:               1
+  num_cpus:               30
+  num_gpus:               2
   method:                 QuantumKernels
   ray_logging_path:       logs/double_cake
   ray_num_trial_samples:  1
@@ -40,7 +40,7 @@ agent:
   mclr:                 [0.1]
   cclr:                 [0.1]
   epochs:               [500]
-  train_method:         ['ccka']
+  train_method:         ['ccka', 'random']
   target_accuracy:      0.95
   get_alignment_every:  10
   validate_every_epoch: 1

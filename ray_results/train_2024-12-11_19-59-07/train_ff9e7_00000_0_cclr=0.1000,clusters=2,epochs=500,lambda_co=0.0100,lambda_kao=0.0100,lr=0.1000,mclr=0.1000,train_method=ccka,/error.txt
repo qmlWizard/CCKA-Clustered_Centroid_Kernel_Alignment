@@ -1,0 +1,29 @@
+Failure # 1 (occurred at 2024-12-11_19-59-11)
+[36mray::ImplicitFunc.train()[39m (pid=1310945, ip=172.24.11.109, actor_id=a938af90cf76ab2ac313d22d01000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/kgreedy/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/kgreedy/lib/python3.12/site-packages/ray/air/_internal/util.py", line 104, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/kgreedy/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 45, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/kgreedy/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 250, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/main.py", line 39, in train
+    features, target = data_generator.generate_dataset()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/utils/data_generator.py", line 29, in generate_dataset
+    return self.load_from_file()
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/utils/data_generator.py", line 108, in load_from_file
+    data = np.load(self.file_path, allow_pickle=True).item()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Documents/developer/greedy_kernel_alignment/kgreedy/lib/python3.12/site-packages/numpy/lib/npyio.py", line 427, in load
+    fid = stack.enter_context(open(os_fspath(file), "rb"))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/digvijaysinhajarekar/Developer/greedy_kernel_alignment/data/corners.npy'

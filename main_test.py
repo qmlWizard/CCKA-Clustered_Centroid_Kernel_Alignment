@@ -35,8 +35,8 @@ with open('configs/config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 data_generator = DataGenerator(     
-                                dataset_name = 'double_cake', 
-                                file_path = None,
+                                dataset_name = 'corners', 
+                                file_path = "/home/digvijay/Documents/developer/greedy_kernel_alignment/data/corners.npy",
                                 n_samples = 60, 
                                 noise = 0.1, 
                                 num_sectors = 3, 
@@ -74,10 +74,10 @@ agent = TrainModel(
                     lr= 0.1,
                     mclr= 0.1,
                     cclr= 0.1,
-                    epochs = 400,
-                    train_method= 'ccka',
+                    epochs = 200,
+                    train_method= 'quack',
                     target_accuracy=0.95,
-                    get_alignment_every=1,  
+                    get_alignment_every=2,  
                     validate_every_epoch=None, 
                     base_path='.',
                     lambda_kao=0.01,
@@ -107,7 +107,7 @@ results = {
 }
 
 # Specify the filename
-filename = "checkerboard_rodrigo_data_ccka_exp3.json"
+filename = "corners_quack.json"
 
 # Write the JSON-serializable results to a file
 with open(filename, "w") as file:
