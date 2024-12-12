@@ -14,7 +14,7 @@ from utils.model import Qkernel
 from utils.data_generator import DataGenerator
 from utils.agent import TrainModel
 from utils.plotter import Plotter
-from utils.helper import to_python_native, gen_experiment_name
+from utils.helper import to_python_native, gen_experiment_name, set_seed
 
 # Backend Configuration
 if torch.backends.mps.is_available():
@@ -23,6 +23,8 @@ elif torch.cuda.is_available():
     device = torch.device("cuda")
 else:
     device = torch.device("cpu")
+
+set_seed(42)
 
 def train(config):
     data_generator = DataGenerator(

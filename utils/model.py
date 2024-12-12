@@ -3,6 +3,7 @@ from pennylane import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import math
 from utils.ansatz import qkhe, qkcovariant, qkembedding_paper
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
 import json
@@ -28,21 +29,20 @@ class Qkernel(nn.Module):
         self._projector[0,0] = 1
         self._circuit_executions = 0
 
-        #variational = -pi pi
         if self._ansatz == 'he':
             if self._input_scaling:
                 self.register_parameter(name="input_scaling", param= nn.Parameter(torch.ones(self._layers, self._n_qubits), requires_grad=True))
             else:
                 self.register_parameter(name="input_scaling", param= nn.Parameter(torch.ones(self._layers, self._n_qubits), requires_grad=True))
-            self.register_parameter(name="variational", param= nn.Parameter(torch.ones(self._layers, self._n_qubits * 2) * 2 * torch.pi, requires_grad=True))
+            self.register_parameter(name="variational", param= nn.Parameter((torch.rand(self._layers, self._n_qubits * 2) * 2 * math.pi) - math.pi, requires_grad=True))
 
         elif self._ansatz == 'embedding_paper':
             if self._input_scaling:
                 self.register_parameter(name="input_scaling", param= nn.Parameter(torch.ones(self._layers, self._n_qubits), requires_grad=True))
             else:
                 self.register_parameter(name="input_scaling", param= nn.Parameter(torch.ones(self._layers, self._n_qubits), requires_grad=True))
-            self.register_parameter(name="variational", param= nn.Parameter(torch.ones(self._layers, self._n_qubits) * 2 * torch.pi, requires_grad=True))
-            self.register_parameter(name="rotational", param= nn.Parameter(torch.ones(self._layers, self._n_qubits) * 2 * torch.pi, requires_grad=True))
+            self.register_parameter(name="variational", param= nn.Parameter((torch.rand(self._layers, self._n_qubits) * 2 * math.pi) - math.pi, requires_grad=True))
+            self.register_parameter(name="rotational", param= nn.Parameter((torch.rand(self._layers, self._n_qubits) * 2 * math.pi) - math.pi, requires_grad=True))
 
         dev = qml.device(self._device, wires = range(self._n_qubits))
         if self._ansatz == 'he':

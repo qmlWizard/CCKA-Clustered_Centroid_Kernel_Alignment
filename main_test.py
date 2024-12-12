@@ -35,8 +35,8 @@ with open('configs/config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 data_generator = DataGenerator(     
-                                dataset_name = 'corners', 
-                                file_path = "/home/digvijay/Documents/developer/greedy_kernel_alignment/data/corners.npy",
+                                dataset_name = 'powerfault', 
+                                file_path = "data/pfault_dataset.npy",
                                 n_samples = 60, 
                                 noise = 0.1, 
                                 num_sectors = 3, 
@@ -72,10 +72,10 @@ agent = TrainModel(
                     testing_labels=testing_labels,
                     optimizer= 'gd',
                     lr= 0.1,
-                    mclr= 0.1,
-                    cclr= 0.1,
-                    epochs = 200,
-                    train_method= 'quack',
+                    mclr= 0.01,
+                    cclr= 0.01,
+                    epochs = 100,
+                    train_method= 'ccka',
                     target_accuracy=0.95,
                     get_alignment_every=2,  
                     validate_every_epoch=None, 

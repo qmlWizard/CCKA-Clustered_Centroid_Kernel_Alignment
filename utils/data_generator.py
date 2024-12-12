@@ -194,35 +194,9 @@ class DataGenerator:
         X = np.array(points)
         y = np.array(labels)
         return X, y
-    """
-    def plot_dataset(self, df_features, df_labels):
-        fig, ax = plt.subplots(figsize=(10, 6))
-        plt.style.use('seaborn-v0_8')
-        ax.scatter(df_features.iloc[:, 0], df_features.iloc[:, 1], c=df_labels, cmap='viridis', s=10, edgecolor='black', alpha=0.8)
-        ax.set_xlabel('Feature 1', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Feature 2', fontsize=12, fontweight='bold')
-        ax.set_title(f'{self.dataset_name} Dataset', fontsize=14, fontweight='bold')
-        plt.colorbar(ax.scatter(df_features.iloc[:, 0], df_features.iloc[:, 1], c=df_labels, cmap='viridis', s=10, edgecolor='black', alpha=0.8), label='Label')
-        ax.grid(axis='y', linestyle='--', alpha=0.6)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        plt.tight_layout()
-        plt.show()
-        return fig
-    """
-    def plot_dataset(self, train_features, train_labels, test_features, test_labels, classifier=None):
-        """
-        Plots the training and testing datasets. Training points are solid circles,
-        while testing points are hollow circles. Class 1 is orange and Class 2 is blue.
-        Additionally, plots the decision boundary if a classifier is provided.
 
-        Parameters:
-        train_features (torch.Tensor): Features for training data.
-        train_labels (torch.Tensor): Labels for training data.
-        test_features (torch.Tensor): Features for testing data.
-        test_labels (torch.Tensor): Labels for testing data.
-        classifier: A trained classifier with a `predict` method (optional).
-        """
+    def plot_dataset(self, train_features, train_labels, test_features, test_labels, classifier=None):
+
         # Convert torch tensors to numpy arrays for compatibility with matplotlib
         train_features = train_features.detach().cpu().numpy()
         train_labels = train_labels.detach().cpu().numpy()
