@@ -28,7 +28,7 @@ class Qkernel(nn.Module):
         self._projector[0,0] = 1
         self._circuit_executions = 0
 
-        
+        #variational = -pi pi
         if self._ansatz == 'he':
             if self._input_scaling:
                 self.register_parameter(name="input_scaling", param= nn.Parameter(torch.ones(self._layers, self._n_qubits), requires_grad=True))
