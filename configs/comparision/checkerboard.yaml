@@ -30,7 +30,7 @@ qkernel:
   trainable:        True
   input_scaling:    True
   data_reuploading: True
-  ansatz:           'he'
+  ansatz:           'embedding_paper'
   ansatz_layers:    5
 
 ## Model Training Agen Configuration

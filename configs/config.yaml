@@ -35,4 +35,4 @@ agent:
   base_path: results/
   lambda_kao: [0.01]
   lambda_co: [0.1]
-  clusters: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20] 
+  clusters: [2, 4, 6] s

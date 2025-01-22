@@ -35,8 +35,8 @@ with open('configs/config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
 data_generator = DataGenerator(     
-                                dataset_name = 'powerfault', 
-                                file_path = "data/pfault_dataset.npy",
+                                dataset_name = 'checkerboard', 
+                                file_path = "data/checkerboard_dataset.npy",
                                 n_samples = 60, 
                                 noise = 0.1, 
                                 num_sectors = 3, 
@@ -60,7 +60,7 @@ kernel = Qkernel(
                     trainable = True, 
                     input_scaling = True, 
                     data_reuploading = True, 
-                    ansatz = 'he', 
+                    ansatz = 'embedding_paper', 
                     ansatz_layers = 5   
                 )
     

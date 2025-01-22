@@ -1,4 +1,0 @@
---> Come up with a proper Inference stage
-        -- Same as Quack
-        -- Come up that considers all the clusters and centroids
-        --prediction stage
