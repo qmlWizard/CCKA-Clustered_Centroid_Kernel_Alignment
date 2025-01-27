@@ -6,13 +6,13 @@ ray_config:
   num_gpus:               2
   method:                 QuantumKernels
   ray_logging_path:       logs/checkerboard
-  ray_num_trial_samples:  1
+  ray_num_trial_samples:  5
   type:                   train
 
 ## DataSet Configuration
 dataset:
-  name:              corners
-  file:              /home/digvijay/Documents/developer/greedy_kernel_alignment/data/corners.npy
+  name:              pfault
+  file:              /home/digvijay/Documents/developer/greedy_kernel_alignment/data/pfault_dataset.npy
   n_samples:         200
   noise:             0.5
   num_sectors:       3
@@ -30,7 +30,7 @@ qkernel:
   trainable:        True
   input_scaling:    True
   data_reuploading: True
-  ansatz:           'he'
+  ansatz:           'embedding_paper'
   ansatz_layers:    5
 
 ## Model Training Agen Configuration
@@ -40,11 +40,11 @@ agent:
   mclr:                 [0.01]
   cclr:                 [0.01]
   epochs:               [500]
-  train_method:         ['full']
+  train_method:         ['ccka', 'random']
   target_accuracy:      0.95
   get_alignment_every:  10
   validate_every_epoch: 1
   base_path:            results/
   lambda_kao:           [0.01]
   lambda_co:            [0.01]
-  clusters:             [2]
+  clusters:             [2, 4, 6, 8, 10]
