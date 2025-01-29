@@ -106,18 +106,26 @@ class DataGenerator:
     def load_from_file(self):
         """Load a dataset from a file and return a merged pandas DataFrame and Series."""
         data = np.load(self.file_path, allow_pickle=True).item()
-        x_train, x_test = data['x_train'], data['x_test']
-        y_train, y_test = data['y_train'], data['y_test']
+        try:
+            x_train, x_test = data['x_train'], data['x_test']
+            y_train, y_test = data['y_train'], data['y_test']
 
-        # Apply Min-Max Scaling to the range [0, π]
-        scaler = MinMaxScaler(feature_range=(-np.pi, np.pi))
-        x_train_scaled = scaler.fit_transform(x_train)
-        x_test_scaled = scaler.transform(x_test)
+            # Apply Min-Max Scaling to the range [0, π]
+            scaler = MinMaxScaler(feature_range=(-np.pi, np.pi))
+            x_train_scaled = scaler.fit_transform(x_train)
+            x_test_scaled = scaler.transform(x_test)
 
-        # Merge train and test data
-        X_scaled = np.vstack([x_train_scaled, x_test_scaled])
-        y = np.hstack([y_train, y_test])
+            # Merge train and test data
+            X_scaled = np.vstack([x_train_scaled, x_test_scaled])
+            y = np.hstack([y_train, y_test])
+        except:
 
+            x = data['features']
+            y = data['labels']
+            # Apply Min-Max Scaling to the range [0, π]
+            scaler = MinMaxScaler(feature_range=(-np.pi, np.pi))
+            X_scaled = scaler.fit_transform(x)
+            
         # Apply PCA if specified
         if self.n_pca_features:
             X_scaled = self.apply_pca(X_scaled)
