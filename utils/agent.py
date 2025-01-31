@@ -279,8 +279,10 @@ class TrainModel():
                     self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
                     current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
                     self.alignment_arr.append(current_alignment)
-                    print(current_alignment)
-
+                    print("------------------------------------------------------------------")
+                    print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
+                    print("------------------------------------------------------------------")
+                    
     def prediction_stage(self, data, labels):
 
         main_centroids = torch.stack([centroid.detach()[0] for centroid in self._main_centroids])
