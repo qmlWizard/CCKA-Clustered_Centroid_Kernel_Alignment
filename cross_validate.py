@@ -74,7 +74,7 @@ def train(config):
         ansatz=config['ansatz'],
         ansatz_layers=config['ansatz_layers']
         )
-        
+
         agent = TrainModel(
             kernel=kernel,
             training_data=training_data,
@@ -185,7 +185,7 @@ if __name__ == "__main__":
     
 
     tuner = tune.Tuner(
-            tune.with_resources(train, resources={"cpu": 20  , "gpu": 0}),
+            tune.with_resources(train, resources={"cpu": 8  , "gpu": 0}),
             tune_config=tune.TuneConfig(num_samples=config.ray_config['ray_num_trial_samples'],
                                         trial_dirname_creator=trial_name_creator,
                                        ),
