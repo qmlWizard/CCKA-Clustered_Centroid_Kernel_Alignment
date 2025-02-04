@@ -41,11 +41,11 @@ def train(config):
     )
 
     #features, target = data_generator.generate_dataset()
-    training_data, training_labels, testing_data, testing_labels = data_generator.generate_dataset()
+    train_data, train_labels, test_data, test_labels = data_generator.generate_dataset()
 
     # Assuming the data is in Pandas DataFrames
-    all_data = pd.concat([training_data, testing_data], axis=0)
-    all_labels = pd.concat([training_labels, testing_labels], axis=0)
+    all_data = pd.concat([train_data, test_data], axis=0)
+    all_labels = pd.concat([train_labels, test_labels], axis=0)
     #all_data = torch.tensor(all_data.to_numpy(), dtype=torch.float32, requires_grad=True)
     #all_labels = torch.tensor(all_labels.to_numpy(), dtype=torch.int)
 
@@ -55,16 +55,18 @@ def train(config):
 
     for train_idx, test_idx in kf.split(all_data):
 
-        training_data = all_data[train_idx]
-        training_labels = all_labels[all_labels]
-        testing_data = all_data[test_idx]
-        testing_labels = all_labels[test_idx]
+        training_data = all_data.iloc[train_idx]
+        training_labels = all_labels.iloc[train_idx]
+        testing_data = all_data.iloc[test_idx]
+        testing_labels = all_labels.iloc[test_idx]
 
         training_data = torch.tensor(training_data.to_numpy(), dtype=torch.float32, requires_grad=True)
         testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
         training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
         testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
 
+        
+        
         kernel = Qkernel(
         device=config['device'],
         n_qubits=config['n_qubits'],
@@ -74,7 +76,7 @@ def train(config):
         ansatz=config['ansatz'],
         ansatz_layers=config['ansatz_layers']
         )
-
+        
         agent = TrainModel(
             kernel=kernel,
             training_data=training_data,
@@ -95,7 +97,8 @@ def train(config):
             lambda_co=config['lambda_co'],
             clusters=config['clusters']
         )
-
+        
+        before_metrics = agent.evaluate(testing_data, testing_labels)
         agent.fit_kernel(training_data, training_labels)
         after_metrics = agent.evaluate(testing_data, testing_labels)
 
@@ -108,7 +111,7 @@ def train(config):
             "accuracy_test_final": after_metrics['testing_accuracy'],
             "alignment_train_epochs": after_metrics['alignment_arr'],
             "circuit_executions": after_metrics['executions'],
-            "train_index": train_index,
+            "train_index": train_idx,
             "test_index": test_idx,
         }
 
