@@ -1,0 +1,943 @@
+/var/spool/slurmd/job00022/slurm_script: line 2: SBATCH: command not found
+/var/spool/slurmd/job00022/slurm_script: line 3: SBATCH: command not found
+/var/spool/slurmd/job00022/slurm_script: line 4: SBATCH: command not found
+/var/spool/slurmd/job00022/slurm_script: line 7: SBATCH: command not found
+/var/spool/slurmd/job00022/slurm_script: line 8: SBATCH: command not found
+Starting job on digvijay-system at Tue Feb  4 07:25:21 CET 2025
+2025-02-04 07:25:23,291	INFO worker.py:1841 -- Started a local Ray instance.
+2025-02-04 07:25:25,835	ERROR tune_controller.py:1331 -- Trial task failed for trial train_d0cca_00000
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(KeyError): [36mray::ImplicitFunc.train()[39m (pid=163394, ip=192.168.0.125, actor_id=1ad1f60c6fae33bd8784d14101000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 58, in train
+    training_data = all_data[train_idx]
+                    ~~~~~~~~^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6249, in _raise_if_missing
+    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
+KeyError: "None of [Index([ 1,  2,  3,  4,  6,  7,  8,  9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,\n       22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 37, 38, 39, 40, 41,\n       42, 43, 44, 47, 49, 51, 52, 53, 55, 56, 58, 59],\n      dtype='int64')] are in the [columns]"
+╭──────────────────────────────────────────────────────────────╮
+│ Configuration for experiment     train_2025-02-04_07-25-23   │
+├──────────────────────────────────────────────────────────────┤
+│ Search algorithm                 BasicVariantGenerator       │
+│ Scheduler                        FIFOScheduler               │
+│ Number of trials                 10                          │
+╰──────────────────────────────────────────────────────────────╯
+
+View detailed results here: /home/digvijay/ray_results/train_2025-02-04_07-25-23
+To visualize your results with TensorBoard, run: `tensorboard --logdir /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts`
+
+Trial status: 10 PENDING
+Current time: 2025-02-04 07:25:23. Total running time: 0s
+Logical resource usage: 20.0/20 CPUs, 0/0 GPUs
+╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Trial name          status       n_qubits   ansatz              lr     mclr     cclr     epochs   train_method       lambda_kao     lambda_co     clusters │
+├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ train_d0cca_00000   PENDING             5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            2 │
+│ train_d0cca_00001   PENDING             5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            2 │
+│ train_d0cca_00002   PENDING             5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            4 │
+│ train_d0cca_00003   PENDING             5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            4 │
+│ train_d0cca_00004   PENDING             5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            6 │
+│ train_d0cca_00005   PENDING             5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            6 │
+│ train_d0cca_00006   PENDING             5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            8 │
+│ train_d0cca_00007   PENDING             5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            8 │
+│ train_d0cca_00008   PENDING             5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01           10 │
+│ train_d0cca_00009   PENDING             5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01           10 │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00000 started with configuration:
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_d0cca_00000 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                  embedding_paper │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              2 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00000 errored after 0 iterations at 2025-02-04 07:25:25. Total running time: 2s
+Error file: /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00000_0_ansatz=embedding_paper,cclr=0.0100,clusters=2,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_d0cca_00001 started with configuration:
+2025-02-04 07:25:28,921	ERROR tune_controller.py:1331 -- Trial task failed for trial train_d0cca_00001
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(KeyError): [36mray::ImplicitFunc.train()[39m (pid=163689, ip=192.168.0.125, actor_id=38f5b962fcc7f35f214d4f5801000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 58, in train
+    training_data = all_data[train_idx]
+                    ~~~~~~~~^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6249, in _raise_if_missing
+    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
+KeyError: "None of [Index([ 1,  2,  3,  4,  6,  7,  8,  9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,\n       22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 37, 38, 39, 40, 41,\n       42, 43, 44, 47, 49, 51, 52, 53, 55, 56, 58, 59],\n      dtype='int64')] are in the [columns]"
+2025-02-04 07:25:31,917	ERROR tune_controller.py:1331 -- Trial task failed for trial train_d0cca_00002
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(KeyError): [36mray::ImplicitFunc.train()[39m (pid=163858, ip=192.168.0.125, actor_id=b974a3017facbe7e8c938b0401000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 58, in train
+    training_data = all_data[train_idx]
+                    ~~~~~~~~^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6249, in _raise_if_missing
+    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
+KeyError: "None of [Index([ 1,  2,  3,  4,  6,  7,  8,  9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,\n       22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 37, 38, 39, 40, 41,\n       42, 43, 44, 47, 49, 51, 52, 53, 55, 56, 58, 59],\n      dtype='int64')] are in the [columns]"
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_d0cca_00001 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                               he │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              2 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00001 errored after 0 iterations at 2025-02-04 07:25:28. Total running time: 5s
+Error file: /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00001_1_ansatz=he,cclr=0.0100,clusters=2,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_d0cca_00002 started with configuration:
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_d0cca_00002 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                  embedding_paper │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              4 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00002 errored after 0 iterations at 2025-02-04 07:25:31. Total running time: 8s
+Error file: /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00002_2_ansatz=embedding_paper,cclr=0.0100,clusters=4,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_d0cca_00003 started with configuration:
+2025-02-04 07:25:34,928	ERROR tune_controller.py:1331 -- Trial task failed for trial train_d0cca_00003
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(KeyError): [36mray::ImplicitFunc.train()[39m (pid=164019, ip=192.168.0.125, actor_id=221bc88fd281b9a3e2e0dc3501000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 58, in train
+    training_data = all_data[train_idx]
+                    ~~~~~~~~^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6249, in _raise_if_missing
+    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
+KeyError: "None of [Index([ 1,  2,  3,  4,  6,  7,  8,  9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,\n       22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 37, 38, 39, 40, 41,\n       42, 43, 44, 47, 49, 51, 52, 53, 55, 56, 58, 59],\n      dtype='int64')] are in the [columns]"
+2025-02-04 07:25:37,928	ERROR tune_controller.py:1331 -- Trial task failed for trial train_d0cca_00004
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(KeyError): [36mray::ImplicitFunc.train()[39m (pid=164181, ip=192.168.0.125, actor_id=b8b2730510a3fd131cb8a9c201000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 58, in train
+    training_data = all_data[train_idx]
+                    ~~~~~~~~^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6249, in _raise_if_missing
+    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
+KeyError: "None of [Index([ 1,  2,  3,  4,  6,  7,  8,  9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,\n       22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 37, 38, 39, 40, 41,\n       42, 43, 44, 47, 49, 51, 52, 53, 55, 56, 58, 59],\n      dtype='int64')] are in the [columns]"
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_d0cca_00003 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                               he │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              4 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00003 errored after 0 iterations at 2025-02-04 07:25:34. Total running time: 11s
+Error file: /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00003_3_ansatz=he,cclr=0.0100,clusters=4,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_d0cca_00004 started with configuration:
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_d0cca_00004 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                  embedding_paper │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              6 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00004 errored after 0 iterations at 2025-02-04 07:25:37. Total running time: 14s
+Error file: /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00004_4_ansatz=embedding_paper,cclr=0.0100,clusters=6,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_d0cca_00005 started with configuration:
+2025-02-04 07:25:40,923	ERROR tune_controller.py:1331 -- Trial task failed for trial train_d0cca_00005
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(KeyError): [36mray::ImplicitFunc.train()[39m (pid=164342, ip=192.168.0.125, actor_id=789baff42e35ad65faad74b201000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 58, in train
+    training_data = all_data[train_idx]
+                    ~~~~~~~~^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6249, in _raise_if_missing
+    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
+KeyError: "None of [Index([ 1,  2,  3,  4,  6,  7,  8,  9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,\n       22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 37, 38, 39, 40, 41,\n       42, 43, 44, 47, 49, 51, 52, 53, 55, 56, 58, 59],\n      dtype='int64')] are in the [columns]"
+2025-02-04 07:25:43,931	ERROR tune_controller.py:1331 -- Trial task failed for trial train_d0cca_00006
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(KeyError): [36mray::ImplicitFunc.train()[39m (pid=164503, ip=192.168.0.125, actor_id=780d04ca94abcff1389a647f01000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 58, in train
+    training_data = all_data[train_idx]
+                    ~~~~~~~~^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6249, in _raise_if_missing
+    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
+KeyError: "None of [Index([ 1,  2,  3,  4,  6,  7,  8,  9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,\n       22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 37, 38, 39, 40, 41,\n       42, 43, 44, 47, 49, 51, 52, 53, 55, 56, 58, 59],\n      dtype='int64')] are in the [columns]"
+[36m(train pid=164503)[0m *** SIGSEGV received at time=1738650343 on cpu 20 ***
+[36m(train pid=164503)[0m PC: @     0x7b8ebb0e92fe  (unknown)  ray::gcs::TaskInfoAccessor::AsyncAddTaskEventData()
+[36m(train pid=164503)[0m     @     0x7b8ebca45320       3664  (unknown)
+[36m(train pid=164503)[0m     @     0x7b8ebafcc045       1392  ray::core::worker::TaskEventBufferImpl::FlushEvents()
+[36m(train pid=164503)[0m     @     0x7b8ebaf5800c       1488  ray::core::CoreWorker::Disconnect()
+[36m(train pid=164503)[0m     @     0x7b8ebaf583bd       1152  ray::core::CoreWorker::ForceExit()
+[36m(train pid=164503)[0m     @     0x7b8ebaf587ef       1680  ray::core::CoreWorker::HandleKillActor()
+[36m(train pid=164503)[0m     @     0x7b8ebaf4fcf4        192  ray::rpc::ServerCallImpl<>::HandleRequestImpl()
+[36m(train pid=164503)[0m     @     0x7b8ebb29e728       1168  EventTracker::RecordExecution()
+[36m(train pid=164503)[0m     @     0x7b8ebb2996fe         48  std::_Function_handler<>::_M_invoke()
+[36m(train pid=164503)[0m     @     0x7b8ebb299b76        112  boost::asio::detail::completion_handler<>::do_complete()
+[36m(train pid=164503)[0m     @     0x7b8ebb86f2bb        128  boost::asio::detail::scheduler::do_run_one()
+[36m(train pid=164503)[0m     @     0x7b8ebb870c39        288  boost::asio::detail::scheduler::run()
+[36m(train pid=164503)[0m     @     0x7b8ebb871342         96  boost::asio::io_context::run()
+[36m(train pid=164503)[0m     @     0x7b8ebae95101       1280  ray::core::CoreWorker::RunIOService()
+[36m(train pid=164503)[0m     @     0x7b8ebb34fe90         64  thread_proxy
+[36m(train pid=164503)[0m     @     0x7b8ebca9ca94        176  (unknown)
+[36m(train pid=164503)[0m     @     0x7b8ebcb29c3c  (unknown)  (unknown)
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460: *** SIGSEGV received at time=1738650343 on cpu 20 ***
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460: PC: @     0x7b8ebb0e92fe  (unknown)  ray::gcs::TaskInfoAccessor::AsyncAddTaskEventData()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebca45320       3664  (unknown)
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebafcc045       1392  ray::core::worker::TaskEventBufferImpl::FlushEvents()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebaf5800c       1488  ray::core::CoreWorker::Disconnect()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebaf583bd       1152  ray::core::CoreWorker::ForceExit()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebaf587ef       1680  ray::core::CoreWorker::HandleKillActor()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebaf4fcf4        192  ray::rpc::ServerCallImpl<>::HandleRequestImpl()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebb29e728       1168  EventTracker::RecordExecution()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebb2996fe         48  std::_Function_handler<>::_M_invoke()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebb299b76        112  boost::asio::detail::completion_handler<>::do_complete()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebb86f2bb        128  boost::asio::detail::scheduler::do_run_one()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebb870c39        288  boost::asio::detail::scheduler::run()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebb871342         96  boost::asio::io_context::run()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebae95101       1280  ray::core::CoreWorker::RunIOService()
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebb34fe90         64  thread_proxy
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebca9ca94        176  (unknown)
+[36m(train pid=164503)[0m [2025-02-04 07:25:43,968 E 164503 164539] logging.cc:460:     @     0x7b8ebcb29c3c  (unknown)  (unknown)
+[36m(train pid=164503)[0m Fatal Python error: Segmentation fault
+[36m(train pid=164503)[0m 
+[36m(train pid=164503)[0m 
+[36m(train pid=164503)[0m Extension modules: msgpack._cmsgpack, google._upb._message, psutil._psutil_linux, psutil._psutil_posix, setproctitle, yaml._yaml, charset_normalizer.md, requests.packages.charset_normalizer.md, requests.packages.chardet.md, ray._raylet, numpy._core._multiarray_umath, numpy._core._multiarray_tests, numpy.linalg._umath_linalg, pyarrow.lib, numpy.random._common, numpy.random.bit_generator, numpy.random._bounded_integers, numpy.random._mt19937, numpy.random.mtrand, numpy.random._philox, numpy.random._pcg64, numpy.random._sfc64, numpy.random._generator, pandas._libs.tslibs.ccalendar, pandas._libs.tslibs.np_datetime, pandas._libs.tslibs.dtypes, pandas._libs.tslibs.base, pandas._libs.tslibs.nattype, pandas._libs.tslibs.timezones, pandas._libs.tslibs.fields, pandas._libs.tslibs.timedeltas, pandas._libs.tslibs.tzconversion, pandas._libs.tslibs.timestamps, pandas._libs.properties, pandas._libs.tslibs.offsets, pandas._libs.tslibs.strptime, pandas._libs.tslibs.parsing, pandas._libs.tslibs.conversion, pandas._libs.tslibs.period, pandas._libs.tslibs.vectorized, pandas._libs.ops_dispatch, pandas._libs.missing, pandas._libs.hashtable, pandas._libs.algos, pandas._libs.interval, pandas._libs.lib, pyarrow._compute, pandas._libs.ops, pandas._libs.hashing, pandas._libs.arrays, pandas._libs.tslib, pandas._libs.sparse, pandas._libs.internals, pandas._libs.indexing, pandas._libs.index, pandas._libs.writers, pandas._libs.join, pandas._libs.window.aggregations, pandas._libs.window.indexers, pandas._libs.reshape, pandas._libs.groupby, pandas._libs.json, pandas._libs.parsers, pandas._libs.testing, pyarrow._fs, pyarrow._azurefs, pyarrow._hdfs, pyarrow._gcsfs, pyarrow._s3fs, pyarrow._parquet, PIL._imaging, kiwisolver._cext, sklearn.__check_build._check_build, scipy._lib._ccallback_c, scipy.sparse._sparsetools, _csparsetools, scipy.sparse._csparsetools, scipy.linalg._fblas, scipy.linalg._flapack, scipy.linalg.cython_lapack, scipy.linalg._cythonized_array_utils, scipy.linalg._solve_toeplitz, scipy.linalg._decomp_lu_cython, scipy.linalg._matfuncs_sqrtm_triu, scipy.linalg._matfuncs_expm, scipy.linalg._linalg_pythran, scipy.linalg.cython_blas, scipy.linalg._decomp_update, scipy.sparse.linalg._dsolve._superlu, scipy.sparse.linalg._eigen.arpack._arpack, scipy.sparse.linalg._propack._spropack, scipy.sparse.linalg._propack._dpropack, scipy.sparse.linalg._propack._cpropack, scipy.sparse.linalg._propack._zpropack, scipy.sparse.csgraph._tools, scipy.sparse.csgraph._shortest_path, scipy.sparse.csgraph._traversal, scipy.sparse.csgraph._min_spanning_tree, scipy.sparse.csgraph._flow, scipy.sparse.csgraph._matching, scipy.sparse.csgraph._reordering, scipy.special._ufuncs_cxx, scipy.special._ufuncs, scipy.special._specfun, scipy.special._comb, scipy.special._ellip_harm_2, scipy.spatial._ckdtree, scipy._lib.messagestream, scipy.spatial._qhull, scipy.spatial._voronoi, scipy.spatial._distance_wrap, scipy.spatial._hausdorff, scipy.spatial.transform._rotation, scipy.optimize._group_columns, scipy.optimize._trlib._trlib, scipy.optimize._lbfgsb, _moduleTNC, scipy.optimize._moduleTNC, scipy.optimize._cobyla, scipy.optimize._slsqp, scipy.optimize._minpack, scipy.optimize._lsq.givens_elimination, scipy.optimize._zeros, scipy.optimize._cython_nnls, scipy._lib._uarray._uarray, scipy.linalg._decomp_interpolative, scipy.optimize._bglu_dense, scipy.optimize._lsap, scipy.optimize._direct, scipy.integrate._odepack, scipy.integrate._quadpack, scipy.integrate._vode, scipy.integrate._dop, scipy.integrate._lsoda, scipy.interpolate._fitpack, scipy.interpolate._dfitpack, scipy.interpolate._dierckx, scipy.interpolate._ppoly, scipy.interpolate._interpnd, scipy.interpolate._rbfinterp_pythran, scipy.interpolate._rgi_cython, scipy.interpolate._bspl, scipy.special.cython_special, scipy.stats._stats, scipy.stats._sobol, scipy.stats._qmc_cy, scipy.stats._biasedurn, scipy.stats._stats_pythran, scipy.stats._levy_stable.levyst, scipy.stats._ansari_swilk_statistics, scipy.stats._mvn, scipy.stats._rcont.rcont, scipy.ndimage._nd_image, scipy.ndimage._rank_filter_1d, _ni_label, scipy.ndimage._ni_label, sklearn.utils._isfinite, sklearn.utils.sparsefuncs_fast, sklearn.utils.murmurhash, sklearn.utils._openmp_helpers, sklearn.preprocessing._csr_polynomial_expansion, sklearn.preprocessing._target_encoder_fast, scipy.io.matlab._mio_utils, scipy.io.matlab._streams, scipy.io.matlab._mio5_utils, sklearn.datasets._svmlight_format_fast, sklearn.utils._random, sklearn.utils._vector_sentinel, sklearn.feature_extraction._hashing_fast, sklearn.utils._seq_dataset, sklearn.metrics.cluster._expected_mutual_info_fast, sklearn.metrics._dist_metrics, sklearn.metrics._pairwise_distances_reduction._datasets_pair, sklearn.utils._cython_blas, sklearn.metrics._pairwise_distances_reduction._base, sklearn.metrics._pairwise_distances_reduction._middle_term_computer, sklearn.utils._heap, sklearn.utils._sorting, sklearn.metrics._pairwise_distances_reduction._argkmin, sklearn.metrics._pairwise_distances_reduction._argkmin_classmode, sklearn.metrics._pairwise_distances_reduction._radius_neighbors, sklearn.metrics._pairwise_distances_reduction._radius_neighbors_classmode, sklearn.metrics._pairwise_fast, sklearn.linear_model._cd_fast, _loss, sklearn._loss._loss, sklearn.utils.arrayfuncs, sklearn.svm._liblinear, sklearn.svm._libsvm, sklearn.svm._libsvm_sparse, sklearn.linear_model._sag_fast, sklearn.utils._weight_vector, sklearn.linear_model._sgd_fast, sklearn.decomposition._online_lda_fast, sklearn.decomposition._cdnmf_fast, sklearn.neighbors._partition_nodes, sklearn.neighbors._ball_tree, sklearn.neighbors._kd_tree, sklearn.tree._utils, sklearn.neighbors._quad_tree, sklearn.tree._tree, sklearn.tree._partitioner, sklearn.tree._splitter, sklearn.tree._criterion, sklearn.ensemble._gradient_boosting, sklearn.ensemble._hist_gradient_boosting.common, sklearn.ensemble._hist_gradient_boosting._gradient_boosting, sklearn.ensemble._hist_gradient_boosting._binning, sklearn.ensemble._hist_gradient_boosting._bitset, sklearn.ensemble._hist_gradient_boosting.histogram, sklearn.ensemble._hist_gradient_boosting._predictor, sklearn.ensemble._hist_gradient_boosting.splitting, torch._C, torch._C._dynamo.autograd_compiler, torch._C._dynamo.eval_frame, torch._C._dynamo.guards, torch._C._dynamo.utils, torch._C._fft, torch._C._linalg, torch._C._nested, torch._C._nn, torch._C._sparse, torch._C._special, scipy.cluster._vq, scipy.cluster._hierarchy, scipy.cluster._optimal_leaf_ordering, pyarrow._json (total: 227)
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_d0cca_00005 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                               he │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              6 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00005 errored after 0 iterations at 2025-02-04 07:25:40. Total running time: 17s
+Error file: /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00005_5_ansatz=he,cclr=0.0100,clusters=6,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_d0cca_00006 started with configuration:
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_d0cca_00006 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                  embedding_paper │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              8 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00006 errored after 0 iterations at 2025-02-04 07:25:43. Total running time: 20s
+Error file: /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00006_6_ansatz=embedding_paper,cclr=0.0100,clusters=8,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_d0cca_00007 started with configuration:
+2025-02-04 07:25:46,955	ERROR tune_controller.py:1331 -- Trial task failed for trial train_d0cca_00007
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(KeyError): [36mray::ImplicitFunc.train()[39m (pid=164673, ip=192.168.0.125, actor_id=ac3f84d05956631b9758cfc001000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 58, in train
+    training_data = all_data[train_idx]
+                    ~~~~~~~~^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6249, in _raise_if_missing
+    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
+KeyError: "None of [Index([ 1,  2,  3,  4,  6,  7,  8,  9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,\n       22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 37, 38, 39, 40, 41,\n       42, 43, 44, 47, 49, 51, 52, 53, 55, 56, 58, 59],\n      dtype='int64')] are in the [columns]"
+2025-02-04 07:25:49,928	ERROR tune_controller.py:1331 -- Trial task failed for trial train_d0cca_00008
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(KeyError): [36mray::ImplicitFunc.train()[39m (pid=164834, ip=192.168.0.125, actor_id=e467bf70744ef0615c7fab7b01000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 58, in train
+    training_data = all_data[train_idx]
+                    ~~~~~~~~^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6249, in _raise_if_missing
+    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
+KeyError: "None of [Index([ 1,  2,  3,  4,  6,  7,  8,  9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,\n       22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 37, 38, 39, 40, 41,\n       42, 43, 44, 47, 49, 51, 52, 53, 55, 56, 58, 59],\n      dtype='int64')] are in the [columns]"
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_d0cca_00007 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                               he │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              8 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00007 errored after 0 iterations at 2025-02-04 07:25:46. Total running time: 23s
+Error file: /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00007_7_ansatz=he,cclr=0.0100,clusters=8,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_d0cca_00008 started with configuration:
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_d0cca_00008 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                  embedding_paper │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                             10 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00008 errored after 0 iterations at 2025-02-04 07:25:49. Total running time: 26s
+Error file: /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00008_8_ansatz=embedding_paper,cclr=0.0100,clusters=10,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_d0cca_00009 started with configuration:
+2025-02-04 07:25:52,931	ERROR tune_controller.py:1331 -- Trial task failed for trial train_d0cca_00009
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(KeyError): [36mray::ImplicitFunc.train()[39m (pid=164996, ip=192.168.0.125, actor_id=9b8993d80884d85103ca12ef01000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 58, in train
+    training_data = all_data[train_idx]
+                    ~~~~~~~~^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4108, in __getitem__
+    indexer = self.columns._get_indexer_strict(key, "columns")[1]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6200, in _get_indexer_strict
+    self._raise_if_missing(keyarr, indexer, axis_name)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 6249, in _raise_if_missing
+    raise KeyError(f"None of [{key}] are in the [{axis_name}]")
+KeyError: "None of [Index([ 1,  2,  3,  4,  6,  7,  8,  9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21,\n       22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 37, 38, 39, 40, 41,\n       42, 43, 44, 47, 49, 51, 52, 53, 55, 56, 58, 59],\n      dtype='int64')] are in the [columns]"
+2025-02-04 07:25:52,948	INFO tune.py:1009 -- Wrote the latest version of all result files and experiment state to '/home/digvijay/ray_results/train_2025-02-04_07-25-23' in 0.0124s.
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_d0cca_00009 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                               he │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                             10 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_d0cca_00009 errored after 0 iterations at 2025-02-04 07:25:52. Total running time: 29s
+Error file: /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00009_9_ansatz=he,cclr=0.0100,clusters=10,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial status: 10 ERROR
+Current time: 2025-02-04 07:25:52. Total running time: 29s
+Logical resource usage: 20.0/20 CPUs, 0/0 GPUs
+╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Trial name          status       n_qubits   ansatz              lr     mclr     cclr     epochs   train_method       lambda_kao     lambda_co     clusters │
+├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ train_d0cca_00000   ERROR               5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            2 │
+│ train_d0cca_00001   ERROR               5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            2 │
+│ train_d0cca_00002   ERROR               5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            4 │
+│ train_d0cca_00003   ERROR               5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            4 │
+│ train_d0cca_00004   ERROR               5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            6 │
+│ train_d0cca_00005   ERROR               5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            6 │
+│ train_d0cca_00006   ERROR               5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            8 │
+│ train_d0cca_00007   ERROR               5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            8 │
+│ train_d0cca_00008   ERROR               5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01           10 │
+│ train_d0cca_00009   ERROR               5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01           10 │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Number of errored trials: 10
+2025-02-04 07:25:52,955	ERROR tune.py:1037 -- Trials did not complete: [train_d0cca_00000, train_d0cca_00001, train_d0cca_00002, train_d0cca_00003, train_d0cca_00004, train_d0cca_00005, train_d0cca_00006, train_d0cca_00007, train_d0cca_00008, train_d0cca_00009]
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Trial name            # failures   error file                                                                                                                                                                                                                                                                                                 │
+├───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ train_d0cca_00000              1   /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00000_0_ansatz=embedding_paper,cclr=0.0100,clusters=2,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt  │
+│ train_d0cca_00001              1   /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00001_1_ansatz=he,cclr=0.0100,clusters=2,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt               │
+│ train_d0cca_00002              1   /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00002_2_ansatz=embedding_paper,cclr=0.0100,clusters=4,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt  │
+│ train_d0cca_00003              1   /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00003_3_ansatz=he,cclr=0.0100,clusters=4,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt               │
+│ train_d0cca_00004              1   /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00004_4_ansatz=embedding_paper,cclr=0.0100,clusters=6,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt  │
+│ train_d0cca_00005              1   /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00005_5_ansatz=he,cclr=0.0100,clusters=6,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt               │
+│ train_d0cca_00006              1   /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00006_6_ansatz=embedding_paper,cclr=0.0100,clusters=8,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt  │
+│ train_d0cca_00007              1   /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00007_7_ansatz=he,cclr=0.0100,clusters=8,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt               │
+│ train_d0cca_00008              1   /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00008_8_ansatz=embedding_paper,cclr=0.0100,clusters=10,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt │
+│ train_d0cca_00009              1   /tmp/ray/session_2025-02-04_07-25-22_631713_161991/artifacts/2025-02-04_07-25-23/train_2025-02-04_07-25-23/driver_artifacts/train_d0cca_00009_9_ansatz=he,cclr=0.0100,clusters=10,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt              │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Job completed at Tue Feb  4 07:25:54 CET 2025

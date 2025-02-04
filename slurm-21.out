@@ -1,0 +1,893 @@
+/var/spool/slurmd/job00021/slurm_script: line 2: SBATCH: command not found
+/var/spool/slurmd/job00021/slurm_script: line 3: SBATCH: command not found
+/var/spool/slurmd/job00021/slurm_script: line 4: SBATCH: command not found
+/var/spool/slurmd/job00021/slurm_script: line 7: SBATCH: command not found
+/var/spool/slurmd/job00021/slurm_script: line 8: SBATCH: command not found
+Starting job on digvijay-system at Tue Feb  4 07:23:51 CET 2025
+2025-02-04 07:23:53,323	INFO worker.py:1841 -- Started a local Ray instance.
+2025-02-04 07:23:55,940	ERROR tune_controller.py:1331 -- Trial task failed for trial train_9b2c9_00000
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(AttributeError): [36mray::ImplicitFunc.train()[39m (pid=160192, ip=192.168.0.125, actor_id=5cee9a0eba1cd88509fd95e601000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 64, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 52, in __init__
+    self._training_labels = self._training_labels.to(torch.float32)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/generic.py", line 6299, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Series' object has no attribute 'to'
+╭──────────────────────────────────────────────────────────────╮
+│ Configuration for experiment     train_2025-02-04_07-23-53   │
+├──────────────────────────────────────────────────────────────┤
+│ Search algorithm                 BasicVariantGenerator       │
+│ Scheduler                        FIFOScheduler               │
+│ Number of trials                 10                          │
+╰──────────────────────────────────────────────────────────────╯
+
+View detailed results here: /home/digvijay/ray_results/train_2025-02-04_07-23-53
+To visualize your results with TensorBoard, run: `tensorboard --logdir /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts`
+
+Trial status: 10 PENDING
+Current time: 2025-02-04 07:23:53. Total running time: 0s
+Logical resource usage: 20.0/20 CPUs, 0/0 GPUs
+╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Trial name          status       n_qubits   ansatz              lr     mclr     cclr     epochs   train_method       lambda_kao     lambda_co     clusters │
+├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ train_9b2c9_00000   PENDING             5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            2 │
+│ train_9b2c9_00001   PENDING             5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            2 │
+│ train_9b2c9_00002   PENDING             5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            4 │
+│ train_9b2c9_00003   PENDING             5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            4 │
+│ train_9b2c9_00004   PENDING             5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            6 │
+│ train_9b2c9_00005   PENDING             5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            6 │
+│ train_9b2c9_00006   PENDING             5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            8 │
+│ train_9b2c9_00007   PENDING             5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            8 │
+│ train_9b2c9_00008   PENDING             5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01           10 │
+│ train_9b2c9_00009   PENDING             5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01           10 │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00000 started with configuration:
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_9b2c9_00000 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                  embedding_paper │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              2 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00000 errored after 0 iterations at 2025-02-04 07:23:55. Total running time: 2s
+Error file: /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00000_0_ansatz=embedding_paper,cclr=0.0100,clusters=2,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_9b2c9_00001 started with configuration:
+2025-02-04 07:23:59,040	ERROR tune_controller.py:1331 -- Trial task failed for trial train_9b2c9_00001
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(AttributeError): [36mray::ImplicitFunc.train()[39m (pid=160487, ip=192.168.0.125, actor_id=e03b506b83ec0fb94f19a62201000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 64, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 52, in __init__
+    self._training_labels = self._training_labels.to(torch.float32)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/generic.py", line 6299, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Series' object has no attribute 'to'
+2025-02-04 07:24:02,025	ERROR tune_controller.py:1331 -- Trial task failed for trial train_9b2c9_00002
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(AttributeError): [36mray::ImplicitFunc.train()[39m (pid=160665, ip=192.168.0.125, actor_id=8ab6c8a60e4a383496708c1501000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 64, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 52, in __init__
+    self._training_labels = self._training_labels.to(torch.float32)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/generic.py", line 6299, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Series' object has no attribute 'to'
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_9b2c9_00001 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                               he │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              2 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00001 errored after 0 iterations at 2025-02-04 07:23:59. Total running time: 5s
+Error file: /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00001_1_ansatz=he,cclr=0.0100,clusters=2,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_9b2c9_00002 started with configuration:
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_9b2c9_00002 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                  embedding_paper │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              4 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00002 errored after 0 iterations at 2025-02-04 07:24:02. Total running time: 8s
+Error file: /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00002_2_ansatz=embedding_paper,cclr=0.0100,clusters=4,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_9b2c9_00003 started with configuration:
+2025-02-04 07:24:05,026	ERROR tune_controller.py:1331 -- Trial task failed for trial train_9b2c9_00003
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(AttributeError): [36mray::ImplicitFunc.train()[39m (pid=160833, ip=192.168.0.125, actor_id=1459fe2df45644de8e2eb34b01000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 64, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 52, in __init__
+    self._training_labels = self._training_labels.to(torch.float32)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/generic.py", line 6299, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Series' object has no attribute 'to'
+2025-02-04 07:24:08,051	ERROR tune_controller.py:1331 -- Trial task failed for trial train_9b2c9_00004
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(AttributeError): [36mray::ImplicitFunc.train()[39m (pid=160995, ip=192.168.0.125, actor_id=c36f45a91802ed994d8b4f6b01000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 64, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 52, in __init__
+    self._training_labels = self._training_labels.to(torch.float32)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/generic.py", line 6299, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Series' object has no attribute 'to'
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_9b2c9_00003 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                               he │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              4 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00003 errored after 0 iterations at 2025-02-04 07:24:05. Total running time: 11s
+Error file: /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00003_3_ansatz=he,cclr=0.0100,clusters=4,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_9b2c9_00004 started with configuration:
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_9b2c9_00004 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                  embedding_paper │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              6 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00004 errored after 0 iterations at 2025-02-04 07:24:08. Total running time: 14s
+Error file: /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00004_4_ansatz=embedding_paper,cclr=0.0100,clusters=6,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_9b2c9_00005 started with configuration:
+2025-02-04 07:24:11,022	ERROR tune_controller.py:1331 -- Trial task failed for trial train_9b2c9_00005
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(AttributeError): [36mray::ImplicitFunc.train()[39m (pid=161164, ip=192.168.0.125, actor_id=a6cf04da9cdd35798f88c94501000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 64, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 52, in __init__
+    self._training_labels = self._training_labels.to(torch.float32)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/generic.py", line 6299, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Series' object has no attribute 'to'
+2025-02-04 07:24:14,039	ERROR tune_controller.py:1331 -- Trial task failed for trial train_9b2c9_00006
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(AttributeError): [36mray::ImplicitFunc.train()[39m (pid=161325, ip=192.168.0.125, actor_id=b51579e995e59b53e856dc9b01000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 64, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 52, in __init__
+    self._training_labels = self._training_labels.to(torch.float32)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/generic.py", line 6299, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Series' object has no attribute 'to'
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_9b2c9_00005 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                               he │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              6 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00005 errored after 0 iterations at 2025-02-04 07:24:11. Total running time: 17s
+Error file: /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00005_5_ansatz=he,cclr=0.0100,clusters=6,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_9b2c9_00006 started with configuration:
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_9b2c9_00006 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                  embedding_paper │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              8 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00006 errored after 0 iterations at 2025-02-04 07:24:14. Total running time: 20s
+Error file: /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00006_6_ansatz=embedding_paper,cclr=0.0100,clusters=8,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_9b2c9_00007 started with configuration:
+2025-02-04 07:24:17,038	ERROR tune_controller.py:1331 -- Trial task failed for trial train_9b2c9_00007
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(AttributeError): [36mray::ImplicitFunc.train()[39m (pid=161494, ip=192.168.0.125, actor_id=9337cc3621ecf0eb5f8fa80c01000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 64, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 52, in __init__
+    self._training_labels = self._training_labels.to(torch.float32)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/generic.py", line 6299, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Series' object has no attribute 'to'
+2025-02-04 07:24:20,042	ERROR tune_controller.py:1331 -- Trial task failed for trial train_9b2c9_00008
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(AttributeError): [36mray::ImplicitFunc.train()[39m (pid=161662, ip=192.168.0.125, actor_id=5e0f5848913ee2fee461e74b01000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 64, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 52, in __init__
+    self._training_labels = self._training_labels.to(torch.float32)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/generic.py", line 6299, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Series' object has no attribute 'to'
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_9b2c9_00007 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                               he │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                              8 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00007 errored after 0 iterations at 2025-02-04 07:24:17. Total running time: 23s
+Error file: /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00007_7_ansatz=he,cclr=0.0100,clusters=8,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_9b2c9_00008 started with configuration:
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_9b2c9_00008 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                  embedding_paper │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                             10 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00008 errored after 0 iterations at 2025-02-04 07:24:20. Total running time: 26s
+Error file: /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00008_8_ansatz=embedding_paper,cclr=0.0100,clusters=10,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial train_9b2c9_00009 started with configuration:
+2025-02-04 07:24:23,038	ERROR tune_controller.py:1331 -- Trial task failed for trial train_9b2c9_00009
+Traceback (most recent call last):
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/execution/_internal/event_manager.py", line 110, in resolve_future
+    result = ray.get(future)
+             ^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/auto_init_hook.py", line 21, in auto_init_wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/client_mode_hook.py", line 103, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 2772, in get
+    values, debugger_breakpoint = worker.get_objects(object_refs, timeout=timeout)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/_private/worker.py", line 919, in get_objects
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(AttributeError): [36mray::ImplicitFunc.train()[39m (pid=161825, ip=192.168.0.125, actor_id=aa0dc2be412e472597981d1601000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/cross_validate.py", line 64, in train
+    agent = TrainModel(
+            ^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 52, in __init__
+    self._training_labels = self._training_labels.to(torch.float32)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pandas/core/generic.py", line 6299, in __getattr__
+    return object.__getattribute__(self, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Series' object has no attribute 'to'
+2025-02-04 07:24:23,057	INFO tune.py:1009 -- Wrote the latest version of all result files and experiment state to '/home/digvijay/ray_results/train_2025-02-04_07-23-53' in 0.0130s.
+╭─────────────────────────────────────────────────────────╮
+│ Trial train_9b2c9_00009 config                          │
+├─────────────────────────────────────────────────────────┤
+│ ansatz                                               he │
+│ ansatz_layers                                         5 │
+│ base_path                                      results/ │
+│ cclr                                               0.01 │
+│ clusters                                             10 │
+│ data_reuploading                                   True │
+│ device                                  lightning.qubit │
+│ epochs                                              500 │
+│ file                               ...board_dataset.npy │
+│ get_alignment_every                                 100 │
+│ grid_size                                             4 │
+│ input_scaling                                      True │
+│ lambda_co                                          0.01 │
+│ lambda_kao                                         0.01 │
+│ lr                                                  0.1 │
+│ mclr                                               0.01 │
+│ n_qubits                                              5 │
+│ n_samples                                           200 │
+│ name                                       checkerboard │
+│ noise                                               0.5 │
+│ num_sectors                                           3 │
+│ optimizer                                            gd │
+│ points_per_sector                                    15 │
+│ ray_logging_path                      logs/checkerboard │
+│ sampling_radius                                     0.1 │
+│ target_accuracy                                    0.95 │
+│ testing_size                                        0.5 │
+│ train_method                                       ccka │
+│ trainable                                          True │
+│ training_size                                       0.5 │
+│ validate_every_epoch                                  1 │
+│ validation_size                                      0. │
+╰─────────────────────────────────────────────────────────╯
+
+Trial train_9b2c9_00009 errored after 0 iterations at 2025-02-04 07:24:23. Total running time: 29s
+Error file: /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00009_9_ansatz=he,cclr=0.0100,clusters=10,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt
+
+Trial status: 10 ERROR
+Current time: 2025-02-04 07:24:23. Total running time: 29s
+Logical resource usage: 20.0/20 CPUs, 0/0 GPUs
+╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Trial name          status       n_qubits   ansatz              lr     mclr     cclr     epochs   train_method       lambda_kao     lambda_co     clusters │
+├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ train_9b2c9_00000   ERROR               5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            2 │
+│ train_9b2c9_00001   ERROR               5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            2 │
+│ train_9b2c9_00002   ERROR               5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            4 │
+│ train_9b2c9_00003   ERROR               5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            4 │
+│ train_9b2c9_00004   ERROR               5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            6 │
+│ train_9b2c9_00005   ERROR               5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            6 │
+│ train_9b2c9_00006   ERROR               5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01            8 │
+│ train_9b2c9_00007   ERROR               5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01            8 │
+│ train_9b2c9_00008   ERROR               5   embedding_paper    0.1     0.01     0.01        500   ccka                     0.01          0.01           10 │
+│ train_9b2c9_00009   ERROR               5   he                 0.1     0.01     0.01        500   ccka                     0.01          0.01           10 │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Number of errored trials: 10
+2025-02-04 07:24:23,068	ERROR tune.py:1037 -- Trials did not complete: [train_9b2c9_00000, train_9b2c9_00001, train_9b2c9_00002, train_9b2c9_00003, train_9b2c9_00004, train_9b2c9_00005, train_9b2c9_00006, train_9b2c9_00007, train_9b2c9_00008, train_9b2c9_00009]
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Trial name            # failures   error file                                                                                                                                                                                                                                                                                                 │
+├───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ train_9b2c9_00000              1   /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00000_0_ansatz=embedding_paper,cclr=0.0100,clusters=2,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt  │
+│ train_9b2c9_00001              1   /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00001_1_ansatz=he,cclr=0.0100,clusters=2,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt               │
+│ train_9b2c9_00002              1   /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00002_2_ansatz=embedding_paper,cclr=0.0100,clusters=4,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt  │
+│ train_9b2c9_00003              1   /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00003_3_ansatz=he,cclr=0.0100,clusters=4,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt               │
+│ train_9b2c9_00004              1   /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00004_4_ansatz=embedding_paper,cclr=0.0100,clusters=6,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt  │
+│ train_9b2c9_00005              1   /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00005_5_ansatz=he,cclr=0.0100,clusters=6,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt               │
+│ train_9b2c9_00006              1   /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00006_6_ansatz=embedding_paper,cclr=0.0100,clusters=8,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt  │
+│ train_9b2c9_00007              1   /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00007_7_ansatz=he,cclr=0.0100,clusters=8,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt               │
+│ train_9b2c9_00008              1   /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00008_8_ansatz=embedding_paper,cclr=0.0100,clusters=10,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt │
+│ train_9b2c9_00009              1   /tmp/ray/session_2025-02-04_07-23-52_659893_158790/artifacts/2025-02-04_07-23-53/train_2025-02-04_07-23-53/driver_artifacts/train_9b2c9_00009_9_ansatz=he,cclr=0.0100,clusters=10,epochs=500,lambda_co=0.0100,lambda_kao=0.0100,lr=0.1000,mclr=0.0100,n_qubits=5,train_method=ccka,/error.txt              │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Job completed at Tue Feb  4 07:24:24 CET 2025

@@ -1,7 +1,9 @@
 import torch
 import ray
 from ray import tune
+import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
 import yaml
 import argparse
 import shutil
@@ -39,19 +41,31 @@ def train(config):
     )
 
     #features, target = data_generator.generate_dataset()
-    training_data, training_labels, testing_data, testing_labels = data_generator.generate_dataset() #train_test_split(features, target, test_size=0.50, random_state=42)
-    training_data = torch.tensor(training_data.to_numpy(), dtype=torch.float32, requires_grad=True)
-    testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
-    training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
-    testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
+    training_data, training_labels, testing_data, testing_labels = data_generator.generate_dataset()
 
-    plotter = Plotter(
-         style = 'seaborn-v0_8', 
-         final_color = '#ffa07a', 
-         initial_color = '#4682b4', 
-         plot_dir = config['base_path']
-    )
-    kernel = Qkernel(
+    # Assuming the data is in Pandas DataFrames
+    all_data = pd.concat([training_data, testing_data], axis=0)
+    all_labels = pd.concat([training_labels, testing_labels], axis=0)
+    #all_data = torch.tensor(all_data.to_numpy(), dtype=torch.float32, requires_grad=True)
+    #all_labels = torch.tensor(all_labels.to_numpy(), dtype=torch.int)
+
+    kf = KFold(n_splits=5, shuffle=True, random_state=42) 
+    
+    kfold_metrics = []
+
+    for train_idx, test_idx in kf.split(all_data):
+
+        training_data = all_data[train_idx]
+        training_labels = all_labels[all_labels]
+        testing_data = all_data[test_idx]
+        testing_labels = all_labels[test_idx]
+
+        training_data = torch.tensor(training_data.to_numpy(), dtype=torch.float32, requires_grad=True)
+        testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
+        training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
+        testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
+
+        kernel = Qkernel(
         device=config['device'],
         n_qubits=config['n_qubits'],
         trainable=config['trainable'],
@@ -59,62 +73,60 @@ def train(config):
         data_reuploading=config['data_reuploading'],
         ansatz=config['ansatz'],
         ansatz_layers=config['ansatz_layers']
-    )
-    agent = TrainModel(
-        kernel=kernel,
-        training_data=training_data,
-        training_labels=training_labels,
-        testing_data=testing_data,
-        testing_labels=testing_labels,
-        optimizer=config['optimizer'],
-        lr=config['lr'],
-        mclr = config['mclr'],
-        cclr = config['cclr'],
-        epochs=config['epochs'],
-        train_method=config['train_method'],
-        target_accuracy=config['target_accuracy'],
-        get_alignment_every=config['get_alignment_every'],
-        validate_every_epoch=config['validate_every_epoch'],
-        base_path=config['base_path'],
-        lambda_kao=config['lambda_kao'],
-        lambda_co=config['lambda_co'],
-        clusters=config['clusters']
-    )
-    before_metrics = agent.evaluate(testing_data, testing_labels)
-    print(before_metrics)
+        )
+        
+        agent = TrainModel(
+            kernel=kernel,
+            training_data=training_data,
+            training_labels=training_labels,
+            testing_data=testing_data,
+            testing_labels=testing_labels,
+            optimizer=config['optimizer'],
+            lr=config['lr'],
+            mclr = config['mclr'],
+            cclr = config['cclr'],
+            epochs=config['epochs'],
+            train_method=config['train_method'],
+            target_accuracy=config['target_accuracy'],
+            get_alignment_every=config['get_alignment_every'],
+            validate_every_epoch=config['validate_every_epoch'],
+            base_path=config['base_path'],
+            lambda_kao=config['lambda_kao'],
+            lambda_co=config['lambda_co'],
+            clusters=config['clusters']
+        )
 
-    agent.fit_kernel(training_data, training_labels)
+        agent.fit_kernel(training_data, training_labels)
+        after_metrics = agent.evaluate(testing_data, testing_labels)
 
-    print('Training Complete')
-    after_metrics = agent.evaluate(testing_data, testing_labels)
+        metrics = {
+            "num_layers": config['ansatz_layers'],
+            "accuracy_train_init": before_metrics['training_accuracy'],
+            "accuracy_test_init": before_metrics['testing_accuracy'],
+            "alignment_train_init": before_metrics['alignment'],
+            "accuracy_train_final": after_metrics['training_accuracy'],
+            "accuracy_test_final": after_metrics['testing_accuracy'],
+            "alignment_train_epochs": after_metrics['alignment_arr'],
+            "circuit_executions": after_metrics['executions'],
+            "train_index": train_index,
+            "test_index": test_idx,
+        }
 
-    metrics = {
-        "num_layers": config['ansatz_layers'],
-        "accuracy_train_init": before_metrics['training_accuracy'],
-        "accuracy_test_init": before_metrics['testing_accuracy'],
-        "alignment_train_init": before_metrics['alignment'],
-        "accuracy_train_final": after_metrics['training_accuracy'],
-        "accuracy_test_final": after_metrics['testing_accuracy'],
-        "alignment_train_epochs": after_metrics['alignment_arr'],
-        "circuit_executions": after_metrics['executions'],
+        kfold_metrics.append(metrics)
+
+    
+    kfold = {
+
+        "kfold_1": kfold_metrics[0],
+        "kfold_2": kfold_metrics[1],
+        "kfold_3": kfold_metrics[2],
+        "kfold_4": kfold_metrics[3],
+        "kfold_5": kfold_metrics[4],
+    
     }
-    metrics = to_python_native(metrics)
-    exp_name = gen_experiment_name(config)
-    
-    plotter.compare_accuracy( init_train_accuracy = before_metrics['training_accuracy'], 
-                               init_test_accuracy = before_metrics['testing_accuracy'], 
-                               final_train_accuracy = after_metrics['training_accuracy'], 
-                               final_test_accuracy = after_metrics['testing_accuracy'], 
-                               plot_name = exp_name + '_accuracies.png', 
-                               dataset = config['name']
-                              )
-    
-    plotter.plot_alignment(alignments = after_metrics['alignment_arr'], 
-                           init_alignment = before_metrics['alignment'], 
-                           dataset = config['name'], 
-                           plot_name = exp_name + '_aligment.png'
-                          )
-    ray.train.report(metrics)
+
+
+    ray.train.report(kfold)
 
 if __name__ == "__main__":
 

@@ -6,7 +6,7 @@ ray_config:
   num_gpus:               0
   method:                 QuantumKernels
   ray_logging_path:       logs/checkerboard
-  ray_num_trial_samples:  5
+  ray_num_trial_samples:  3
   type:                   train
 
 ## DataSet Configuration
@@ -26,11 +26,11 @@ dataset:
 ## Quantum Kernel Model Configuration
 qkernel:
   device:           lightning.qubit
-  n_qubits:         4
+  n_qubits:         [5, 10]
   trainable:        True
   input_scaling:    True
   data_reuploading: True
-  ansatz:           'embedding_paper'
+  ansatz:           ['embedding_paper', 'he']
   ansatz_layers:    5
 
 ## Model Training Agen Configuration
@@ -39,10 +39,10 @@ agent:
   lr:                   [0.1]
   mclr:                 [0.01]
   cclr:                 [0.01]
-  epochs:               [250]
+  epochs:               [500]
   train_method:         ['ccka', 'random']
   target_accuracy:      0.95
-  get_alignment_every:  50
+  get_alignment_every:  100
   validate_every_epoch: 1
   base_path:            results/
   lambda_kao:           [0.01]

@@ -106,7 +106,7 @@ class DataGenerator:
     def load_from_file(self):
         """Load a dataset from a file and return a merged pandas DataFrame and Series."""
         data = np.load(self.file_path, allow_pickle=True).item()
-        try:
+        if 'checkerboard' in self.file_path or 'corners' in self.file_path:
             x_train, x_test = data['x_train'], data['x_test']
             y_train, y_test = data['y_train'], data['y_test']
 
@@ -115,26 +115,29 @@ class DataGenerator:
             x_train_scaled = scaler.fit_transform(x_train)
             x_test_scaled = scaler.transform(x_test)
 
-            # Merge train and test data
-            X_scaled = np.vstack([x_train_scaled, x_test_scaled])
-            y = np.hstack([y_train, y_test])
-        except:
+            return (
+                pd.DataFrame(x_train_scaled, columns=[f'Feature {i+1}' for i in range(x_train_scaled.shape[1])]),
+                pd.Series(y_train, name='Label'),
+                pd.DataFrame(x_test_scaled, columns=[f'Feature {i+1}' for i in range(x_test_scaled.shape[1])]),
+                pd.Series(y_test, name='Label')
+            )
 
+        else:
             x = data['features']
             y = data['labels']
             # Apply Min-Max Scaling to the range [0, π]
             scaler = MinMaxScaler(feature_range=(-np.pi, np.pi))
             X_scaled = scaler.fit_transform(x)
             
-        # Apply PCA if specified
-        if self.n_pca_features:
-            X_scaled = self.apply_pca(X_scaled)
+            # Apply PCA if specified
+            if self.n_pca_features:
+                X_scaled = self.apply_pca(X_scaled)
 
-        # Return as pandas DataFrame and Series
-        return (
-            pd.DataFrame(X_scaled, columns=[f'Feature {i+1}' for i in range(X_scaled.shape[1])]),
-            pd.Series(y, name='Label')
-        )
+            # Return as pandas DataFrame and Series
+            return (
+                pd.DataFrame(X_scaled, columns=[f'Feature {i+1}' for i in range(X_scaled.shape[1])]),
+                pd.Series(y, name='Label')
+            )
     
     def create_xor(self):
         np.random.seed(0)

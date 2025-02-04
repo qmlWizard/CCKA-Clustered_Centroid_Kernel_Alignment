@@ -11,9 +11,11 @@ def _he_layer(x, _scaling_params, _variational_params, _wires, _embedding, _data
     for i, wire in enumerate(_wires):
         qml.RZ(_variational_params[i+len(_wires)], wires = [wire])
     if len(_wires) == 2:
-        qml.broadcast(unitary=qml.CZ, pattern = "chain", wires = _wires)
+        qml.CZ(wire = [_wires[0], _wires[1]])
     else:
-        qml.broadcast(unitary=qml.CZ, pattern = "ring", wires = _wires)
+        num_wires = len(_wires)
+        for i in range(num_wires):
+            qml.CZ(wires=[_wires[i], _wires[(i + 1) % num_wires]])
 
 def _covariant_layer(x, _scaling_params, _variational_params, _wires, _embedding, _data_reuploading, entanglement = None):
     if entanglement == None:
@@ -35,7 +37,11 @@ def _embedding_paper_layer(x, _scaling_params, _variational_params, _rotational_
             qml.RZ(_scaling_params[i] * x[:, i], wires = [wire])
     for i, wire in enumerate(_wires):
         qml.RY(_variational_params[i], wires = [wire])
-    qml.broadcast(unitary = qml.CRZ, pattern = "ring", wires = _wires, parameters=_rotational_params)
+    #qml.broadcast(unitary = qml.CRZ, pattern = "ring", wires = _wires, parameters=_rotational_params)
+    num_wires = len(_wires)
+    for i in range(num_wires):
+        qml.CRZ(_rotational_params[i], wires=[_wires[i], _wires[(i + 1) % num_wires]])
+
 
 def _he(x, weights, wires, layers, use_data_reuploading, entanglement = None):
     first_layer = True

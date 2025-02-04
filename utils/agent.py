@@ -77,6 +77,7 @@ class TrainModel():
         self._per_epoch_executions = None
         if self._method in ['ccka', 'quack']:
             self._epochs = int(epochs / 10)
+            self._get_alignment_every = int(self._get_alignment_every / 10)
             
         if self._method in ['random', 'full']:
             if optimizer == 'adam':
@@ -123,6 +124,7 @@ class TrainModel():
             self._sample_function = self._get_centroids
             
         print("Epochs: ", self._epochs)
+
     def _get_centroids(self, training_data, training_labels):
         data = training_data.detach().numpy()
         data_labels = training_labels.detach().numpy()
@@ -203,12 +205,13 @@ class TrainModel():
         return data, data_labels
     
     def fit_kernel(self, training_data, training_labels):
+        print("Started Training")
         optimizer = self._kernel_optimizer
         epochs = self._epochs
         loss_func = self._loss_function
         samples_func = self._sample_function
         self._per_epoch_executions = 0
-        self.kernel_params_history = []  # Array to store kernel parameters at each alignment update
+        self.kernel_params_history = []  
         self.best_kernel_params = None
         for epoch in range(epochs):
             if self._method in ['ccka', 'quack']:
@@ -259,7 +262,9 @@ class TrainModel():
                         self._training_labels
                     )
                     self.alignment_arr.append(current_alignment)
-                    print(current_alignment)
+                    print("------------------------------------------------------------------")
+                    print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
+                    print("------------------------------------------------------------------")
             else:
                 sampled_data, sampled_labels = samples_func(training_data, training_labels)
                 sampled_labels = sampled_labels.to(torch.float32)
@@ -304,6 +309,7 @@ class TrainModel():
         x_0 = self._training_data.repeat(self._training_data.shape[0],1)
         x_1 = self._training_data.repeat_interleave(self._training_data.shape[0], dim=0)    
         _matrix = self._kernel(x_0, x_1).to(torch.float32).reshape(self._training_data.shape[0],self._training_data.shape[0])
+        print('Labels Type: ', type(self._training_labels))
         current_alignment = self._loss_ta(_matrix, self._training_labels)
         if torch.is_tensor(_matrix):
             _matrix = _matrix.detach().numpy()

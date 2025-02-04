@@ -2,8 +2,8 @@
 
 ray_config:
   ray_local_mode:         False
-  num_cpus:               30
-  num_gpus:               2
+  num_cpus:               20
+  num_gpus:               0
   method:                 QuantumKernels
   ray_logging_path:       logs/checkerboard
   ray_num_trial_samples:  1
@@ -12,7 +12,7 @@ ray_config:
 ## DataSet Configuration
 dataset:
   name:              checkerboard
-  file:              /home/digvijay/Documents/developer/greedy_kernel_alignment/data/checkerboard_dataset.npy
+  file:              /home/digvijay/Developer/greedy_kernel_alignment/data/checkerboard_dataset.npy
   n_samples:         200
   noise:             0.5
   num_sectors:       3
@@ -26,11 +26,11 @@ dataset:
 ## Quantum Kernel Model Configuration
 qkernel:
   device:           lightning.qubit
-  n_qubits:         4
+  n_qubits:         [5, 10]
   trainable:        True
   input_scaling:    True
   data_reuploading: True
-  ansatz:           'embedding_paper'
+  ansatz:           ['embedding_paper', 'he']
   ansatz_layers:    5
 
 ## Model Training Agen Configuration
@@ -39,7 +39,7 @@ agent:
   lr:                   [0.1]
   mclr:                 [0.01]
   cclr:                 [0.01]
-  epochs:               [500]
+  epochs:               [50]
   train_method:         ['quack', 'full']
   target_accuracy:      0.95
   get_alignment_every:  10
