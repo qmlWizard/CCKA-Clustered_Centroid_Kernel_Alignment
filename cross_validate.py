@@ -115,17 +115,17 @@ def train(config):
             "test_index": test_idx,
         }
 
+        metrics = to_python_native(metrics)
+
         kfold_metrics.append(metrics)
 
     
     kfold = {
-
-        "kfold_1": kfold_metrics[0],
-        "kfold_2": kfold_metrics[1],
-        "kfold_3": kfold_metrics[2],
-        "kfold_4": kfold_metrics[3],
-        "kfold_5": kfold_metrics[4],
-    
+        "kfold_1": [kfold_metrics[0]],
+        "kfold_2": [kfold_metrics[1]],
+        "kfold_3": [kfold_metrics[2]],
+        "kfold_4": [kfold_metrics[3]],
+        "kfold_5": [kfold_metrics[4]],
     }
 
 

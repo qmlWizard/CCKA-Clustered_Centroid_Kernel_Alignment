@@ -19,5 +19,6 @@ source .venv/bin/activate
 # Run Python scripts one after another
 python3 main.py --config configs/comparision/corners.yaml
 python3 main.py --config configs/comparision/corners_quack.yaml
+python3 cross_validate.py --config configs/cross_validation/corners.yaml
 
 echo "Job completed at $(date)"

@@ -6,16 +6,16 @@ ray_config:
   num_gpus:               0
   method:                 QuantumKernels
   ray_logging_path:       logs/checkerboard
-  ray_num_trial_samples:  3
+  ray_num_trial_samples:  1
   type:                   train
 
 ## DataSet Configuration
 dataset:
   name:              double_cake
   file:              None
-  n_samples:         40
+  n_samples:         60
   noise:             0.5
-  num_sectors:       2
+  num_sectors:       3
   points_per_sector: 5
   grid_size:         4
   sampling_radius:   0.1
@@ -26,7 +26,7 @@ dataset:
 ## Quantum Kernel Model Configuration
 qkernel:
   device:           lightning.qubit
-  n_qubits:         [5, 10]
+  n_qubits:         [5]
   trainable:        True
   input_scaling:    True
   data_reuploading: True
@@ -40,7 +40,7 @@ agent:
   mclr:                 [0.01]
   cclr:                 [0.01]
   epochs:               [500]
-  train_method:         ['ccka', 'random']
+  train_method:         ['ccka']
   target_accuracy:      0.95
   get_alignment_every:  100
   validate_every_epoch: 1

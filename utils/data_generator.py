@@ -7,6 +7,8 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 from matplotlib.colors import ListedColormap
 from sklearn.inspection import DecisionBoundaryDisplay
+from sklearn.model_selection import train_test_split
+
 
 
 class DataGenerator:
@@ -92,8 +94,14 @@ class DataGenerator:
         if self.n_pca_features:
             X_scaled = self.apply_pca(X_scaled)
 
-        # Return the scaled data as a DataFrame and the labels as a Series
-        return pd.DataFrame(X_scaled, columns=[f'Feature {i+1}' for i in range(X_scaled.shape[1])]), pd.Series(y, name='Label')
+        x_train_scaled, x_test_scaled, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+
+        return (
+                pd.DataFrame(x_train_scaled, columns=[f'Feature {i+1}' for i in range(x_train_scaled.shape[1])]),
+                pd.Series(y_train, name='Label'),
+                pd.DataFrame(x_test_scaled, columns=[f'Feature {i+1}' for i in range(x_test_scaled.shape[1])]),
+                pd.Series(y_test, name='Label')
+            )
 
     def apply_pca(self, X):
         """Apply PCA to reduce features."""
@@ -133,11 +141,15 @@ class DataGenerator:
             if self.n_pca_features:
                 X_scaled = self.apply_pca(X_scaled)
 
-            # Return as pandas DataFrame and Series
+            x_train_scaled, x_test_scaled, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+
             return (
-                pd.DataFrame(X_scaled, columns=[f'Feature {i+1}' for i in range(X_scaled.shape[1])]),
-                pd.Series(y, name='Label')
-            )
+                    pd.DataFrame(x_train_scaled, columns=[f'Feature {i+1}' for i in range(x_train_scaled.shape[1])]),
+                    pd.Series(y_train, name='Label'),
+                    pd.DataFrame(x_test_scaled, columns=[f'Feature {i+1}' for i in range(x_test_scaled.shape[1])]),
+                    pd.Series(y_test, name='Label')
+                )
+
     
     def create_xor(self):
         np.random.seed(0)
