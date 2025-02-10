@@ -94,7 +94,7 @@ class DataGenerator:
         if self.n_pca_features:
             X_scaled = self.apply_pca(X_scaled)
 
-        x_train_scaled, x_test_scaled, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+        x_train_scaled, x_test_scaled, y_train, y_test = train_test_split(X_scaled, y, test_size=0.5, random_state=42)
 
         return (
                 pd.DataFrame(x_train_scaled, columns=[f'Feature {i+1}' for i in range(x_train_scaled.shape[1])]),

@@ -16,7 +16,7 @@ dataset:
   n_samples:         40
   noise:             0.5
   num_sectors:       2
-  points_per_sector: 5
+  points_per_sector: 10
   grid_size:         4
   sampling_radius:   0.1
   training_size:     0.50
