@@ -17,8 +17,8 @@ echo "Starting job on $(hostname) at $(date)"
 
 source .venv/bin/activate
 # Run Python scripts one after another
-python3 main.py --config configs/comparision/double_cake.yaml
-python3 main.py --config configs/comparision/double_cake.yaml
-python3 cross_validate.py --config configs/cross_validation/double_cake.yaml
+#python3 main.py --config configs/comparision/double_cake.yaml
+python3 main.py --config configs/comparision/double_cake_quack.yaml
+#python3 cross_validate.py --config configs/cross_validation/double_cake.yaml
 
 echo "Job completed at $(date)"

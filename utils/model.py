@@ -5,9 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 import math
 from utils.ansatz import qkhe, qkcovariant, qkembedding_paper
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
-import json
-import os
+
 
 torch.manual_seed(42)
 np.random.seed(42)
