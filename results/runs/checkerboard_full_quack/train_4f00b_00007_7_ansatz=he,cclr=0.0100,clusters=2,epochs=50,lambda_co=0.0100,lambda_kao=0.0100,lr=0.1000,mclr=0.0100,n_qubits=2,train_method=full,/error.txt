@@ -1,0 +1,53 @@
+Failure # 1 (occurred at 2025-02-03_15-46-24)
+[36mray::ImplicitFunc.train()[39m (pid=141138, ip=192.168.0.125, actor_id=cf45f7e8982b02a84ed6c7ee01000000, repr=train)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/air/_internal/util.py", line 107, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/main.py", line 83, in train
+    before_metrics = agent.evaluate(testing_data, testing_labels)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/agent.py", line 311, in evaluate
+    _matrix = self._kernel(x_0, x_1).to(torch.float32).reshape(self._training_data.shape[0],self._training_data.shape[0])
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/model.py", line 59, in forward
+    all_zero_state = self._kernel(x1, x2, self._parameters, self._wires, self._layers, self._projector, self._data_reuploading)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pennylane/workflow/qnode.py", line 905, in __call__
+    return self._impl_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pennylane/workflow/qnode.py", line 868, in _impl_call
+    tape = self.construct(args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pennylane/logging/decorators.py", line 61, in wrapper_entry
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pennylane/workflow/qnode.py", line 854, in construct
+    self._qfunc_output = self.func(*args, **kwargs)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/ansatz.py", line 67, in qkhe
+    _he(x1,weights,wires,layers,data_reuploading)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/ansatz.py", line 49, in _he
+    _he_layer(x, weights["input_scaling"][layer], weights["variational"][layer], wires, first_layer, use_data_reuploading)
+  File "/home/digvijay/Developer/greedy_kernel_alignment/utils/ansatz.py", line 14, in _he_layer
+    qml.CZ(wire = [_wires[0], _wires[1]])
+  File "/home/digvijay/Developer/greedy_kernel_alignment/.venv/lib/python3.12/site-packages/pennylane/capture/capture_meta.py", line 89, in __call__
+    return type.__call__(cls, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: CZ.__init__() got an unexpected keyword argument 'wire'
