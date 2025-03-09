@@ -51,6 +51,8 @@ def train(config):
          initial_color = '#4682b4', 
          plot_dir = config['base_path']
     )
+
+
     kernel = Qkernel(
         device=config['device'],
         n_qubits=config['n_qubits'],
@@ -80,9 +82,18 @@ def train(config):
         lambda_co=config['lambda_co'],
         clusters=config['clusters']
     )
-    before_metrics = agent.evaluate(testing_data, testing_labels)
-    print(before_metrics)
-
+    #agent.evaluate(testing_data, testing_labels)
+    
+    before_metrics = {
+            'alignment': [],
+            'executions': [],
+            'training_accuracy': [],
+            'testing_accuracy': [],
+            'f1_score': [],
+            'alignment_arr': [],
+            'loss_arr': [],
+            'validation_accuracy_arr': []
+        }
     agent.fit_kernel(training_data, training_labels)
 
     print('Training Complete')
@@ -173,7 +184,7 @@ if __name__ == "__main__":
     
 
     tuner = tune.Tuner(
-            tune.with_resources(train, resources={"cpu": 20  , "gpu": 0}),
+            tune.with_resources(train, resources={"cpu": 8  , "gpu": 0}),
             tune_config=tune.TuneConfig(num_samples=config.ray_config['ray_num_trial_samples'],
                                         trial_dirname_creator=trial_name_creator,
                                        ),

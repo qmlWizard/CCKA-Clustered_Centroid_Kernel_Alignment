@@ -252,15 +252,15 @@ class TrainModel():
                     self._optimizers[_class].step()              
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
-                    x_0 = training_data.repeat(training_data.shape[0], 1)
-                    x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
-                    K = self._kernel(x_0, x_1).to(torch.float32)
-                    if not isinstance(self._training_labels, torch.Tensor):
-                        self._training_labels = torch.tensor(self._training_labels, dtype=torch.float32)
-                    current_alignment = self._loss_ta(
-                        K.reshape(self._training_data.shape[0], self._training_data.shape[0]), 
-                        self._training_labels
-                    )
+                    #x_0 = training_data.repeat(training_data.shape[0], 1)
+                    #x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
+                    #K = self._kernel(x_0, x_1).to(torch.float32)
+                    #if not isinstance(self._training_labels, torch.Tensor):
+                    #    self._training_labels = torch.tensor(self._training_labels, dtype=torch.float32)
+                    current_alignment = 0 #self._loss_ta(
+                    #    K.reshape(self._training_data.shape[0], self._training_data.shape[0]), 
+                    #    self._training_labels
+                    #)
                     self.alignment_arr.append(current_alignment)
                     print("------------------------------------------------------------------")
                     print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
@@ -278,11 +278,11 @@ class TrainModel():
                 self._loss_arr.append(loss.item())
                 self._per_epoch_executions += x_0.shape[0]
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every * 10 == 0:
-                    x_0 = training_data.repeat(training_data.shape[0],1)
-                    x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
-                    K = self._kernel(x_0, x_1).to(torch.float32)
-                    self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
-                    current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
+                    #x_0 = training_data.repeat(training_data.shape[0],1)
+                    #x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
+                    #K = self._kernel(x_0, x_1).to(torch.float32)
+                    #self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
+                    current_alignment = 0# loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
                     self.alignment_arr.append(current_alignment)
                     print("------------------------------------------------------------------")
                     print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
