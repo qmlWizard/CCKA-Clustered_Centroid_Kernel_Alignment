@@ -2,7 +2,7 @@
 
 ray_config:
   ray_local_mode:         False
-  num_cpus:               8
+  num_cpus:               12
   num_gpus:               0
   method:                 QuantumKernels
   ray_logging_path:       logs/checkerboard

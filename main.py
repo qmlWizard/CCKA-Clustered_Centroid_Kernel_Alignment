@@ -16,7 +16,7 @@ from utils.agent import TrainModel
 from utils.plotter import Plotter
 from utils.helper import to_python_native, gen_experiment_name, set_seed
 
-# Backend Configuration
+# === Backend Configuration ===
 if torch.backends.mps.is_available():
     device = torch.device("mps")
 elif torch.cuda.is_available():
@@ -38,20 +38,18 @@ def train(config):
         sampling_radius=config['sampling_radius']
     )
 
-    #features, target = data_generator.generate_dataset()
-    training_data, training_labels, testing_data, testing_labels = data_generator.generate_dataset() #train_test_split(features, target, test_size=0.50, random_state=42)
+    training_data, training_labels, testing_data, testing_labels = data_generator.generate_dataset()
     training_data = torch.tensor(training_data.to_numpy(), dtype=torch.float32, requires_grad=True)
     testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
     training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
     testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
 
     plotter = Plotter(
-         style = 'seaborn-v0_8', 
-         final_color = '#ffa07a', 
-         initial_color = '#4682b4', 
-         plot_dir = config['base_path']
+        style='seaborn-v0_8',
+        final_color='#ffa07a',
+        initial_color='#4682b4',
+        plot_dir=config['base_path']
     )
-
 
     kernel = Qkernel(
         device=config['device'],
@@ -62,6 +60,7 @@ def train(config):
         ansatz=config['ansatz'],
         ansatz_layers=config['ansatz_layers']
     )
+
     agent = TrainModel(
         kernel=kernel,
         training_data=training_data,
@@ -70,8 +69,8 @@ def train(config):
         testing_labels=testing_labels,
         optimizer=config['optimizer'],
         lr=config['lr'],
-        mclr = config['mclr'],
-        cclr = config['cclr'],
+        mclr=config['mclr'],
+        cclr=config['cclr'],
         epochs=config['epochs'],
         train_method=config['train_method'],
         target_accuracy=config['target_accuracy'],
@@ -82,18 +81,18 @@ def train(config):
         lambda_co=config['lambda_co'],
         clusters=config['clusters']
     )
-    #agent.evaluate(testing_data, testing_labels)
-    
+
     before_metrics = {
-            'alignment': [],
-            'executions': [],
-            'training_accuracy': [],
-            'testing_accuracy': [],
-            'f1_score': [],
-            'alignment_arr': [],
-            'loss_arr': [],
-            'validation_accuracy_arr': []
-        }
+        'alignment': [],
+        'executions': [],
+        'training_accuracy': [],
+        'testing_accuracy': [],
+        'f1_score': [],
+        'alignment_arr': [],
+        'loss_arr': [],
+        'validation_accuracy_arr': []
+    }
+
     agent.fit_kernel(training_data, training_labels)
 
     print('Training Complete')
@@ -109,44 +108,51 @@ def train(config):
         "alignment_train_epochs": after_metrics['alignment_arr'],
         "circuit_executions": after_metrics['executions'],
     }
+
     metrics = to_python_native(metrics)
     exp_name = gen_experiment_name(config)
-    
-    plotter.compare_accuracy( init_train_accuracy = before_metrics['training_accuracy'], 
-                               init_test_accuracy = before_metrics['testing_accuracy'], 
-                               final_train_accuracy = after_metrics['training_accuracy'], 
-                               final_test_accuracy = after_metrics['testing_accuracy'], 
-                               plot_name = exp_name + '_accuracies.png', 
-                               dataset = config['name']
-                              )
-    
-    plotter.plot_alignment(alignments = after_metrics['alignment_arr'], 
-                           init_alignment = before_metrics['alignment'], 
-                           dataset = config['name'], 
-                           plot_name = exp_name + '_aligment.png'
-                          )
+
+    plotter.compare_accuracy(
+        init_train_accuracy=before_metrics['training_accuracy'],
+        init_test_accuracy=before_metrics['testing_accuracy'],
+        final_train_accuracy=after_metrics['training_accuracy'],
+        final_test_accuracy=after_metrics['testing_accuracy'],
+        plot_name=exp_name + '_accuracies.png',
+        dataset=config['name']
+    )
+
+    plotter.plot_alignment(
+        alignments=after_metrics['alignment_arr'],
+        init_alignment=before_metrics['alignment'],
+        dataset=config['name'],
+        plot_name=exp_name + '_aligment.png'
+    )
+
     ray.train.report(metrics)
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description = "This parser receives the yaml config file")
-    parser.add_argument("--config", default = "configs/checkerboard.yaml")
+    parser = argparse.ArgumentParser(description="This parser receives the yaml config file")
+    parser.add_argument("--config", default="configs/checkerboard.yaml")
     args = parser.parse_args()
 
     with open(args.config) as f:
-        data = yaml.load(f, Loader = yaml.FullLoader)
+        data = yaml.load(f, Loader=yaml.FullLoader)
     config = namedtuple("ObjectName", data.keys())(*data.values())
 
+    # === CPU Parallelism Setup ===
+    CPU_PER_TRIAL = 3  # You can try 4 too
+    TOTAL_CPUS = 12
+
     ray.init(
-             local_mode = config.ray_config['ray_local_mode'],
-             num_cpus = config.ray_config['num_cpus'],
-             num_gpus=config.ray_config['num_gpus'],
-             include_dashboard = False
-            )
-    
+        local_mode=config.ray_config['ray_local_mode'],
+        num_cpus=TOTAL_CPUS,
+        num_gpus=config.ray_config['num_gpus'],
+        include_dashboard=False
+    )
+
     search_space = {
-        'name':  config.dataset['name'],
-        'file':  None if config.dataset['file'] == 'None' else config.dataset['file'],
+        'name': config.dataset['name'],
+        'file': None if config.dataset['file'] == 'None' else config.dataset['file'],
         'n_samples': config.dataset['n_samples'],
         'noise': config.dataset['noise'],
         'num_sectors': config.dataset['num_sectors'],
@@ -180,16 +186,16 @@ if __name__ == "__main__":
     }
 
     def trial_name_creator(trial):
-            return trial.__str__() + '_' + trial.experiment_tag + ','
-    
+        return trial.__str__() + '_' + trial.experiment_tag + ','
 
     tuner = tune.Tuner(
-            tune.with_resources(train, resources={"cpu": 8  , "gpu": 0}),
-            tune_config=tune.TuneConfig(num_samples=config.ray_config['ray_num_trial_samples'],
-                                        trial_dirname_creator=trial_name_creator,
-                                       ),
-            param_space= search_space,
-            )
-        
+        tune.with_resources(train, resources={"cpu": CPU_PER_TRIAL, "gpu": 0}),
+        tune_config=tune.TuneConfig(
+            num_samples=config.ray_config['ray_num_trial_samples'],
+            trial_dirname_creator=trial_name_creator,
+        ),
+        param_space=search_space,
+    )
+
     tuner.fit()
     ray.shutdown()
