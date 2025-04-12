@@ -287,6 +287,8 @@ class TrainModel():
                     print("------------------------------------------------------------------")
                     print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
                     print("------------------------------------------------------------------")
+        
+        return  self._kernel, self._main_centroids, self._class_centroids
                     
     def prediction_stage(self, data, labels):
 
