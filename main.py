@@ -10,7 +10,6 @@ import os
 import datetime
 
 # Custom Libraries
-from utils.model import Qkernel
 from utils.data_generator import DataGenerator
 from utils.agent import TrainModel
 from utils.plotter import Plotter
@@ -82,22 +81,20 @@ def train(config):
         clusters=config['clusters']
     )
 
-    before_metrics = {
-        'alignment': [],
-        'executions': [],
-        'training_accuracy': [],
-        'testing_accuracy': [],
-        'f1_score': [],
-        'alignment_arr': [],
-        'loss_arr': [],
-        'validation_accuracy_arr': []
-    }
+    #if args.backend == 'qiskit':
+    before_metrics = agent.evaluate_parallel(testing_data, testing_labels)
+    #else:
+    #    before_metrics = agent.evaluate(testing_data, testing_labels)
 
+    print(before_metrics)
     agent.fit_kernel(training_data, training_labels)
 
     print('Training Complete')
-    after_metrics = agent.evaluate(testing_data, testing_labels)
-
+    if args.backend == 'qiskit':
+        after_metrics = agent.evaluate_parallel(testing_data, testing_labels)
+    else:
+        after_metrics = agent.evaluate(testing_data, testing_labels)
+    print(after_metrics)
     metrics = {
         "num_layers": config['ansatz_layers'],
         "accuracy_train_init": before_metrics['training_accuracy'],
@@ -132,16 +129,22 @@ def train(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="This parser receives the yaml config file")
+    parser.add_argument("--backend", default="qiskit")
     parser.add_argument("--config", default="configs/checkerboard.yaml")
     args = parser.parse_args()
+
+    if args.backend == 'qiskit':
+        from utils.qiskit.model import Qkernel
+    elif args.backend == 'pennylane':
+        from utils.pennylane.model import Qkernel
 
     with open(args.config) as f:
         data = yaml.load(f, Loader=yaml.FullLoader)
     config = namedtuple("ObjectName", data.keys())(*data.values())
 
     # === CPU Parallelism Setup ===
-    CPU_PER_TRIAL = 3  # You can try 4 too
-    TOTAL_CPUS = 12
+    CPU_PER_TRIAL = 8  # You can try 4 too
+    TOTAL_CPUS = 8
 
     ray.init(
         local_mode=config.ray_config['ray_local_mode'],
@@ -189,7 +192,7 @@ if __name__ == "__main__":
         return trial.__str__() + '_' + trial.experiment_tag + ','
 
     tuner = tune.Tuner(
-        tune.with_resources(train, resources={"cpu": CPU_PER_TRIAL, "gpu": 0}),
+        tune.with_resources(train, resources={"cpu": CPU_PER_TRIAL, "gpu": 1}),
         tune_config=tune.TuneConfig(
             num_samples=config.ray_config['ray_num_trial_samples'],
             trial_dirname_creator=trial_name_creator,

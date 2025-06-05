@@ -9,12 +9,14 @@ from sklearn.metrics import accuracy_score, f1_score
 from sklearn.metrics import hinge_loss
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from concurrent.futures import ThreadPoolExecutor
 import math
 import yaml
 import time
 import os
 from utils.helper import to_python_native
 from utils.plotter import Plotter
+
 
 class TrainModel():
     def __init__(self, 
@@ -163,6 +165,8 @@ class TrainModel():
         return 1 - TA + self.lambda_co * regularization_term
  
     def _loss_ta(self, K, y):
+        if not torch.is_tensor(y):
+            y = torch.tensor(y, dtype=torch.float32)
         N = y.shape[0]
         assert K.shape == (N,N), "Shape of K must be (N,N)"
         yT = y.view(1,-1) #Transpose of y, shape (1,N)
@@ -323,6 +327,52 @@ class TrainModel():
         x_0 = self._testing_data.repeat_interleave(self._training_data.shape[0],dim=0)
         x_1 = self._training_data.repeat(test_data.shape[0], 1)
         _matrix = self._kernel(x_0, x_1).to(torch.float32).reshape(test_data.shape[0],self._training_data.shape[0])
+        if torch.is_tensor(_matrix):
+            _matrix = _matrix.detach().numpy()
+        if torch.is_tensor(test_labels):
+            test_labels = test_labels.detach().numpy()
+        predictions = self._model.predict(_matrix)
+        accuracy = accuracy_score(test_labels, predictions)
+        f1 = f1_score(test_labels, predictions, average='weighted')
+        metrics = {
+            'alignment': current_alignment,
+            'executions': self._per_epoch_executions,
+            'training_accuracy': training_accuracy,
+            'testing_accuracy': accuracy,
+            'f1_score': f1,
+            'alignment_arr': self.alignment_arr,
+            'loss_arr': self._loss_arr,
+            'validation_accuracy_arr': self.validation_accuracy_arr
+        }
+        return metrics
+    
+    def compute_kernel_row(self, kernel_fn, training_data, i):
+        x_i = training_data[i].repeat(training_data.shape[0], 1)
+        return kernel_fn(x_i, training_data).detach()
+
+    def compute_test_kernel_row(self, kernel_fn, test_data, training_data, i):
+        x_i = test_data[i].repeat(training_data.shape[0], 1)
+        return kernel_fn(x_i, training_data).detach()
+
+    def evaluate_parallel(self, test_data, test_labels):
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(self.compute_kernel_row, self._kernel, self._training_data, i)
+                    for i in range(self._training_data.shape[0])]
+            rows = [f.result() for f in futures]
+        _matrix = torch.stack(rows).to(torch.float32)
+        current_alignment = self._loss_ta(_matrix, self._training_labels)
+        if torch.is_tensor(_matrix):
+            _matrix = _matrix.detach().numpy()
+        if torch.is_tensor(self._training_labels):
+            self._training_labels = self._training_labels.detach().numpy()
+        self._model = SVC(kernel='precomputed', max_iter=10000).fit(_matrix, self._training_labels)
+        predictions = self._model.predict(_matrix)
+        training_accuracy = accuracy_score(self._training_labels, predictions)
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(self.compute_test_kernel_row, self._kernel, test_data, self._training_data, i)
+                    for i in range(test_data.shape[0])]
+            test_rows = [f.result() for f in futures]
+        _matrix = torch.stack(test_rows).to(torch.float32)
         if torch.is_tensor(_matrix):
             _matrix = _matrix.detach().numpy()
         if torch.is_tensor(test_labels):

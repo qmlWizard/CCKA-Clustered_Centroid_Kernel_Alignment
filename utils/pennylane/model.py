@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import math
-from utils.ansatz import qkhe, qkcovariant, qkembedding_paper
+from utils.pennylane.ansatz import qkhe, qkcovariant, qkembedding_paper
 
 
 torch.manual_seed(42)
