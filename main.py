@@ -143,8 +143,8 @@ if __name__ == "__main__":
     config = namedtuple("ObjectName", data.keys())(*data.values())
 
     # === CPU Parallelism Setup ===
-    CPU_PER_TRIAL = 8  # You can try 4 too
-    TOTAL_CPUS = 8
+    CPU_PER_TRIAL = config.ray_config['num_cpus']  # You can try 4 too
+    TOTAL_CPUS = CPU_PER_TRIAL
 
     ray.init(
         local_mode=config.ray_config['ray_local_mode'],

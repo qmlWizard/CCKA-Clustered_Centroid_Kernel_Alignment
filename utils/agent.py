@@ -15,7 +15,7 @@ import yaml
 import time
 import os
 from utils.helper import to_python_native
-from utils.plotter import Plotter
+from utils.plotter import kernel_heatmap, decision_boundary
 
 
 class TrainModel():
@@ -147,7 +147,16 @@ class TrainModel():
         self._main_centroids = _main_centroids
         
     def centroid_target_alignment(self, K, Y, l):
-        num = l * torch.sum(Y * K)
+
+        #Centering Algorithm : k = k - kmean
+
+        K = K.float()
+        Y = Y.float()
+
+        K_centered = K - K.mean()
+        Y_centered = Y - Y.mean()
+
+        num = l * torch.sum(Y_centered * K_centered)
         den = torch.sqrt(torch.sum(K ** 2) * torch.sum(Y ** 2))
         result = num / den       
         return result.squeeze()
@@ -251,20 +260,17 @@ class TrainModel():
                     self._optimizers[_class].zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     loss_co = self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
-                    #loss_co = self._loss_combined(K, class_centroid_labels, class_centroids, main_centroid, class_centroid_labels[0]).mean()
                     loss_co.backward()
                     self._optimizers[_class].step()              
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
-                    #x_0 = training_data.repeat(training_data.shape[0], 1)
-                    #x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
-                    #K = self._kernel(x_0, x_1).to(torch.float32)
-                    #if not isinstance(self._training_labels, torch.Tensor):
-                    #    self._training_labels = torch.tensor(self._training_labels, dtype=torch.float32)
-                    current_alignment = 0 #self._loss_ta(
-                    #    K.reshape(self._training_data.shape[0], self._training_data.shape[0]), 
-                    #    self._training_labels
-                    #)
+                    with ThreadPoolExecutor() as executor:
+                        futures = [executor.submit(self.compute_kernel_row, self._kernel, self._training_data, i)
+                                for i in range(self._training_data.shape[0])]
+                        rows = [f.result() for f in futures]
+                    _matrix = torch.stack(rows).to(torch.float32)
+                    kernel_heatmap(_matrix, path= self._base_path, title = "heatmap_{epoch}")
+                    current_alignment = self._loss_ta(_matrix, self._training_labels)
                     self.alignment_arr.append(current_alignment)
                     print("------------------------------------------------------------------")
                     print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
@@ -282,11 +288,11 @@ class TrainModel():
                 self._loss_arr.append(loss.item())
                 self._per_epoch_executions += x_0.shape[0]
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every * 10 == 0:
-                    #x_0 = training_data.repeat(training_data.shape[0],1)
-                    #x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
-                    #K = self._kernel(x_0, x_1).to(torch.float32)
-                    #self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
-                    current_alignment = 0# loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
+                    x_0 = training_data.repeat(training_data.shape[0],1)
+                    x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
+                    K = self._kernel(x_0, x_1).to(torch.float32)
+                    self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
+                    current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
                     self.alignment_arr.append(current_alignment)
                     print("------------------------------------------------------------------")
                     print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
@@ -334,6 +340,7 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
+        decision_boundary(self._model, self._training_data, self._training_labels, self._testing_data, self._testing_labels, path=self._base_path)
         metrics = {
             'alignment': current_alignment,
             'executions': self._per_epoch_executions,

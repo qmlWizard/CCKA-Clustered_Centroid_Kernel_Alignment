@@ -2,13 +2,14 @@
 
 ray_config:
   ray_local_mode:         False
-  num_cpus:               8
-  num_gpus:               1
+  num_cpus:               12
+  num_gpus:               0
   method:                 QuantumKernels
   ray_logging_path:       logs/checkerboard
-  ray_num_trial_samples:  1
+  ray_num_trial_samples:  3
   type:                   train
 
+  
 ## DataSet Configuration
 dataset:
   name:              CensusIncome
