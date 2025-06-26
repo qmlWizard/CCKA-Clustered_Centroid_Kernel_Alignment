@@ -114,7 +114,7 @@ class DataGenerator:
     def load_from_file(self):
         """Load a dataset from a file and return a merged pandas DataFrame and Series."""
         data = np.load(self.file_path, allow_pickle=True).item()
-        if 'checkerboard' in self.file_path or 'corners' in self.file_path or 'adult' in self.file_path or 'covtype' in self.file_path or 'donuts' in self.file_path:
+        if 'checkerboard' in self.file_path or 'corners' in self.file_path or 'adult' in self.file_path or 'covtype' in self.file_path or 'donuts' in self.file_path or 'pfault' in self.file_path:
             x_train, x_test = data['x_train'], data['x_test']
             y_train, y_test = data['y_train'], data['y_test']
 

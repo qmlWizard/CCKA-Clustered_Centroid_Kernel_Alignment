@@ -368,16 +368,16 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
-        df = decision_boundary_pennylane(
-                                model=self._model,
-                                training_data=self._training_data,
-                                training_labels=self._training_labels,
-                                test_data=test_data,
-                                test_labels=test_labels,
-                                kernel_fn=self._kernel,
-                                path=self._base_path,
-                                title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{position}"
-                            )
+        #df = decision_boundary_pennylane(
+        #                        model=self._model,
+        #                        training_data=self._training_data,
+        #                        training_labels=self._training_labels,
+        #                        test_data=test_data,
+        #                       test_labels=test_labels,
+        #                        kernel_fn=self._kernel,
+        #                        path=self._base_path,
+        #                        title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{position}"
+        #                    )
         metrics = {
             'alignment': current_alignment,
             'executions': self._per_epoch_executions,
