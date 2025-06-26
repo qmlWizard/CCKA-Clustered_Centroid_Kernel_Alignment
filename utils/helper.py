@@ -66,3 +66,12 @@ def set_seed(seed=42):
     # Ensure reproducibility with PyTorch
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def save_model_state(kernel, kernel_params, main_centroids, class_centroids, filepath="model_state.pth"):
+    torch.save({
+        'kernel_state_dict': kernel.state_dict(),  # if it's a torch.nn.Module
+        'kernel_params': kernel_params,            # if needed (optional)
+        'main_centroids': main_centroids,          # usually a tensor or numpy array
+        'class_centroids': class_centroids
+    }, filepath)

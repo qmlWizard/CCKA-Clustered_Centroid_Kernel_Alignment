@@ -1,5 +1,6 @@
 import pennylane as qml
 from pennylane import numpy as np
+from pennylane.qnn import TorchLayer
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -15,7 +16,7 @@ import yaml
 import time
 import os
 from utils.helper import to_python_native
-from utils.plotter import kernel_heatmap, decision_boundary
+from utils.plotter import kernel_heatmap, decision_boundary, decision_boundary_pennylane
 
 
 class TrainModel():
@@ -68,7 +69,7 @@ class TrainModel():
         self._main_centroids_labels = []
         self._class_centroids = []
         self._class_centroid_labels = []
-        self._get_centroids(self._training_data, self._training_labels)
+        
         self._loss_arr = []
         self.alignment_arr = []
         self.validation_accuracy_arr = []
@@ -80,7 +81,17 @@ class TrainModel():
         if self._method in ['ccka', 'quack']:
             self._epochs = int(epochs / 10)
             self._get_alignment_every = int(self._get_alignment_every / 10)
-            
+
+        data_dim = self._training_data.shape[1]
+        self._class_centroids = nn.ParameterList([
+            nn.Parameter(torch.zeros(data_dim)) for _ in range(self._clusters * len(torch.unique(self._training_labels)))
+        ])
+        self._main_centroids = nn.ParameterList([
+            nn.Parameter(torch.zeros(data_dim)) for _ in range(len(torch.unique(self._training_labels)))
+        ])
+
+        self._get_centroids(self._training_data, self._training_labels)
+        
         if self._method in ['random', 'full']:
             if optimizer == 'adam':
                 self._kernel_optimizer = optim.Adam(self._kernel.parameters(), lr = self._lr)
@@ -110,6 +121,7 @@ class TrainModel():
                 self._optimizers = []
                 for tensor in self._main_centroids:
                     self._optimizers.append(optim.SGD([ {'params': tensor, 'lr': self._mclr}]))
+        
         if self._method == 'random':
             self._loss_function = self._loss_ta
             self._sample_function = self._sampler_random_sampling
@@ -128,38 +140,60 @@ class TrainModel():
         print("Epochs: ", self._epochs)
 
     def _get_centroids(self, training_data, training_labels):
-        data = training_data.detach().numpy()
-        data_labels = training_labels.detach().numpy()
-        _class_centroids = []
-        _class_centroids_labels = []
-        _main_centroids = []
-        for c in [1, -1]:
-            cdata = data[data_labels == c]
-            mc = [np.mean(cdata, axis=0)]
-            _main_centroids.append(torch.tensor(np.array(mc), requires_grad= True))
-            sub_centroids = [np.mean(cluster, axis=0) for cluster in np.array_split(cdata, self._clusters)]
-            sub_centroids_labels = [c] * self._clusters
-            class_centroids = np.array(mc + sub_centroids)
-            _class_centroids.append(torch.tensor(class_centroids, requires_grad=True))
-            _class_centroids_labels.append(torch.tensor(np.array(sub_centroids_labels)))
-        self._class_centroids = _class_centroids
-        self._class_centroid_labels = _class_centroids_labels
-        self._main_centroids = _main_centroids
+        # Detach to NumPy for processing (safe since we'll reassign .data)
+        data = training_data.detach().cpu().numpy()
+        data_labels = training_labels.detach().cpu().numpy()
+
+        # Clear any old labels
+        self._class_centroid_labels.clear()
+
+        unique_labels = torch.unique(training_labels).tolist()
+
+        for class_idx, label in enumerate(unique_labels):
+            # Filter data for the current class
+            class_data = data[data_labels == label]
+
+            # --- Main centroid: mean of full class data
+            main_centroid = np.mean(class_data, axis=0)
+            self._main_centroids[class_idx].data = torch.tensor(main_centroid, dtype=torch.float32)
+
+            # --- Sub-cluster centroids: split data and compute cluster means
+            sub_clusters = np.array_split(class_data, self._clusters)
+            for sub_idx, sub_cluster in enumerate(sub_clusters):
+                sub_centroid = np.mean(sub_cluster, axis=0)
+                centroid_idx = class_idx * self._clusters + sub_idx
+                self._class_centroids[centroid_idx].data = torch.tensor(sub_centroid, dtype=torch.float32)
+
+            # --- Sub-cluster labels for this class
+            sub_centroid_labels = torch.full((self._clusters,), fill_value=label, dtype=torch.float32)
+            self._class_centroid_labels.append(sub_centroid_labels)
         
     def centroid_target_alignment(self, K, Y, l):
+        K = K.float().view(-1)
+        Y = Y.float().view(-1)
 
-        #Centering Algorithm : k = k - kmean
-
-        K = K.float()
-        Y = Y.float()
+        if K.shape != Y.shape:
+            raise ValueError(f"K and Y must have the same shape, got {K.shape} vs {Y.shape}")
 
         K_centered = K - K.mean()
         Y_centered = Y - Y.mean()
 
-        num = l * torch.sum(Y_centered * K_centered)
-        den = torch.sqrt(torch.sum(K ** 2) * torch.sum(Y ** 2))
-        result = num / den       
-        return result.squeeze()
+        numerator = l * torch.dot(K_centered, Y_centered)
+        denominator = torch.norm(K_centered) * torch.norm(Y_centered)
+
+        print("K:", K.shape)
+        print("Y:", Y.shape)
+        print("numerator:", numerator.shape)
+        print("denominator:", denominator.shape)
+        result = numerator / denominator
+        print("result:", result.shape)
+
+        if result.numel() != 1:
+            raise RuntimeError(f"Expected scalar result but got shape {result.shape} with {result.numel()} elements")
+
+        return result.reshape(())
+
+
     
     def _loss_kao(self, K, Y, cl):
         TA = self.centroid_target_alignment(K, Y, cl)
@@ -168,9 +202,7 @@ class TrainModel():
         
     def _loss_co(self, K, Y, centroid, cl):
         TA = self.centroid_target_alignment(K, Y, cl)
-        regularization_term = 0
-        for d in centroid:
-            regularization_term += torch.amax(d - 1, 0) - torch.amin(d, 0)
+        regularization_term = torch.sum(torch.relu(centroid - 1.0) + torch.relu(-centroid))
         return 1 - TA + self.lambda_co * regularization_term
  
     def _loss_ta(self, K, y):
@@ -232,8 +264,8 @@ class TrainModel():
                     _class = epoch % len(self._n_classes)
                     main_centroid = self._main_centroids[_class]
                     if self._method == 'ccka':
-                        class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) 
-                        class_centroid_labels = torch.cat(self._class_centroid_labels) 
+                        class_centroids = torch.stack(list(self._class_centroids))
+                        class_centroid_labels = torch.stack(list(self._class_centroid_labels))
                     else:
                         class_centroids = training_data
                         class_centroid_labels = training_labels
@@ -243,15 +275,16 @@ class TrainModel():
                     self._per_epoch_executions += x_0.shape[0]
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     optimizer.zero_grad()
-                    loss_kao = self._loss_kao(K, class_centroid_labels, class_centroid_labels[0])
+                    current_label = self._n_classes[_class].item()
+                    loss_kao = self._loss_kao(K, class_centroid_labels, current_label)
                     loss_kao.backward()
                     optimizer.step()
                 for nco in range(10):
                     _class = epoch % len(self._n_classes)
-                    main_centroid = -self._main_centroids[_class]
+                    main_centroid = self._main_centroids[_class]
                     if self._method == 'ccka':
-                        class_centroids = torch.cat([tensor[1: ] for tensor in self._class_centroids]) 
-                        class_centroid_labels = torch.cat(self._class_centroid_labels) 
+                        class_centroids = torch.stack(list(self._class_centroids))
+                        class_centroid_labels = torch.stack(list(self._class_centroid_labels))
                     else:
                         class_centroids = training_data
                         class_centroid_labels = training_labels 
@@ -259,19 +292,14 @@ class TrainModel():
                     x_1 = class_centroids 
                     self._optimizers[_class].zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
-                    loss_co = self._loss_co(K, class_centroid_labels, main_centroid, class_centroid_labels[0])
+                    current_label = self._n_classes[_class].item()
+                    loss_co = self._loss_co(K, class_centroid_labels, self._main_centroids[_class], current_label)
                     loss_co.backward()
                     self._optimizers[_class].step()              
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
-                    with ThreadPoolExecutor() as executor:
-                        futures = [executor.submit(self.compute_kernel_row, self._kernel, self._training_data, i)
-                                for i in range(self._training_data.shape[0])]
-                        rows = [f.result() for f in futures]
-                    _matrix = torch.stack(rows).to(torch.float32)
-                    kernel_heatmap(_matrix, path= self._base_path, title = "heatmap_{epoch}")
-                    current_alignment = self._loss_ta(_matrix, self._training_labels)
-                    self.alignment_arr.append(current_alignment)
+                    current_alignment = loss_kao
+                    self.alignment_arr.append(current_alignment.detach().cpu().numpy())
                     print("------------------------------------------------------------------")
                     print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
                     print("------------------------------------------------------------------")
@@ -298,7 +326,7 @@ class TrainModel():
                     print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
                     print("------------------------------------------------------------------")
         
-        return  self._kernel, self._main_centroids, self._class_centroids
+        return  self._kernel, list(self._kernel.parameters()), self._main_centroids, self._class_centroids
                     
     def prediction_stage(self, data, labels):
 
@@ -317,7 +345,7 @@ class TrainModel():
         print(f"Accuracy: {accuracy * 100:.2f}%")
 
      
-    def evaluate(self, test_data, test_labels):
+    def evaluate(self, test_data, test_labels, position):
         x_0 = self._training_data.repeat(self._training_data.shape[0],1)
         x_1 = self._training_data.repeat_interleave(self._training_data.shape[0], dim=0)    
         _matrix = self._kernel(x_0, x_1).to(torch.float32).reshape(self._training_data.shape[0],self._training_data.shape[0])
@@ -340,7 +368,16 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
-        decision_boundary(self._model, self._training_data, self._training_labels, self._testing_data, self._testing_labels, path=self._base_path)
+        df = decision_boundary_pennylane(
+                                model=self._model,
+                                training_data=self._training_data,
+                                training_labels=self._training_labels,
+                                test_data=test_data,
+                                test_labels=test_labels,
+                                kernel_fn=self._kernel,
+                                path=self._base_path,
+                                title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{position}"
+                            )
         metrics = {
             'alignment': current_alignment,
             'executions': self._per_epoch_executions,
@@ -358,10 +395,16 @@ class TrainModel():
         return kernel_fn(x_i, training_data).detach()
 
     def compute_test_kernel_row(self, kernel_fn, test_data, training_data, i):
+        # Ensure tensor input
+        if isinstance(test_data, np.ndarray):
+            test_data = torch.tensor(test_data, dtype=torch.float32)
+        if isinstance(training_data, np.ndarray):
+            training_data = torch.tensor(training_data, dtype=torch.float32)
+
         x_i = test_data[i].repeat(training_data.shape[0], 1)
         return kernel_fn(x_i, training_data).detach()
 
-    def evaluate_parallel(self, test_data, test_labels):
+    def evaluate_parallel(self, test_data, test_labels, position):
         with ThreadPoolExecutor() as executor:
             futures = [executor.submit(self.compute_kernel_row, self._kernel, self._training_data, i)
                     for i in range(self._training_data.shape[0])]
@@ -387,6 +430,18 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
+        df = decision_boundary(
+                                model=self._model,
+                                training_data=self._training_data,
+                                training_labels=self._training_labels,
+                                test_data=test_data,
+                                test_labels=test_labels,
+                                kernel=self._kernel,
+                                compute_test_kernel_row=self.compute_test_kernel_row,
+                                path=self._base_path,
+                                title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{position}"
+                            )
+
         metrics = {
             'alignment': current_alignment,
             'executions': self._per_epoch_executions,

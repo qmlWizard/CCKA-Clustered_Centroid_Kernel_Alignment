@@ -12,8 +12,8 @@ import datetime
 # Custom Libraries
 from utils.data_generator import DataGenerator
 from utils.agent import TrainModel
-from utils.plotter import Plotter
-from utils.helper import to_python_native, gen_experiment_name, set_seed
+from utils.helper import to_python_native, gen_experiment_name, set_seed, save_model_state
+from utils.plotter import alignment_progress_over_iterations, plot_initial_final_accuracies
 
 # === Backend Configuration ===
 if torch.backends.mps.is_available():
@@ -42,13 +42,6 @@ def train(config):
     testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
     training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
     testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
-
-    plotter = Plotter(
-        style='seaborn-v0_8',
-        final_color='#ffa07a',
-        initial_color='#4682b4',
-        plot_dir=config['base_path']
-    )
 
     kernel = Qkernel(
         device=config['device'],
@@ -81,20 +74,23 @@ def train(config):
         clusters=config['clusters']
     )
 
-    #if args.backend == 'qiskit':
-    before_metrics = agent.evaluate_parallel(testing_data, testing_labels)
-    #else:
-    #    before_metrics = agent.evaluate(testing_data, testing_labels)
+    if args.backend == 'qiskit':
+        before_metrics = agent.evaluate_parallel(testing_data, testing_labels, 'before')
+    else:
+        before_metrics = agent.evaluate(testing_data, testing_labels, 'before')
 
     print(before_metrics)
-    agent.fit_kernel(training_data, training_labels)
+
+    kernel, params, main_centroid, sub_centroid = agent.fit_kernel(training_data, training_labels)
 
     print('Training Complete')
+    
     if args.backend == 'qiskit':
-        after_metrics = agent.evaluate_parallel(testing_data, testing_labels)
+        after_metrics = agent.evaluate_parallel(testing_data, testing_labels, 'after')
     else:
-        after_metrics = agent.evaluate(testing_data, testing_labels)
+        after_metrics = agent.evaluate(testing_data, testing_labels, 'after')
     print(after_metrics)
+    
     metrics = {
         "num_layers": config['ansatz_layers'],
         "accuracy_train_init": before_metrics['training_accuracy'],
@@ -109,22 +105,23 @@ def train(config):
     metrics = to_python_native(metrics)
     exp_name = gen_experiment_name(config)
 
-    plotter.compare_accuracy(
-        init_train_accuracy=before_metrics['training_accuracy'],
-        init_test_accuracy=before_metrics['testing_accuracy'],
-        final_train_accuracy=after_metrics['training_accuracy'],
-        final_test_accuracy=after_metrics['testing_accuracy'],
-        plot_name=exp_name + '_accuracies.png',
-        dataset=config['name']
-    )
+    alignment_progress_over_iterations(
+                                       alignment_scores= after_metrics['alignment_arr'], 
+                                       path = config['base_path'],
+                                       title = f"alignment_{config['name']}_{config['clusters']}_{config['ansatz']}"
+                                      )
 
-    plotter.plot_alignment(
-        alignments=after_metrics['alignment_arr'],
-        init_alignment=before_metrics['alignment'],
-        dataset=config['name'],
-        plot_name=exp_name + '_aligment.png'
-    )
+    plot_initial_final_accuracies(
+                                  before_metrics['training_accuracy'], 
+                                  before_metrics['testing_accuracy'], 
+                                  after_metrics['training_accuracy'], 
+                                  after_metrics['testing_accuracy'],
+                                  path = config['base_path'],
+                                  title= f"accuracy_{config['name']}_{config['clusters']}_{config['ansatz']}"
+                                )
 
+    save_model_state(kernel, params, main_centroid, sub_centroid, f"{config['base_path']}/model/model_{config['clusters']}.pth")
+    
     ray.train.report(metrics)
 
 if __name__ == "__main__":
@@ -141,17 +138,6 @@ if __name__ == "__main__":
     with open(args.config) as f:
         data = yaml.load(f, Loader=yaml.FullLoader)
     config = namedtuple("ObjectName", data.keys())(*data.values())
-
-    # === CPU Parallelism Setup ===
-    CPU_PER_TRIAL = config.ray_config['num_cpus']  # You can try 4 too
-    TOTAL_CPUS = CPU_PER_TRIAL
-
-    ray.init(
-        local_mode=config.ray_config['ray_local_mode'],
-        num_cpus=TOTAL_CPUS,
-        num_gpus=config.ray_config['num_gpus'],
-        include_dashboard=False
-    )
 
     search_space = {
         'name': config.dataset['name'],
@@ -192,13 +178,18 @@ if __name__ == "__main__":
         return trial.__str__() + '_' + trial.experiment_tag + ','
 
     tuner = tune.Tuner(
-        tune.with_resources(train, resources={"cpu": CPU_PER_TRIAL, "gpu": 1}),
-        tune_config=tune.TuneConfig(
-            num_samples=config.ray_config['ray_num_trial_samples'],
-            trial_dirname_creator=trial_name_creator,
-        ),
-        param_space=search_space,
-    )
+                        tune.with_resources(train, 
+                                            resources={"cpu": config.ray_config['num_cpus'], 
+                                                    "gpu": config.ray_config['num_gpus']}
+                                            ),
+                        
+                        tune_config=tune.TuneConfig(
+                                                    num_samples=config.ray_config['ray_num_trial_samples'],
+                                                    trial_dirname_creator=trial_name_creator,
+                                                ),
+
+                        param_space=search_space,
+                    )
 
     tuner.fit()
     ray.shutdown()
