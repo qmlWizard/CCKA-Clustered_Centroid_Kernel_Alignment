@@ -32,24 +32,47 @@ def kernel_heatmap(K, path, title="Kernel Heatmap"):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     plt.tight_layout()
-    plt.savefig(f"{path}/{title}.png")
+    plt.savefig(f"{path}/{title}.png", dpi=800, bbox_inches='tight')
     plt.close(fig)
 
-def alignment_progress_over_iterations(alignment_scores, path, title="Alignment Progress Over Iterations"):
-    
-    if torch.is_tensor(alignment_scores):
-        alignment_scores = alignment_scores.detach().cpu().numpy()
+
+def alignment_progress_over_iterations(alignment_arrs, path, title="Alignment Progress Over Iterations"):
+    """
+    Plot alignment progress. Accepts 1 or 2 arrays. If 2, label them as Centroid 1 and Centroid -1.
+    """
+    # Convert tensors to numpy arrays
+    processed = []
+    for arr in alignment_arrs:
+        if torch.is_tensor(arr):
+            arr = arr.detach().cpu().numpy()
+        if isinstance(arr, list):
+            arr = np.array(arr)
+        processed.append(arr)
+
+    # Plot setup
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.set_facecolor(background_color)
-    ax.plot(alignment_scores, marker='o', color=color_pos)
+
+    # Plot logic
+    if len(processed) == 2 and len(processed[1]) > 0:
+        ax.plot(processed[0], label='Centroid 1', color=color_pos)
+        ax.plot(processed[1], label='Centroid -1', color=color_neg)
+    else:
+        ax.plot(processed[0], label='Alignment', color=color_pos)
+
+    # Axis and title setup
     ax.set_title(title, fontsize=14, fontweight='bold')
     ax.set_xlabel("Iteration", fontsize=12)
     ax.set_ylabel("Alignment Score", fontsize=12)
-    ax.grid(axis='both', linestyle='--', alpha=0.6)
+    ax.grid(True, linestyle='--', alpha=0.6)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+    ax.legend(loc='upper right', fontsize=10, frameon=True)
+
+    # Save
+    os.makedirs(path, exist_ok=True)
     plt.tight_layout()
-    plt.savefig(f"{path}/{title}.png")
+    plt.savefig(f"{path}/{title}.png", dpi=800, bbox_inches='tight')
     plt.close(fig)
 
 def execution_reduction_vs_performance_trade_off(executions, performances, path, title="Execution Reduction vs Performance Trade-off"):
@@ -69,7 +92,7 @@ def execution_reduction_vs_performance_trade_off(executions, performances, path,
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     plt.tight_layout()
-    plt.savefig(f"{path}/{title}.png")
+    plt.savefig(f"{path}/{title}.png", dpi=800, bbox_inches='tight')
     plt.close(fig)
 
 
@@ -116,7 +139,7 @@ def plot_initial_final_accuracies(initial_train_acc, initial_test_acc,
     ax.grid(axis='y', linestyle='--', alpha=0.6)
 
     plt.tight_layout()
-    plt.savefig(f"{path}/{title}.png")
+    plt.savefig(f"{path}/{title}.png", dpi=800, bbox_inches='tight')
     plt.close(fig)
 
 def decision_boundary(model, training_data, training_labels, test_data, test_labels,

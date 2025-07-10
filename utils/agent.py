@@ -71,7 +71,8 @@ class TrainModel():
         self._class_centroid_labels = []
         
         self._loss_arr = []
-        self.alignment_arr = []
+        self.alignment_arr0 = []
+        self.alignment_arr1 = []
         self.validation_accuracy_arr = []
         self.initial_training_accuracy = None
         self.final_training_accuracy = None
@@ -171,23 +172,13 @@ class TrainModel():
     def centroid_target_alignment(self, K, Y, l):
         K = K.float().view(-1)
         Y = Y.float().view(-1)
-
         if K.shape != Y.shape:
             raise ValueError(f"K and Y must have the same shape, got {K.shape} vs {Y.shape}")
-
         K_centered = K - K.mean()
         Y_centered = Y - Y.mean()
-
         numerator = l * torch.dot(K_centered, Y_centered)
         denominator = torch.norm(K_centered) * torch.norm(Y_centered)
-
-        print("K:", K.shape)
-        print("Y:", Y.shape)
-        print("numerator:", numerator.shape)
-        print("denominator:", denominator.shape)
         result = numerator / denominator
-        print("result:", result.shape)
-
         if result.numel() != 1:
             raise RuntimeError(f"Expected scalar result but got shape {result.shape} with {result.numel()} elements")
 
@@ -298,10 +289,21 @@ class TrainModel():
                     self._optimizers[_class].step()              
 
                 if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
-                    current_alignment = loss_kao
-                    self.alignment_arr.append(current_alignment.detach().cpu().numpy())
+                    x_0 = self._main_centroids[0].repeat(class_centroids.shape[0], 1)
+                    x_1 = class_centroids
+                    K = self._kernel(x_0, x_1).to(torch.float32)
+                    current_alignment0 = self.centroid_target_alignment(K, class_centroid_labels, -1)
+
+                    x_0 = self._main_centroids[1].repeat(class_centroids.shape[0], 1)
+                    x_1 = class_centroids
+                    K = self._kernel(x_0, x_1).to(torch.float32)
+                    current_alignment1 = self.centroid_target_alignment(K, class_centroid_labels, 1)
+
+                    self.alignment_arr0.append(current_alignment0.detach().cpu().numpy())
+                    self.alignment_arr1.append(current_alignment1.detach().cpu().numpy())
                     print("------------------------------------------------------------------")
-                    print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
+                    print(f"Epoch: {epoch}th, Alignment Centroid  1 : {current_alignment0}")
+                    print(f"Epoch: {epoch}th, Alignment Centroid -1 : {current_alignment1}")
                     print("------------------------------------------------------------------")
             else:
                 sampled_data, sampled_labels = samples_func(training_data, training_labels)
@@ -321,7 +323,7 @@ class TrainModel():
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
                     current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
-                    self.alignment_arr.append(current_alignment)
+                    self.alignment_arr0.append(current_alignment.detach().cpu().numpy())
                     print("------------------------------------------------------------------")
                     print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
                     print("------------------------------------------------------------------")
@@ -349,7 +351,6 @@ class TrainModel():
         x_0 = self._training_data.repeat(self._training_data.shape[0],1)
         x_1 = self._training_data.repeat_interleave(self._training_data.shape[0], dim=0)    
         _matrix = self._kernel(x_0, x_1).to(torch.float32).reshape(self._training_data.shape[0],self._training_data.shape[0])
-        print('Labels Type: ', type(self._training_labels))
         current_alignment = self._loss_ta(_matrix, self._training_labels)
         if torch.is_tensor(_matrix):
             _matrix = _matrix.detach().numpy()
@@ -368,23 +369,23 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
-        #df = decision_boundary_pennylane(
-        #                        model=self._model,
-        #                        training_data=self._training_data,
-        #                        training_labels=self._training_labels,
-        #                        test_data=test_data,
-        #                       test_labels=test_labels,
-        #                        kernel_fn=self._kernel,
-        #                        path=self._base_path,
-        #                        title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{position}"
-        #                    )
+        df = decision_boundary_pennylane(
+                                model=self._model,
+                                training_data=self._training_data,
+                                training_labels=self._training_labels,
+                                test_data=test_data,
+                                test_labels=test_labels,
+                                kernel_fn=self._kernel,
+                                path=self._base_path,
+                                title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{self._method}_{self._kernel._n_qubits}_{position}"
+                            )
         metrics = {
             'alignment': current_alignment,
             'executions': self._per_epoch_executions,
             'training_accuracy': training_accuracy,
             'testing_accuracy': accuracy,
             'f1_score': f1,
-            'alignment_arr': self.alignment_arr,
+            'alignment_arr': [self.alignment_arr0, self.alignment_arr1],
             'loss_arr': self._loss_arr,
             'validation_accuracy_arr': self.validation_accuracy_arr
         }

@@ -1,6 +1,7 @@
 import torch
 import ray
 from ray import tune
+from ray.air import session
 from sklearn.model_selection import train_test_split
 import yaml
 import argparse
@@ -105,10 +106,11 @@ def train(config):
     metrics = to_python_native(metrics)
     exp_name = gen_experiment_name(config)
 
+    alignment_arr = after_metrics["alignment_arr"]
     alignment_progress_over_iterations(
-                                       alignment_scores= after_metrics['alignment_arr'], 
+                                       alignment_arr,
                                        path = config['base_path'],
-                                       title = f"alignment_{config['name']}_{config['clusters']}_{config['ansatz']}"
+                                       title = f"alignment_{config['name']}_{config['clusters']}_{config['ansatz']}_{config['train_method']}_{config['n_qubits']}"
                                       )
 
     plot_initial_final_accuracies(
@@ -117,12 +119,12 @@ def train(config):
                                   after_metrics['training_accuracy'], 
                                   after_metrics['testing_accuracy'],
                                   path = config['base_path'],
-                                  title= f"accuracy_{config['name']}_{config['clusters']}_{config['ansatz']}"
+                                  title= f"accuracy_{config['name']}_{config['clusters']}_{config['ansatz']}_{config['train_method']}_{config['n_qubits']}"
                                 )
 
-    save_model_state(kernel, params, main_centroid, sub_centroid, f"{config['base_path']}/model/model_{config['clusters']}.pth")
+    save_model_state(kernel, params, main_centroid, sub_centroid, f"{config['base_path']}/model/model_{config['clusters']}_{config['ansatz']}_{config['train_method']}_{config['n_qubits']}.pth")
     
-    ray.train.report(metrics)
+    session.report(metrics)#ray.train.report(metrics)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="This parser receives the yaml config file")
@@ -138,6 +140,14 @@ if __name__ == "__main__":
     with open(args.config) as f:
         data = yaml.load(f, Loader=yaml.FullLoader)
     config = namedtuple("ObjectName", data.keys())(*data.values())
+
+    os.environ["RAY_DASHBOARD_DISABLE"] = "1"
+    os.environ["RAY_LOG_TO_STDERR"] = "1"
+    os.environ["RAY_raylet_start_wait_time_s"] = "120"
+    os.environ["RAY_NODE_IP_ADDRESS"] = "127.0.0.1"
+
+    ray.shutdown()
+    ray.init(local_mode=True, ignore_reinit_error=True, include_dashboard=False, log_to_driver=False)
 
     search_space = {
         'name': config.dataset['name'],
