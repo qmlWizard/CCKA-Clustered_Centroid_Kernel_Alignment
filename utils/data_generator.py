@@ -30,7 +30,7 @@ class DataGenerator:
         if self.file_path:  # Load dataset from a file if file_path is provided
             return self.load_from_file()
         elif self.dataset_name == 'moons':
-            X, y = make_moons(n_samples=self.n_samples, noise=self.noise, random_state=0)
+            X, y =  make_moons(n_samples=self.n_samples, noise=0.1, random_state=42)
             y = np.where(y == 0, -1, 1)  # Replace 0 with -1
         elif self.dataset_name == 'xor':
             X, y = self.create_xor()
@@ -221,10 +221,15 @@ class DataGenerator:
     def plot_dataset(self, train_features, train_labels, test_features, test_labels, classifier=None):
 
         # Convert torch tensors to numpy arrays for compatibility with matplotlib
-        train_features = train_features.detach().cpu().numpy()
-        train_labels = train_labels.detach().cpu().numpy()
-        test_features = test_features.detach().cpu().numpy()
-        test_labels = test_labels.detach().cpu().numpy()
+        #train_features = train_features.detach().cpu().numpy()
+        #train_labels = train_labels.detach().cpu().numpy()
+        #test_features = test_features.detach().cpu().numpy()
+        #test_labels = test_labels.detach().cpu().numpy()
+
+        train_features = train_features.to_numpy() if isinstance(train_features, pd.DataFrame) else train_features
+        test_features = test_features.to_numpy() if isinstance(test_features, pd.DataFrame) else test_features
+        train_labels = train_labels.to_numpy() if isinstance(train_labels, pd.Series) else train_labels
+        test_labels = test_labels.to_numpy() if isinstance(test_labels, pd.Series) else test_labels
 
         fig, ax = plt.subplots(figsize=(6, 6))
         plt.style.use('seaborn-v0_8')

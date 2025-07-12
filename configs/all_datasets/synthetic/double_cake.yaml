@@ -2,7 +2,7 @@
 
 ray_config:
   ray_local_mode:         False
-  num_cpus:               8
+  num_cpus:               24
   num_gpus:               0
   method:                 QuantumKernels
   ray_logging_path:       logs/double_cake
@@ -30,7 +30,7 @@ qkernel:
   trainable:        True
   input_scaling:    True
   data_reuploading: True
-  ansatz:           ['embedding_paper', 'he']
+  ansatz:           ['embedding_paper']
   ansatz_layers:    6
 
 ## Model Training Agen Configuration
@@ -39,12 +39,12 @@ agent:
   lr:                   [0.1]
   mclr:                 [0.01]
   cclr:                 [0.01]
-  epochs:               [500]
-  train_method:         ['ccka']
+  epochs:               [200]
+  train_method:         ['random', 'quack']
   target_accuracy:      0.95
   get_alignment_every:  10
   validate_every_epoch: 1
-  base_path:            /Users/qmlwizard/Research/greedy_kernel_alignment/plots/double_cake
+  base_path:            C:\Users\Superhero\Documents\Research\Thesis\greedy_kernel_alignment\plots\double_cake
   lambda_kao:           [0.01]
   lambda_co:            [0.01]
-  clusters:             [2, 4, 6, 8, 10]
+  clusters:             [8]

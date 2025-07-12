@@ -12,7 +12,7 @@ ray_config:
 ## DataSet Configuration
 dataset:
   name:              corners
-  file:              /Users/qmlwizard/Research/greedy_kernel_alignment/data/corners_reduced.npy
+  file:              C:\Users\Superhero\Documents\Research\Thesis\greedy_kernel_alignment\data\corners.npy
   n_samples:         200
   noise:             0.5
   num_sectors:       3
@@ -26,11 +26,11 @@ dataset:
 ## Quantum Kernel Model Configuration
 qkernel:
   device:           lightning.qubit
-  n_qubits:         [5]
+  n_qubits:         [4]
   trainable:        True
   input_scaling:    True
   data_reuploading: True
-  ansatz:           ['embedding_paper', 'he']
+  ansatz:           ['embedding_paper']
   ansatz_layers:    5
 
 ## Model Training Agen Configuration
@@ -39,12 +39,12 @@ agent:
   lr:                   [0.1]
   mclr:                 [0.01]
   cclr:                 [0.01]
-  epochs:               [300]
-  train_method:         ['ccka']
+  epochs:               [200]
+  train_method:         ['random', 'quack']
   target_accuracy:      0.95
   get_alignment_every:  100
   validate_every_epoch: 1
-  base_path:            /Users/qmlwizard/Research/greedy_kernel_alignment/plots/corners
+  base_path:            C:\Users\Superhero\Documents\Research\Thesis\greedy_kernel_alignment\plots\corners
   lambda_kao:           [0.01]
   lambda_co:            [0.01]
-  clusters:             [2, 4, 6, 8, 10]
+  clusters:             [4]

@@ -1,0 +1,19 @@
+{
+    "donuts": {
+      "initial": 80,
+      "ccka": 85,
+      "random": 80,
+      "quack": 86.7,
+      "rbf": 80,
+      "clusters":8
+    },
+
+     "checkerboard": {
+       "initial": 80,
+       "ccka": 96.7,
+       "random": 100,
+       "quack": 100,
+       "rbf": 57,
+       "clusters":4
+    }
+}

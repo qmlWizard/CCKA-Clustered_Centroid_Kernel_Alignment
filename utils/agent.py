@@ -284,7 +284,7 @@ class TrainModel():
                     self._optimizers[_class].zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     current_label = self._n_classes[_class].item()
-                    loss_co = self._loss_co(K, class_centroid_labels, self._main_centroids[_class], current_label)
+                    loss_co = self._loss_co(K, class_centroid_labels, self._main_centroids[_class], -current_label)
                     loss_co.backward()
                     self._optimizers[_class].step()              
 
