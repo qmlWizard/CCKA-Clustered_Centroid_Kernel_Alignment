@@ -9,6 +9,10 @@ import shutil
 from collections import namedtuple
 import os
 import datetime
+import ray._private.resource_spec as resource_spec
+
+# Monkey-patch to override GPU autodetection
+resource_spec._autodetect_num_gpus = lambda: 0
 
 # Custom Libraries
 from utils.data_generator import DataGenerator
@@ -21,6 +25,8 @@ if torch.backends.mps.is_available():
     device = torch.device("mps")
 elif torch.cuda.is_available():
     device = torch.device("cuda")
+elif torch.xpu.is_available():
+    device = torch.device("xpu")
 else:
     device = torch.device("cpu")
 
@@ -147,7 +153,12 @@ if __name__ == "__main__":
     os.environ["RAY_NODE_IP_ADDRESS"] = "127.0.0.1"
 
     ray.shutdown()
-    ray.init(local_mode=True, ignore_reinit_error=True, include_dashboard=False, log_to_driver=False)
+    ray.init(
+        local_mode=True,
+        ignore_reinit_error=True,
+        include_dashboard=False,
+        log_to_driver=False
+    )
 
     search_space = {
         'name': config.dataset['name'],
