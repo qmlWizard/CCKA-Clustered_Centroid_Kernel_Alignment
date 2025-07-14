@@ -9,10 +9,7 @@ import shutil
 from collections import namedtuple
 import os
 import datetime
-import ray._private.resource_spec as resource_spec
 
-# Monkey-patch to override GPU autodetection
-resource_spec._autodetect_num_gpus = lambda: 0
 
 # Custom Libraries
 from utils.data_generator import DataGenerator
@@ -147,19 +144,7 @@ if __name__ == "__main__":
         data = yaml.load(f, Loader=yaml.FullLoader)
     config = namedtuple("ObjectName", data.keys())(*data.values())
 
-    os.environ["RAY_DASHBOARD_DISABLE"] = "1"
-    os.environ["RAY_LOG_TO_STDERR"] = "1"
-    os.environ["RAY_raylet_start_wait_time_s"] = "120"
-    os.environ["RAY_NODE_IP_ADDRESS"] = "127.0.0.1"
-
-    ray.shutdown()
-    ray.init(
-        local_mode=True,
-        ignore_reinit_error=True,
-        include_dashboard=False,
-        log_to_driver=False
-    )
-
+    ray.init(log_to_driver=False)
     search_space = {
         'name': config.dataset['name'],
         'file': None if config.dataset['file'] == 'None' else config.dataset['file'],
