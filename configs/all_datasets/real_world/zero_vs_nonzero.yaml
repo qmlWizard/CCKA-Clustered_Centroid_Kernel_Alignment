@@ -5,13 +5,13 @@ ray_config:
   num_cpus:               24
   num_gpus:               0
   method:                 QuantumKernels
-  ray_logging_path:       logs/one_vs_nonone
+  ray_logging_path:       logs/zero_vs_non_zero
   ray_num_trial_samples:  1
   type:                   train
 
 ## DataSet Configuration
 dataset:
-  name:              one_vs_nonone
+  name:              zero_vs_non_zero
   file:              /home/digvijay/dev/greedy_kernel_alignment/data/zero_vs_nonzero.npy
   n_samples:         200
   noise:             0.5
@@ -36,11 +36,11 @@ qkernel:
 ## Model Training Agen Configuration
 agent:
   optimizer:            gd
-  lr:                   [5.0]
-  mclr:                 [1.0]
-  cclr:                 [1.0]
-  epochs:               [500]
-  train_method:         ['ccka', 'random', 'qauck']
+  lr:                   [0.1]
+  mclr:                 [0.01]
+  cclr:                 [0.01]
+  epochs:               [200]
+  train_method:         ['ccka', 'random', 'quack']
   target_accuracy:      0.95
   get_alignment_every:  100
   validate_every_epoch: 1

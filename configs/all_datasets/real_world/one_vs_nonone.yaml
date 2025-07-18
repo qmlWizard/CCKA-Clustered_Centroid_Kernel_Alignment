@@ -36,11 +36,11 @@ qkernel:
 ## Model Training Agen Configuration
 agent:
   optimizer:            gd
-  lr:                   [1.0]
-  mclr:                 [1.0]
-  cclr:                 [1.0]
+  lr:                   [0.1]
+  mclr:                 [0.01]
+  cclr:                 [0.01]
   epochs:               [200]
-  train_method:         ['ccka', 'random', 'qauck']
+  train_method:         ['ccka', 'random', 'quack']
   target_accuracy:      0.95
   get_alignment_every:  100
   validate_every_epoch: 1
