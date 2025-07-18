@@ -174,14 +174,13 @@ class TrainModel():
         Y = Y.float().view(-1)
         if K.shape != Y.shape:
             raise ValueError(f"K and Y must have the same shape, got {K.shape} vs {Y.shape}")
-        K_centered = K - K.mean()
-        Y_centered = Y - Y.mean()
+        K_centered = K #- K.mean()
+        Y_centered = Y #- Y.mean()
         numerator = l * torch.dot(K_centered, Y_centered)
         denominator = torch.norm(K_centered) * torch.norm(Y_centered)
         result = numerator / denominator
         if result.numel() != 1:
             raise RuntimeError(f"Expected scalar result but got shape {result.shape} with {result.numel()} elements")
-
         return result.reshape(())
 
 
@@ -329,7 +328,79 @@ class TrainModel():
                     print("------------------------------------------------------------------")
         
         return  self._kernel, list(self._kernel.parameters()), self._main_centroids, self._class_centroids
-                    
+
+    def fit_multiclass(self, training_data, training_labels):
+        print("Started Training")
+        optimizer = self._kernel_optimizer
+        epochs = self._epochs
+        loss_func = self._loss_function
+        samples_func = self._sample_function
+        self._per_epoch_executions = 0
+        self.kernel_params_history = []
+        self.best_kernel_params = None
+        self._n = int(training_labels.unique().numel())
+        for epoch in range(epochs):
+            for _class in range(self._n):
+                for nkao in range(10):
+                    class_idx = _class if isinstance(_class, int) else _class.item()
+                    main_centroid = self._main_centroids[class_idx]
+                    class_centroids = torch.stack(list(self._class_centroids))
+                    class_centroid_labels = torch.stack(list(self._class_centroid_labels))
+                    class_centroid_labels = torch.where(class_centroid_labels == _class, 1, -1)
+                    x_0 = main_centroid.repeat(class_centroids.shape[0], 1)
+                    x_1 = class_centroids
+                    self._per_epoch_executions += x_0.shape[0]
+                    K = self._kernel(x_0, x_1).to(torch.float32)
+                    optimizer.zero_grad()
+                    current_label = self._n_classes[_class].item()
+                    loss_kao = self._loss_kao(K, class_centroid_labels, current_label)
+                    loss_kao.backward()
+                    optimizer.step()
+
+                for nco in range(10):
+                    class_idx = _class if isinstance(_class, int) else _class.item()
+                    main_centroid = self._main_centroids[class_idx]
+                    class_centroids = torch.stack(list(self._class_centroids))
+                    class_centroid_labels = torch.stack(list(self._class_centroid_labels))
+                    class_centroid_labels = torch.where(class_centroid_labels == _class, 1, -1)
+                    x_0 = main_centroid.repeat(class_centroids.shape[0], 1)
+                    x_1 = class_centroids
+                    self._optimizers[_class].zero_grad()
+                    K = self._kernel(x_0, x_1).to(torch.float32)
+                    current_label = self._n_classes[_class].item()
+                    loss_co = self._loss_co(K, class_centroid_labels, self._main_centroids[_class], -current_label)
+                    loss_co.backward()
+                    self._optimizers[_class].step()
+
+            if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
+                class_centroids = torch.stack(list(self._class_centroids))
+                class_centroid_labels = torch.stack(list(self._class_centroid_labels))
+
+                self.alignment_arr = []  # make sure this is initialized in __init__ as list of lists or dict if needed
+
+                print("------------------------------------------------------------------")
+                print(f"Epoch: {epoch} — Alignment per main centroid")
+
+                for i, main_centroid in enumerate(self._main_centroids):
+                    x_0 = main_centroid.repeat(class_centroids.shape[0], 1)
+                    x_1 = class_centroids
+
+                    K = self._kernel(x_0, x_1).to(torch.float32)
+
+                    # Create binary labels: +1 for current class, -1 for others
+                    binary_labels = torch.where(class_centroid_labels == i, 1, -1)
+
+                    current_alignment = self.centroid_target_alignment(K, binary_labels, 1)  # target label is +1
+
+                    # Optional: use a dict or list of lists to store each alignment
+                    self.alignment_arr.append(current_alignment.detach().cpu().numpy())
+
+                    print(f"Centroid {i} (label={i}): Alignment = {current_alignment.item()}")
+
+                print("------------------------------------------------------------------")
+
+        return self._kernel, list(self._kernel.parameters()), self._main_centroids, self._class_centroids
+
     def prediction_stage(self, data, labels):
 
         main_centroids = torch.stack([centroid.detach()[0] for centroid in self._main_centroids])

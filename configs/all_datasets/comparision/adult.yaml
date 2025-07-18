@@ -39,7 +39,7 @@ agent:
   lr:                   [0.1]
   mclr:                 [0.01]
   cclr:                 [0.01]
-  epochs:               [200]
+  epochs:               [500]
   train_method:         ['ccka', 'random', 'quack']
   target_accuracy:      0.95
   get_alignment_every:  100
