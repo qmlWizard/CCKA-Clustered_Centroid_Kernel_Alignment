@@ -366,8 +366,8 @@ class TrainModel():
                     class_centroid_labels = torch.where(class_centroid_labels == _class, 1, -1)
                     x_0 = main_centroid.repeat(class_centroids.shape[0], 1)
                     x_1 = class_centroids
-                    self._optimizers[_class].zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
+                    self._optimizers[_class].zero_grad()
                     current_label = self._n_classes[_class].item()
                     loss_co = self._loss_co(K, class_centroid_labels, self._main_centroids[_class], -current_label)
                     loss_co.backward()
