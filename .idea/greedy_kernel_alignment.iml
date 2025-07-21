@@ -4,7 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.12 (greedy_kernel_alignment)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.9 virtualenv at ~/dev/CCKA-Clustered_Centroid_Kernel_Alignment/.venv" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">

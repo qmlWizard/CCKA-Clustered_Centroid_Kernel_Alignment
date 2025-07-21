@@ -30,6 +30,8 @@ else:
 set_seed(42)
 
 def train(config):
+    name_str = f"_{config['name']}_{config['n_qubits']}_{config['ansatz']}_{config['ansatz_layers']}_{config['optimizer']}_{config['lr']}_{config['mclr']}_{config['cclr']}_{config['train_method']}_{config['lambda_kao']}_{config['lambda_co']}_{config['clusters']}"
+
     data_generator = DataGenerator(
         dataset_name=config['name'],
         file_path=config['file'],
@@ -46,6 +48,8 @@ def train(config):
     testing_data = torch.tensor(testing_data.to_numpy(), dtype=torch.float32, requires_grad=True)
     training_labels = torch.tensor(training_labels.to_numpy(), dtype=torch.int)
     testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
+    multi_class = True if int(training_labels.unique().numel()) == 2 else False
+
 
     kernel = Qkernel(
         device=config['device'],
@@ -75,7 +79,8 @@ def train(config):
         base_path=config['base_path'],
         lambda_kao=config['lambda_kao'],
         lambda_co=config['lambda_co'],
-        clusters=config['clusters']
+        clusters=config['clusters'],
+        get_decesion_boundary = config['decesion_boundary']
     )
 
     if args.backend == 'qiskit':
@@ -85,8 +90,10 @@ def train(config):
 
     print(before_metrics)
 
-    kernel, params, main_centroid, sub_centroid = agent.fit_kernel(training_data, training_labels)
-
+    if multi_class == True:
+        kernel, params, main_centroid, sub_centroid = agent.fit_multiclass(training_data, training_labels)
+    else:
+        kernel, params, main_centroid, sub_centroid = agent.fit_kernel(training_data, training_labels)
     print('Training Complete')
     
     if args.backend == 'qiskit':
@@ -113,7 +120,7 @@ def train(config):
     alignment_progress_over_iterations(
                                        alignment_arr,
                                        path = config['base_path'],
-                                       title = f"alignment_{config['name']}_{config['clusters']}_{config['ansatz']}_{config['train_method']}_{config['n_qubits']}"
+                                       title = f"alignment_{name_str}"
                                       )
 
     plot_initial_final_accuracies(
@@ -122,12 +129,12 @@ def train(config):
                                   after_metrics['training_accuracy'], 
                                   after_metrics['testing_accuracy'],
                                   path = config['base_path'],
-                                  title= f"accuracy_{config['name']}_{config['clusters']}_{config['ansatz']}_{config['train_method']}_{config['n_qubits']}"
+                                  title= f"accuracy_{name_str}"
                                 )
 
-    save_model_state(kernel, params, main_centroid, sub_centroid, f"{config['base_path']}/model/model_{config['clusters']}_{config['ansatz']}_{config['train_method']}_{config['n_qubits']}.pth")
+    save_model_state(kernel, params, main_centroid, sub_centroid, f"{config['base_path']}/model/model_{name_str}.pth")
     
-    session.report(metrics)#ray.train.report(metrics)
+    session.report(metrics)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="This parser receives the yaml config file")
@@ -163,8 +170,8 @@ if __name__ == "__main__":
         'input_scaling': config.qkernel['input_scaling'],
         'data_reuploading': config.qkernel['data_reuploading'],
         'ansatz': tune.grid_search(config.qkernel['ansatz']),
-        'ansatz_layers': config.qkernel['ansatz_layers'],
-        'optimizer': config.agent['optimizer'],
+        'ansatz_layers': tune.grid_search(config.qkernel['ansatz_layers']),
+        'optimizer': tune.grid_search(config.agent['optimizer']),
         'lr': tune.grid_search(config.agent['lr']),
         'mclr': tune.grid_search(config.agent['mclr']),
         'cclr': tune.grid_search(config.agent['cclr']),
@@ -177,6 +184,7 @@ if __name__ == "__main__":
         'lambda_kao': tune.grid_search(config.agent['lambda_kao']),
         'lambda_co': tune.grid_search(config.agent['lambda_co']),
         'clusters': tune.grid_search(config.agent['clusters']),
+        'decesion_boundary': config.agent['decesion_boundary'],
         'ray_logging_path': config.ray_config['ray_logging_path']
     }
 

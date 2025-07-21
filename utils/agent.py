@@ -38,7 +38,8 @@ class TrainModel():
                  base_path=None,  # New parameter for base path to save plots
                  lambda_kao=0.01,
                  lambda_co=0.01,
-                 clusters=4
+                 clusters=4,
+                 get_decesion_boundary = False
                  ):
         super().__init__()
         self._kernel = kernel
@@ -69,7 +70,7 @@ class TrainModel():
         self._main_centroids_labels = []
         self._class_centroids = []
         self._class_centroid_labels = []
-        
+        self._get_decesion_boundary = get_decesion_boundary
         self._loss_arr = []
         self.alignment_arr0 = []
         self.alignment_arr1 = []
@@ -440,16 +441,17 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
-        #df = decision_boundary_pennylane(
-        #                        model=self._model,
-        #                        training_data=self._training_data,
-        #                        training_labels=self._training_labels,
-        #                        test_data=test_data,
-        #                        test_labels=test_labels,
-        #                        kernel_fn=self._kernel,
-        #                        path=self._base_path,
-        #                        title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{self._method}_{self._kernel._n_qubits}_{position}"
-        #                    )
+        if self._get_decesion_boundary == True:
+            df = decision_boundary_pennylane(
+                                    model=self._model,
+                                    training_data=self._training_data,
+                                    training_labels=self._training_labels,
+                                    test_data=test_data,
+                                    test_labels=test_labels,
+                                    kernel_fn=self._kernel,
+                                    path=self._base_path,
+                                    title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{self._method}_{self._kernel._n_qubits}_{position}"
+                                )
         metrics = {
             'alignment': current_alignment,
             'executions': self._per_epoch_executions,

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import random
-from sklearn.datasets import make_moons, make_swiss_roll, make_gaussian_quantiles, load_iris, fetch_openml
+from sklearn.datasets import make_moons, make_swiss_roll, make_gaussian_quantiles, load_iris, fetch_openml, load_wine
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 from matplotlib.colors import ListedColormap
@@ -26,67 +26,61 @@ class DataGenerator:
         self.n_pca_features = n_pca_features
         self.dmin, self.dmax = 0, 1
 
+    from sklearn.datasets import load_wine  # Add this import if not already present
+
     def generate_dataset(self):
-        if self.file_path:  # Load dataset from a file if file_path is provided
+        if self.file_path:
             return self.load_from_file()
         elif self.dataset_name == 'moons':
-            X, y =  make_moons(n_samples=self.n_samples, noise=0.1, random_state=42)
-            y = np.where(y == 0, -1, 1)  # Replace 0 with -1
+            X, y = make_moons(n_samples=self.n_samples, noise=0.1, random_state=42)
+            y = np.where(y == 0, -1, 1)
         elif self.dataset_name == 'xor':
             X, y = self.create_xor()
         elif self.dataset_name == 'swiss_roll':
             X, y = make_swiss_roll(n_samples=self.n_samples, noise=self.noise, random_state=0)
-            X = np.hstack((X, np.random.randn(self.n_samples, 2)))  # Add 2 random features to make 4 features
-            y = np.where(y > np.median(y), 1, -1)  # Binarize labels based on median
+            X = np.hstack((X, np.random.randn(self.n_samples, 2)))
+            y = np.where(y > np.median(y), 1, -1)
         elif self.dataset_name == 'gaussian':
             X, y = make_gaussian_quantiles(n_samples=self.n_samples, n_features=2, n_classes=2, random_state=0)
-            y = np.where(y == 0, -1, 1)  # Replace 0 with -1
+            y = np.where(y == 0, -1, 1)
         elif self.dataset_name == 'double_cake':
             X, y = self.make_double_cake_data()
         elif self.dataset_name == 'iris':
             iris = load_iris()
             X = iris.data
-            y = iris.target + 1  # Shift labels to start from 1 (1, 2, 3 instead of 0, 1, 2)
+            y = iris.target + 1
+        elif self.dataset_name == 'wine':
+            wine = load_wine()
+            X = wine.data
+            y = wine.target + 1  # Shift to 1, 2, 3 to match your convention (if needed)
         elif self.dataset_name == 'mnist_fashion':
             X, y = fetch_openml('Fashion-MNIST', version=1, return_X_y=True)
             y = y.astype(int)
-
-            # Filter for shirts (class 6) and pants (class 1)
-            binary_classes = [1, 6]  # Pants: 1, Shirts: 6
+            binary_classes = [1, 6]
             mask = np.isin(y, binary_classes)
             X = X[mask]
             y = y[mask]
-
-            # Map labels: Pants -> 1, Shirts -> -1
             y = np.where(y == 1, 1, -1)
-
-            # Separate the data for each class
             X_class_1 = X[y == 1]
             X_class_neg_1 = X[y == -1]
             y_class_1 = y[y == 1]
             y_class_neg_1 = y[y == -1]
-
-            # Calculate the number of samples per class (equal distribution)
             samples_per_class = min(len(X_class_1), len(X_class_neg_1), self.n_samples // 2)
-
-            # Randomly select samples for each class
             indices_1 = np.random.choice(len(X_class_1), samples_per_class, replace=False)
             indices_neg_1 = np.random.choice(len(X_class_neg_1), samples_per_class, replace=False)
-
             X_class_1 = X_class_1[indices_1]
             y_class_1 = y_class_1[indices_1]
             X_class_neg_1 = X_class_neg_1[indices_neg_1]
             y_class_neg_1 = y_class_neg_1[indices_neg_1]
-
-            # Combine the two classes back together
             X = np.vstack((X_class_1, X_class_neg_1))
             y = np.hstack((y_class_1, y_class_neg_1))
         elif self.dataset_name == 'checkerboard':
             X, y = self.create_checkerboard_data()
         else:
-            raise ValueError("Dataset not supported. Choose from 'moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake', 'iris', 'mnist_fashion', 'checkerboard'.")
+            raise ValueError(
+                "Dataset not supported. Choose from 'moons', 'xor', 'swiss_roll', 'gaussian', 'double_cake', 'iris', 'wine', 'mnist_fashion', 'checkerboard'.")
 
-        # Apply MinMax scaling to the range [0, π]
+        # Apply MinMax scaling to the range [-π, π]
         scaler = MinMaxScaler(feature_range=(-np.pi, np.pi))
         X_scaled = scaler.fit_transform(X)
 
@@ -94,14 +88,14 @@ class DataGenerator:
         if self.n_pca_features:
             X_scaled = self.apply_pca(X_scaled)
 
-        x_train_scaled, x_test_scaled, y_train, y_test = train_test_split(X_scaled, y, test_size=0.5, random_state=42)
+        x_train_scaled, x_test_scaled, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
         return (
-                pd.DataFrame(x_train_scaled, columns=[f'Feature {i+1}' for i in range(x_train_scaled.shape[1])]),
-                pd.Series(y_train, name='Label'),
-                pd.DataFrame(x_test_scaled, columns=[f'Feature {i+1}' for i in range(x_test_scaled.shape[1])]),
-                pd.Series(y_test, name='Label')
-            )
+            pd.DataFrame(x_train_scaled, columns=[f'Feature {i + 1}' for i in range(x_train_scaled.shape[1])]),
+            pd.Series(y_train, name='Label'),
+            pd.DataFrame(x_test_scaled, columns=[f'Feature {i + 1}' for i in range(x_test_scaled.shape[1])]),
+            pd.Series(y_test, name='Label')
+        )
 
     def apply_pca(self, X):
         """Apply PCA to reduce features."""
