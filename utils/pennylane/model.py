@@ -56,4 +56,4 @@ class Qkernel(nn.Module):
     def forward(self, x1, x2):
         all_zero_state = self._kernel(x1, x2, self._parameters, self._wires, self._layers, self._projector, self._data_reuploading)
         self._circuit_executions += 1
-        return all_zero_state
+        return torch.abs(all_zero_state) ** 2
