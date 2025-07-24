@@ -87,9 +87,7 @@ def train(config):
     if args.backend == 'qiskit':
         before_metrics = agent.evaluate_parallel(testing_data, testing_labels, 'before')
     else:
-        before_metrics = agent.evaluate(testing_data, testing_labels, 'before')
-
-    before_metrics = agent.evaluate(testing_data, testing_labels, 'before')
+        before_metrics = agent.evaluate_test(testing_data, testing_labels, 'before')
 
     print(before_metrics)
 
@@ -102,8 +100,8 @@ def train(config):
     if args.backend == 'qiskit':
         after_metrics = agent.evaluate_parallel(testing_data, testing_labels, 'after')
     else:
-        after_metrics = agent.evaluate(testing_data, testing_labels, 'after')
-    print(after_metrics)
+        after_metrics = agent.evaluate_test(testing_data, testing_labels, 'after')
+    print(after_metrics)3 
     
     metrics = {
         "num_layers": config['ansatz_layers'],
