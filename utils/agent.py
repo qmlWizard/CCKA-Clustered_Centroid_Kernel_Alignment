@@ -6,6 +6,7 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 import torch.optim as optim
 from sklearn.svm import SVC
+from sklearn.cluster import KMeans
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.metrics import hinge_loss
 import matplotlib.pyplot as plt
@@ -17,6 +18,7 @@ import time
 import os
 from utils.helper import to_python_native
 from utils.plotter import kernel_heatmap, decision_boundary, decision_boundary_pennylane
+from utils.probabilistic_classifer import CentroidBasedClassifier
 
 
 class TrainModel():
@@ -39,7 +41,8 @@ class TrainModel():
                  lambda_kao=0.01,
                  lambda_co=0.01,
                  clusters=4,
-                 get_decesion_boundary = False
+                 get_decesion_boundary = False,
+                 use_kmeans = False
                  ):
         super().__init__()
         self._kernel = kernel
@@ -80,6 +83,7 @@ class TrainModel():
         self.initial_testing_accuracy = None
         self.final_testing_accuracy = None
         self._per_epoch_executions = None
+        self._use_kmeans = use_kmeans
         if self._method in ['ccka', 'quack']:
             self._epochs = int(epochs / 10)
             self._get_alignment_every = int(self._get_alignment_every / 10)
@@ -92,7 +96,7 @@ class TrainModel():
             nn.Parameter(torch.zeros(data_dim)) for _ in range(len(torch.unique(self._training_labels)))
         ])
 
-        self._get_centroids(self._training_data, self._training_labels)
+        self._get_centroids(self._training_data, self._training_labels, use_kmeans = self._use_kmeans)
         
         if self._method in ['random', 'full']:
             if optimizer == 'adam':
@@ -141,12 +145,12 @@ class TrainModel():
             
         print("Epochs: ", self._epochs)
 
-    def _get_centroids(self, training_data, training_labels):
+    def _get_centroids(self, training_data, training_labels, use_kmeans=True):
         # Detach to NumPy for processing (safe since we'll reassign .data)
         data = training_data.detach().cpu().numpy()
         data_labels = training_labels.detach().cpu().numpy()
 
-        # Clear any old labels
+        # Clear old labels
         self._class_centroid_labels.clear()
 
         unique_labels = torch.unique(training_labels).tolist()
@@ -159,17 +163,22 @@ class TrainModel():
             main_centroid = np.mean(class_data, axis=0)
             self._main_centroids[class_idx].data = torch.tensor(main_centroid, dtype=torch.float32)
 
-            # --- Sub-cluster centroids: split data and compute cluster means
-            sub_clusters = np.array_split(class_data, self._clusters)
-            for sub_idx, sub_cluster in enumerate(sub_clusters):
-                sub_centroid = np.mean(sub_cluster, axis=0)
+            # --- Sub-cluster centroids: KMeans or Split
+            if use_kmeans and len(class_data) >= self._clusters:
+                kmeans = KMeans(n_clusters=self._clusters, n_init="auto", random_state=42).fit(class_data)
+                sub_centroids = kmeans.cluster_centers_
+            else:
+                sub_clusters = np.array_split(class_data, self._clusters)
+                sub_centroids = [np.mean(cluster, axis=0) for cluster in sub_clusters]
+
+            for sub_idx, sub_centroid in enumerate(sub_centroids):
                 centroid_idx = class_idx * self._clusters + sub_idx
                 self._class_centroids[centroid_idx].data = torch.tensor(sub_centroid, dtype=torch.float32)
 
-            # --- Sub-cluster labels for this class
+            # --- Sub-cluster labels
             sub_centroid_labels = torch.full((self._clusters,), fill_value=label, dtype=torch.float32)
             self._class_centroid_labels.append(sub_centroid_labels)
-        
+
     def centroid_target_alignment(self, K, Y, l):
         K = K.float().view(-1)
         Y = Y.float().view(-1)
@@ -402,23 +411,83 @@ class TrainModel():
 
         return self._kernel, list(self._kernel.parameters()), self._main_centroids, self._class_centroids
 
-    def prediction_stage(self, data, labels):
+    def evaluate_test(self, test_data, test_labels, position):
+        # Compute training alignment
+        x_0 = self._training_data.repeat(self._training_data.shape[0], 1)
+        x_1 = self._training_data.repeat_interleave(self._training_data.shape[0], dim=0)
+        _matrix = self._kernel(x_0, x_1).to(torch.float32).reshape(self._training_data.shape[0],
+                                                                   self._training_data.shape[0])
+        current_alignment = self._loss_ta(_matrix, self._training_labels)
 
-        main_centroids = torch.stack([centroid.detach()[0] for centroid in self._main_centroids])
-        x_0 = main_centroids.repeat(data.shape[0],1)
-        x_1 = data.repeat_interleave(main_centroids.shape[0], dim=0)
-        K = self._kernel(x_0, x_1).to(torch.float32).reshape(data.shape[0],main_centroids.shape[0])
-        pred_labels = torch.sign(K[:, 0] - K[:, 1]) 
-        correct_predictions = (pred_labels == labels).sum().item()  # Count matches
-        total_predictions = len(labels)  # Total number of predictions
-        accuracy = correct_predictions / total_predictions
+        # Prepare centroids from ParameterList → dict
+        main_centroid_dict = {
+            int(cls): centroid for cls, centroid in zip(self._n_classes, self._main_centroids)
+        }
 
-        # Display results
-        print(f"Correct Predictions: {correct_predictions}")
-        print(f"Total Predictions: {total_predictions}")
-        print(f"Accuracy: {accuracy * 100:.2f}%")
+        # Handle all subcentroids per class robustly
+        class_centroid_dict = {}
+        num_subcentroids = self._clusters
+        for i, cls in enumerate(self._n_classes):
+            start = i * num_subcentroids
+            end = (i + 1) * num_subcentroids
+            subcentroids = self._class_centroids[start:end]
+            class_centroid_dict[int(cls)] = list(subcentroids)
 
-     
+        # Flatten subcentroids and get proto_labels
+        subcentroids = []
+        proto_labels = []
+        for cls, sublist in class_centroid_dict.items():
+            for sub in sublist:
+                subcentroids.append(sub)
+                proto_labels.append(cls)
+
+        print("proto_labels:", proto_labels)
+        print("len(subcentroids):", len(subcentroids))
+
+        # Run prediction
+        clf = CentroidBasedClassifier(
+            kernel_function=self._kernel,
+            centroids=main_centroid_dict,
+            subcentroids=class_centroid_dict,
+            use_subcentroids=True,
+            temperature=0.5
+        )
+
+        train_preds = clf.predict_batch(self._training_data)
+        test_preds = clf.predict_batch(test_data)
+
+        train_labels = self._training_labels.detach().cpu().numpy()
+        test_labels_np = test_labels.detach().cpu().numpy()
+
+        training_accuracy = accuracy_score(train_labels, train_preds.numpy())
+        accuracy = accuracy_score(test_labels_np, test_preds.numpy())
+        f1 = f1_score(test_labels_np, test_preds.numpy(), average='weighted')
+
+        if self._get_decesion_boundary:
+            df = decision_boundary_pennylane(
+                model=clf,
+                training_data=self._training_data,
+                training_labels=self._training_labels,
+                test_data=test_data,
+                test_labels=test_labels,
+                kernel_fn=self._kernel,
+                path=self._base_path,
+                title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{self._method}_{self._kernel._n_qubits}_{position}"
+            )
+
+
+        metrics = {
+            'alignment': current_alignment,
+            'executions': self._per_epoch_executions,
+            'training_accuracy': training_accuracy,
+            'testing_accuracy': accuracy,
+            'f1_score': f1,
+            'alignment_arr': [self.alignment_arr0, self.alignment_arr1],
+            'loss_arr': self._loss_arr,
+            'validation_accuracy_arr': self.validation_accuracy_arr
+        }
+        return metrics
+
     def evaluate(self, test_data, test_labels, position):
         x_0 = self._training_data.repeat(self._training_data.shape[0],1)
         x_1 = self._training_data.repeat_interleave(self._training_data.shape[0], dim=0)    

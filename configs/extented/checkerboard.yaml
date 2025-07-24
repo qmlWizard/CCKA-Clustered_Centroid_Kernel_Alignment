@@ -1,0 +1,52 @@
+##Configurations for training the quntum kernel alignment
+
+ray_config:
+  ray_local_mode:         False
+  num_cpus:               24
+  num_gpus:               0
+  method:                 QuantumKernels
+  ray_logging_path:       logs/checkerboard
+  ray_num_trial_samples:  1
+  type:                   train
+
+## DataSet Configuration
+dataset:
+  name:              checkerboard
+  file:              C:\Users\Superhero\Documents\Research\Thesis\greedy_kernel_alignment\data\checkerboard_dataset.npy
+  n_samples:         60
+  noise:             0.5
+  num_sectors:       3
+  points_per_sector: 15
+  grid_size:         4
+  sampling_radius:   0.1
+  training_size:     0.50
+  testing_size:      0.50
+  validation_size:   0.0
+
+## Quantum Kernel Model Configuration
+qkernel:
+  device:           lightning.qubit
+  n_qubits:         [2, 4, 6]
+  trainable:        True
+  input_scaling:    True
+  data_reuploading: True
+  ansatz:           ['embedding_paper', 'he']
+  ansatz_layers:    [2, 4, 6, 10]
+
+## Model Training Agent Configuration
+agent:
+  optimizer:            ['gd', 'adam']
+  lr:                   [0.01, 0.1, 0.2, 0.5]
+  mclr:                 [0.01, 0.1, 0.2, 0.5]
+  cclr:                 [0.01, 0.1, 0.2, 0.5]
+  epochs:               [200, 500, 1000]
+  train_method:         ['ccka']
+  target_accuracy:      0.95
+  get_alignment_every:  100
+  validate_every_epoch: 1
+  base_path:            C:\Users\Superhero\Documents\Research\Thesis\greedy_kernel_alignment\results\checkerboard
+  lambda_kao:           [0.001, 0.01, 0.1, 1.0]
+  lambda_co:            [0.001, 0.01, 0.1, 1.0]
+  clusters:             [2, 4, 6, 8, 10]
+  use_kmeans:           [True, False]
+  decesion_boundary:    False

@@ -30,7 +30,7 @@ else:
 set_seed(42)
 
 def train(config):
-    name_str = f"_{config['name']}_{config['n_qubits']}_{config['ansatz']}_{config['ansatz_layers']}_{config['optimizer']}_{config['lr']}_{config['mclr']}_{config['cclr']}_{config['train_method']}_{config['lambda_kao']}_{config['lambda_co']}_{config['clusters']}"
+    name_str = f"_{config['name']}_{config['n_qubits']}_{config['ansatz']}_{config['ansatz_layers']}_{config['optimizer']}_{config['lr']}_{config['mclr']}_{config['cclr']}_{config['train_method']}_{config['lambda_kao']}_{config['lambda_co']}_{config['clusters']}_Kmeans_{config['use_kmeans']}"
 
     data_generator = DataGenerator(
         dataset_name=config['name'],
@@ -80,13 +80,16 @@ def train(config):
         lambda_kao=config['lambda_kao'],
         lambda_co=config['lambda_co'],
         clusters=config['clusters'],
-        get_decesion_boundary = config['decesion_boundary']
+        get_decesion_boundary = config['decesion_boundary'],
+        use_kmeans= config['use_kmeans']
     )
 
     if args.backend == 'qiskit':
         before_metrics = agent.evaluate_parallel(testing_data, testing_labels, 'before')
     else:
         before_metrics = agent.evaluate(testing_data, testing_labels, 'before')
+
+    before_metrics = agent.evaluate(testing_data, testing_labels, 'before')
 
     print(before_metrics)
 
@@ -185,6 +188,7 @@ if __name__ == "__main__":
         'lambda_co': tune.grid_search(config.agent['lambda_co']),
         'clusters': tune.grid_search(config.agent['clusters']),
         'decesion_boundary': config.agent['decesion_boundary'],
+        'use_kmeans': tune.grid_search(config.agent['use_kmeans']),
         'ray_logging_path': config.ray_config['ray_logging_path']
     }
 
