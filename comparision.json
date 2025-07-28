@@ -1,19 +1,42 @@
 {
-    "donuts": {
-      "initial": 80,
-      "ccka": 85,
-      "random": 80,
-      "quack": 86.7,
-      "rbf": 80,
-      "clusters":8
-    },
-
-     "checkerboard": {
+  "checkerboard": {
        "initial": 80,
        "ccka": 96.7,
        "random": 100,
        "quack": 100,
-       "rbf": 57,
-       "clusters":4
+       "rbf": 57
+    },
+
+  "corners": {
+       "initial": 89,
+       "ccka": 93,
+       "random": 94,
+       "quack": 96,
+       "rbf": 65
+    },
+
+  "double_cake": {
+       "initial": 83.3,
+       "ccka": 96.7,
+       "random": 73.3,
+       "quack": 86.7,
+       "rbf": 91.1
+    },
+
+  "moons": {
+       "initial": 82.9,
+       "ccka": 96.7,
+       "random": 96.7,
+       "quack": 86.7,
+       "rbf": 93
+    },
+
+
+  "donuts": {
+      "initial": 78.9,
+      "ccka": 85,
+      "random": 80,
+      "quack": 86.7,
+      "rbf": 80
     }
 }

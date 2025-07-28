@@ -101,7 +101,7 @@ def train(config):
         after_metrics = agent.evaluate_parallel(testing_data, testing_labels, 'after')
     else:
         after_metrics = agent.evaluate_test(testing_data, testing_labels, 'after')
-    print(after_metrics)3 
+    print(after_metrics)
     
     metrics = {
         "num_layers": config['ansatz_layers'],

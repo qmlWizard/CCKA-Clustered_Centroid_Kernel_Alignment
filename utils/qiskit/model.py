@@ -6,13 +6,14 @@ import numpy as np
 from utils.qiskit.ansatz import (
     qk_he_noisy_single,
     qk_embedding_paper_noisy_single,
+    qk_he,
+    qk_embedding_paper,
 )
 
 
 class Qkernel(nn.Module):
     def __init__(
         self,
-        device,
         n_qubits,
         trainable,
         input_scaling,
@@ -24,7 +25,6 @@ class Qkernel(nn.Module):
     ):
         super().__init__()
 
-        self._device = device
         self._n_qubits = n_qubits
         self._trainable = trainable
         self._input_scaling = input_scaling

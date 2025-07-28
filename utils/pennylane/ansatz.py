@@ -11,7 +11,7 @@ def _he_layer(x, _scaling_params, _variational_params, _wires, _embedding, _data
     for i, wire in enumerate(_wires):
         qml.RZ(_variational_params[i+len(_wires)], wires = [wire])
     if len(_wires) == 2:
-        qml.CZ(wire = [_wires[0], _wires[1]])
+        qml.CZ(wires = [_wires[0], _wires[1]])
     else:
         num_wires = len(_wires)
         for i in range(num_wires):
