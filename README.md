@@ -132,7 +132,7 @@ CCKA optimizes a variational quantum kernel using **class-representative centroi
 | Checkerboard  | 82.5%            | **96.7%**     | 100%           | 100%        |
 | Double Cake   | 80%              | **96.7%**     | 86.7%          | 73.3%       |
 
-See [results.ipynb](results.ipynb) for full plots.
+See [results.ipynb](notebooks/results.ipynb) for full plots.
 
 ---
 
