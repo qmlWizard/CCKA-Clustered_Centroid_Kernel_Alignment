@@ -75,3 +75,38 @@ def save_model_state(kernel, kernel_params, main_centroids, class_centroids, fil
         'main_centroids': main_centroids,          # usually a tensor or numpy array
         'class_centroids': class_centroids
     }, filepath)
+
+def to_numpy_kernel(K):
+    """
+    Convert a kernel matrix to a NumPy array if it's not already.
+    Supports: numpy.ndarray, torch.Tensor, tf.Tensor, list, Qiskit Matrix.
+    """
+    # Case 1: Already NumPy
+    if isinstance(K, np.ndarray):
+        return K
+
+    # Case 2: PyTorch Tensor
+    try:
+        import torch
+        if isinstance(K, torch.Tensor):
+            return K.detach().cpu().numpy()
+    except ImportError:
+        pass
+
+    # Case 3: TensorFlow Tensor
+    try:
+        import tensorflow as tf
+        if isinstance(K, tf.Tensor):
+            return K.numpy()
+    except ImportError:
+        pass
+
+    # Case 4: Qiskit Matrix or List
+    if hasattr(K, 'tolist'):
+        return np.array(K.tolist(), dtype=np.float64)
+
+    # Case 5: Plain Python list or nested lists
+    if isinstance(K, (list, tuple)):
+        return np.array(K, dtype=np.float64)
+
+    raise TypeError(f"Unsupported kernel type: {type(K)}")

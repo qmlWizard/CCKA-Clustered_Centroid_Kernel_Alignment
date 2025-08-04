@@ -2,14 +2,16 @@ import torch
 import torch.nn as nn
 import math
 import numpy as np
+from pennylane.measurements import shots
 
 from utils.qiskit.ansatz import (
     qk_he_noisy_single,
     qk_embedding_paper_noisy_single,
     qk_he,
-    qk_embedding_paper,
+    qk_embedding_paper, get_circuit_depth
 )
 
+from qiskit import QuantumRegister
 
 class Qkernel(nn.Module):
     def __init__(
@@ -21,7 +23,8 @@ class Qkernel(nn.Module):
         ansatz,
         ansatz_layers,
         use_noisy_backend=False,
-        simulator=None
+        simulator=None,
+        shots=8192,
     ):
         super().__init__()
 
@@ -68,6 +71,26 @@ class Qkernel(nn.Module):
         else:
             raise ValueError(f"Unsupported ansatz: {self._ansatz}")
 
+        self._shots = shots
+
+    def get_depth(self, x1, x2):
+        x1 = x1.detach().cpu().numpy().flatten()
+        x2 = x2.detach().cpu().numpy().flatten()
+
+        weights = {
+            "input_scaling": self.input_scaling.detach().cpu().numpy(),
+            "variational": self.variational.detach().cpu().numpy()
+        }
+
+        if self._ansatz == 'embedding_paper':
+            weights["rotational"] = self.rotational.detach().cpu().numpy()
+
+            circuit_depth = get_circuit_depth(
+                    self._ansatz, x1, x2, weights, self._wires, self._layers, self._simulator, self._data_reuploading
+            )
+
+        return circuit_depth
+
     def forward(self, x1, x2):
         x1 = x1.detach().cpu().numpy().flatten()
         x2 = x2.detach().cpu().numpy().flatten()
@@ -84,7 +107,7 @@ class Qkernel(nn.Module):
         if self._ansatz == 'he':
             if self._use_noisy_backend:
                 kernel_value = qk_he_noisy_single(
-                    x1, x2, weights, self._wires, self._layers, self._simulator, self._data_reuploading
+                    x1, x2, weights, self._wires, self._layers, self._simulator, self._data_reuploading, shots= self._shots
                 )
             else:
                 kernel_value = qk_he(
@@ -95,21 +118,10 @@ class Qkernel(nn.Module):
         elif self._ansatz == 'embedding_paper':
             if self._use_noisy_backend:
                 kernel_value = qk_embedding_paper_noisy_single(
-                    x1, x2, weights, self._wires, self._layers, self._simulator, self._data_reuploading
+                    x1, x2, weights, self._wires, self._layers, self._simulator, self._data_reuploading, shots= self._shots
                 )
             else:
                 kernel_value = qk_embedding_paper(
-                    x1[np.newaxis, :], x2[np.newaxis, :], weights, self._wires, self._layers,
-                    self._projector.numpy(), self._data_reuploading
-                )
-
-        elif self._ansatz == 'covariant':
-            if self._use_noisy_backend:
-                kernel_value = qk_covariant_noisy_single(
-                    x1, x2, weights, self._wires, self._layers, self._simulator, self._data_reuploading
-                )
-            else:
-                kernel_value = qk_covariant(
                     x1[np.newaxis, :], x2[np.newaxis, :], weights, self._wires, self._layers,
                     self._projector.numpy(), self._data_reuploading
                 )

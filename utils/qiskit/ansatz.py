@@ -136,37 +136,86 @@ def build_embedding_paper_circuit(x, weights, wires, layers, reupload):
 ###################################
 
 # Fidelity estimation using adjoint method
-def compute_noisy_kernel(circ1, circ2, wires, simulator, shots=8192):
+def compute_noisy_kernel(circ1, circ2, wires, simulator, shots=8192, meas_fitter=None):
+    """
+    Compute noisy kernel entry between two circuits, with optional measurement mitigation.
+
+    Parameters
+    ----------
+    circ1, circ2 : QuantumCircuit
+        Circuits for states |phi(x1)> and |phi(x2)>.
+    wires : list[int]
+        List of qubit indices (used to compute zero-state string).
+    simulator : Backend
+        Qiskit backend or simulator.
+    shots : int
+        Number of shots to estimate probability.
+    meas_fitter : Optional
+        Measurement calibration fitter (e.g., from Ignis or LocalReadoutMitigator).
+
+    Returns
+    -------
+    float
+        Estimated kernel value (fidelity approximation).
+    """
+
+    # Compose circuit for overlap fidelity measurement
     full_circ = circ2.inverse().compose(circ1)
     full_circ.measure_all()
+
+    # Transpile for backend
     transpiled = transpile(full_circ, simulator)
     result = simulator.run(transpiled, shots=shots).result()
     counts = result.get_counts()
 
+    # Apply measurement mitigation if provided
+    if meas_fitter is not None:
+        counts = meas_fitter.filter.apply(counts)
+
+    # Compute probability of all-zero outcome
     zero_state = '0' * len(wires)
     p0 = counts.get(zero_state, 0) / shots
+
     return p0
 
 ##################################
 # Noisy Kernel Evaluation Method #
 ##################################
 
-def qk_he_noisy_single(x1, x2, weights, wires, layers, simulator, reupload=True, shots=8192):
+def qk_he_noisy_single(x1, x2, weights, wires, layers, simulator, reupload=True, shots=8192, meas_fitter=None):
     x1 = np.resize(x1, len(wires))
     x2 = np.resize(x2, len(wires))
 
     circ1 = build_he_circuit(x1, weights, wires, layers, reupload)
     circ2 = build_he_circuit(x2, weights, wires, layers, reupload)
 
-    kernel_val = compute_noisy_kernel(circ1, circ2, wires, simulator, shots)
+    kernel_val = compute_noisy_kernel(circ1, circ2, wires, simulator, shots, meas_fitter)
     return torch.tensor(kernel_val, dtype=torch.float32)
 
-def qk_embedding_paper_noisy_single(x1, x2, weights, wires, layers, simulator, reupload=True, shots=8192):
+def qk_embedding_paper_noisy_single(x1, x2, weights, wires, layers, simulator, reupload=True, shots=8192, meas_fitter=None):
     x1 = np.resize(x1, len(wires))
     x2 = np.resize(x2, len(wires))
 
     circ1 = build_embedding_paper_circuit(x1, weights, wires, layers, reupload)
     circ2 = build_embedding_paper_circuit(x2, weights, wires, layers, reupload)
 
-    kernel_val = compute_noisy_kernel(circ1, circ2, wires, simulator, shots)
+    kernel_val = compute_noisy_kernel(circ1, circ2, wires, simulator, shots, meas_fitter)
     return torch.tensor(kernel_val, dtype=torch.float32)
+
+def get_circuit_depth(ansatz, x1, x2, weights, wires, layers, simulator, reupload=True):
+    if ansatz == 'he':
+        x1 = np.resize(x1, len(wires))
+        x2 = np.resize(x2, len(wires))
+        circ1 = build_he_circuit(x1, weights, wires, layers, reupload)
+        circ2 = build_he_circuit(x2, weights, wires, layers, reupload)
+    elif ansatz == 'embedding_paper':
+        x1 = np.resize(x1, len(wires))
+        x2 = np.resize(x2, len(wires))
+        circ1 = build_embedding_paper_circuit(x1, weights, wires, layers, reupload)
+        circ2 = build_embedding_paper_circuit(x2, weights, wires, layers, reupload)
+    else:
+        raise ValueError("Unsupported ansatz!")
+
+    full_circ = circ2.inverse().compose(circ1)
+
+    return full_circ.depth()
