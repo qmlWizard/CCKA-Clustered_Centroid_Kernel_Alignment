@@ -94,7 +94,7 @@ class Mitigation:
 
     def _ml_global_decay(self, diag_vals):
         """
-        Predict λ_i using trained polynomial ridge regression model.
+        Predict a single global λ repeated for all samples.
         """
         if self._trained_model is None:
             raise RuntimeError("Train the ML-GLOBAL model first using train_global_decay().")
@@ -107,7 +107,11 @@ class Mitigation:
         ])
 
         X_poly = self._poly.transform(X)
-        return self._trained_model.predict(X_poly)
+        lambda_preds = self._trained_model.predict(X_poly)
+
+        # Make it truly global: take the mean λ and repeat
+        lambda_global = np.mean(lambda_preds)
+        return np.full(n_samples, lambda_global)
 
     def _ml_pairwise_decay(self, diag_vals):
         """
