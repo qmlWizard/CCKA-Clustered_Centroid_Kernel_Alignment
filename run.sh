@@ -1,18 +1,28 @@
+#!/bin/bash
+set -e  # Exit immediately if a command fails
+
+# Activate virtual environment
 source .venv/bin/activate
 
-python3 main.py --backend pennylane --config configs/extended/checkerboard.yaml
-python3 main.py --backend pennylane --config configs/extended/checkerboard_quack.yaml
+# Array of configs
+configs=(
+    "checkerboard"
+    "checkerboard_quack"
+    "corners"
+    "corners_quack"
+    "double_cake"
+    "double_cake_quack"
+    "moons"
+    "moons_quack"
+    "donuts"
+    "donuts_quack"
+)
 
-python3 main.py --backend pennylane --config configs/extended/corners.yaml
-python3 main.py --backend pennylane --config configs/extended/corners_quack.yaml
+# Loop through and run
+for cfg in "${configs[@]}"; do
+    echo "Running config: $cfg"
+    python3 main.py --backend pennylane --config "configs/extended/${cfg}.yaml"
+done
 
-python3 main.py --backend pennylane --config configs/extended/double_cake.yaml
-python3 main.py --backend pennylane --config configs/extended/double_cake_quack.yaml
+echo "Thank You!"
 
-python3 main.py --backend pennylane --config configs/extended/moons.yaml
-python3 main.py --backend pennylane --config configs/extended/moons_quack.yaml
-
-python3 main.py --backend pennylane --config configs/extended/donuts.yaml
-python3 main.py --backend pennylane --config configs/extended/donuts_quack.yaml
-
-echo "Thank You !"
