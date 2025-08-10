@@ -41,13 +41,13 @@ agent:
   mclr:                 [0.01]
   cclr:                 [0.01]
   epochs:               [100]
-  train_method:         ['ccka', 'random']
+  train_method:         ['quack']
   target_accuracy:      0.95
   get_alignment_every:  1
   validate_every_epoch: 1
   base_path:            results/checkerboard
   lambda_kao:           [0.001]
   lambda_co:            [0.001]
-  clusters:             [2, 3, 4, 5, 8, 10]
-  use_kmeans:           [True, False]
+  clusters:             [2]
+  use_kmeans:           [True]
   decesion_boundary:    False
