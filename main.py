@@ -199,63 +199,65 @@ if __name__ == "__main__":
     config = namedtuple("ObjectName", data.keys())(*data.values())
 
     path_from_home = str(Path.cwd())
-    file_path = path_from_home + config.dataset['file']
+    file_path = path_from_home + config.dataset['file'] if config.dataset['file'] is not 'None' else None
     base_path = str((Path.cwd() / str(config.agent['base_path']).lstrip(os.sep)).resolve())
     Path(base_path).mkdir(parents=True, exist_ok=True)
 
-    ray.init(log_to_driver=False)
-    search_space = {
-        'repeat': config.ray_config['ray_iteration'],
-        'name': config.dataset['name'],
-        'file': None if config.dataset['file'] == 'None' else file_path,
-        'n_samples': config.dataset['n_samples'],
-        'noise': config.dataset['noise'],
-        'num_sectors': config.dataset['num_sectors'],
-        'points_per_sector': config.dataset['points_per_sector'],
-        'grid_size': config.dataset['grid_size'],
-        'sampling_radius': config.dataset['sampling_radius'],
-        'training_size': config.dataset['training_size'],
-        'testing_size': config.dataset['testing_size'],
-        'validation_size': config.dataset['validation_size'],
-        'device': config.qkernel['device'],
-        'n_qubits': tune.grid_search(config.qkernel['n_qubits']),
-        'trainable': config.qkernel['trainable'],
-        'input_scaling': config.qkernel['input_scaling'],
-        'data_reuploading': config.qkernel['data_reuploading'],
-        'ansatz': tune.grid_search(config.qkernel['ansatz']),
-        'ansatz_layers': tune.grid_search(config.qkernel['ansatz_layers']),
-        'optimizer': tune.grid_search(config.agent['optimizer']),
-        'lr': tune.grid_search(config.agent['lr']),
-        'mclr': tune.grid_search(config.agent['mclr']),
-        'cclr': tune.grid_search(config.agent['cclr']),
-        'epochs': tune.grid_search(config.agent['epochs']),
-        'train_method': tune.grid_search(config.agent['train_method']),
-        'target_accuracy': config.agent['target_accuracy'],
-        'get_alignment_every': config.agent['get_alignment_every'],
-        'validate_every_epoch': config.agent['validate_every_epoch'],
-        'base_path': base_path,
-        'lambda_kao': tune.grid_search(config.agent['lambda_kao']),
-        'lambda_co': tune.grid_search(config.agent['lambda_co']),
-        'clusters': tune.grid_search(config.agent['clusters']),
-        'decesion_boundary': config.agent['decesion_boundary'],
-        'use_kmeans': tune.grid_search(config.agent['use_kmeans']),
-        'ray_logging_path': config.ray_config['ray_logging_path']  # directory for CSVs
-    }
+    for i in range(1, 5):
+        ray.init(log_to_driver=False)
+        search_space = {
+            'repeat': i,
+            'name': config.dataset['name'],
+            'file': None if config.dataset['file'] == 'None' else file_path,
+            'n_samples': config.dataset['n_samples'],
+            'noise': config.dataset['noise'],
+            'num_sectors': config.dataset['num_sectors'],
+            'points_per_sector': config.dataset['points_per_sector'],
+            'grid_size': config.dataset['grid_size'],
+            'sampling_radius': config.dataset['sampling_radius'],
+            'training_size': config.dataset['training_size'],
+            'testing_size': config.dataset['testing_size'],
+            'validation_size': config.dataset['validation_size'],
+            'device': config.qkernel['device'],
+            'n_qubits': tune.grid_search(config.qkernel['n_qubits']),
+            'trainable': config.qkernel['trainable'],
+            'input_scaling': config.qkernel['input_scaling'],
+            'data_reuploading': config.qkernel['data_reuploading'],
+            'ansatz': tune.grid_search(config.qkernel['ansatz']),
+            'ansatz_layers': tune.grid_search(config.qkernel['ansatz_layers']),
+            'optimizer': tune.grid_search(config.agent['optimizer']),
+            'lr': tune.grid_search(config.agent['lr']),
+            'mclr': tune.grid_search(config.agent['mclr']),
+            'cclr': tune.grid_search(config.agent['cclr']),
+            'epochs': tune.grid_search(config.agent['epochs']),
+            'train_method': tune.grid_search(config.agent['train_method']),
+            'target_accuracy': config.agent['target_accuracy'],
+            'get_alignment_every': config.agent['get_alignment_every'],
+            'validate_every_epoch': config.agent['validate_every_epoch'],
+            'base_path': base_path,
+            'lambda_kao': tune.grid_search(config.agent['lambda_kao']),
+            'lambda_co': tune.grid_search(config.agent['lambda_co']),
+            'clusters': tune.grid_search(config.agent['clusters']),
+            'decesion_boundary': config.agent['decesion_boundary'],
+            'use_kmeans': tune.grid_search(config.agent['use_kmeans']),
+            'ray_logging_path': config.ray_config['ray_logging_path']  # directory for CSVs
+        }
 
-    def trial_name_creator(trial):
-        return trial.__str__() + '_' + trial.experiment_tag + ','
+        def trial_name_creator(trial):
+            print(trial.iteration)
+            return trial.__str__() + '_' + trial.experiment_tag + ','
 
-    tuner = tune.Tuner(
-        tune.with_resources(
-            train,
-            resources={"cpu": config.ray_config['num_cpus'], "gpu": config.ray_config['num_gpus']}
-        ),
-        tune_config=tune.TuneConfig(
-            num_samples=config.ray_config['ray_num_trial_samples'],
-            trial_dirname_creator=trial_name_creator,
-        ),
-        param_space=search_space,
-    )
+        tuner = tune.Tuner(
+            tune.with_resources(
+                train,
+                resources={"cpu": config.ray_config['num_cpus'], "gpu": config.ray_config['num_gpus']}
+            ),
+            tune_config=tune.TuneConfig(
+                num_samples=config.ray_config['ray_num_trial_samples'],
+                trial_dirname_creator=trial_name_creator,
+            ),
+            param_space=search_space,
+        )
 
-    tuner.fit()
-    ray.shutdown()
+        tuner.fit()
+        ray.shutdown()
