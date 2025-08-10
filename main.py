@@ -10,13 +10,16 @@ from collections import namedtuple
 import os
 import datetime
 import sys
+import time
 from pathlib import Path
+
 
 # Custom Libraries
 from utils.data_generator import DataGenerator
 from utils.agent import TrainModel
-from utils.helper import to_python_native, gen_experiment_name, set_seed, save_model_state
+from utils.helper import to_python_native, gen_experiment_name, set_seed, save_model_state, _now_iso, _safe_bool_str, _ensure_dir, _append_csv_row
 from utils.plotter import alignment_progress_over_iterations, plot_initial_final_accuracies
+from utils.logger import Logger
 
 # === Backend Configuration ===
 if torch.backends.mps.is_available():
@@ -32,7 +35,29 @@ print("Select device: ", device)
 
 set_seed(42)
 
+# === NEW/UPDATED: CSV helpers and fixed columns ===
+PER_ITER_COLUMNS = [
+    "dataset","method","run_id","iteration","accuracy","alignment","loss",
+    "circuits","time_sec","subcentroids","noise_level","mitigation","n_samples"
+]
+PER_RUN_COLUMNS = [
+    "dataset","method","run_id","test_accuracy","train_time_sec","circuits_total",
+    "subcentroids","noise_level","mitigation","n_samples"
+]
+
+# === END helpers ===
+
 def train(config):
+
+    logger = Logger(dataset_name=config['name'], log_dir=config['ray_logging_path'], mirror_json=False)
+
+    repeat_idx = int(config.get('repeat', 1))
+    
+    # Build paths
+    ray_logging_path = Path(config['ray_logging_path'])
+    per_iter_csv = ray_logging_path / "per_iter_logs.csv"
+    per_run_csv = ray_logging_path / "per_run_summary.csv"
+
     name_str = f"_{config['name']}_{config['n_qubits']}_{config['ansatz']}_{config['ansatz_layers']}_{config['optimizer']}_{config['lr']}_{config['mclr']}_{config['cclr']}_{config['train_method']}_{config['lambda_kao']}_{config['lambda_co']}_{config['clusters']}_Kmeans_{config['use_kmeans']}"
 
     data_generator = DataGenerator(
@@ -53,7 +78,17 @@ def train(config):
     testing_labels = torch.tensor(testing_labels.to_numpy(), dtype=torch.int)
     multi_class = True if int(training_labels.unique().numel()) == 2 else False
 
+    # === NEW/UPDATED: run identifiers and static fields ===
+    exp_name = gen_experiment_name(config)
+    run_id = f"{exp_name}_rep{repeat_idx}"
+    dataset_name = config['name']
+    method = str(config.get('train_method', 'CCKA')) or "CCKA"
+    subcentroids = config.get('clusters', "")
+    noise_level = config.get('noise', "")
+    mitigation = _safe_bool_str(config.get('mitigation', ""))  # not in your search_space yet; remains blank
+    n_samples = config.get('n_samples', "")
 
+    # === Kernel/model ===
     kernel = Qkernel(
         device=config['device'],
         n_qubits=config['n_qubits'],
@@ -84,61 +119,76 @@ def train(config):
         lambda_co=config['lambda_co'],
         clusters=config['clusters'],
         get_decesion_boundary = config['decesion_boundary'],
-        use_kmeans= config['use_kmeans']
-    )
+        use_kmeans= config['use_kmeans'],
+        logger = logger,
+        config=config,
+        run_id=run_id,
+    )   
 
+    # Pre-train evaluation
     if args.backend == 'qiskit':
         before_metrics = agent.evaluate_parallel(testing_data, testing_labels, 'before')
     else:
         before_metrics = agent.evaluate_test(testing_data, testing_labels, 'before')
-
     print(before_metrics)
 
-    if multi_class == True:
+    # === Training (timed)
+    t0 = time.time()
+    if multi_class:
         kernel, params, main_centroid, sub_centroid = agent.fit_multiclass(training_data, training_labels)
     else:
         kernel, params, main_centroid, sub_centroid = agent.fit_kernel(training_data, training_labels)
+    train_time_sec = time.time() - t0
     print('Training Complete')
-    
+
+    # Post-train evaluation
     if args.backend == 'qiskit':
         after_metrics = agent.evaluate_parallel(testing_data, testing_labels, 'after')
     else:
         after_metrics = agent.evaluate_test(testing_data, testing_labels, 'after')
     print(after_metrics)
-    
-    metrics = {
+
+    # === Build per-run JSON-like metrics (Ray) and append to CSV ===
+    circuits_total = after_metrics.get('executions', None)
+    test_acc_final = after_metrics.get('testing_accuracy', None)
+
+    # session.report for Ray dashboards (rich metrics bundle)
+    ray_metrics = {
+        "dataset": dataset_name,
+        "method": method,
+        "run_id": run_id,
         "num_layers": config['ansatz_layers'],
-        "accuracy_train_init": before_metrics['training_accuracy'],
-        "accuracy_test_init": before_metrics['testing_accuracy'],
-        "alignment_train_init": before_metrics['alignment'],
-        "accuracy_train_final": after_metrics['training_accuracy'],
-        "accuracy_test_final": after_metrics['testing_accuracy'],
-        "alignment_train_epochs": after_metrics['alignment_arr'],
-        "circuit_executions": after_metrics['executions'],
+        "accuracy_train_init": before_metrics.get('training_accuracy', None),
+        "accuracy_test_init": before_metrics.get('testing_accuracy', None),
+        "alignment_train_init": before_metrics.get('alignment', None),
+        "accuracy_train_final": after_metrics.get('training_accuracy', None),
+        "accuracy_test_final": test_acc_final,
+        "alignment_train_epochs": after_metrics.get('alignment_arr', None),
+        "circuit_executions": circuits_total,
+        "train_time_sec": train_time_sec,
+        "subcentroids": subcentroids,
+        "noise_level": noise_level,
+        "mitigation": mitigation,
+        "n_samples": n_samples,
+    }
+    session.report(to_python_native(ray_metrics))
+
+    # Append per-run summary CSV row (exact schema)
+    per_run_row = {
+        "dataset": dataset_name,
+        "method": method,
+        "run_id": run_id,
+        "test_accuracy": test_acc_final if test_acc_final is not None else "",
+        "train_time_sec": f"{train_time_sec:.6f}",
+        "circuits_total": circuits_total if circuits_total is not None else "",
+        "subcentroids": subcentroids,
+        "noise_level": noise_level,
+        "mitigation": mitigation,
+        "n_samples": n_samples,
     }
 
-    metrics = to_python_native(metrics)
-    exp_name = gen_experiment_name(config)
+    logger.log_per_run(per_run_row)
 
-    alignment_arr = after_metrics["alignment_arr"]
-    alignment_progress_over_iterations(
-                                       alignment_arr,
-                                       path = config['base_path'],
-                                       title = f"alignment_{name_str}"
-                                      )
-
-    plot_initial_final_accuracies(
-                                  before_metrics['training_accuracy'], 
-                                  before_metrics['testing_accuracy'], 
-                                  after_metrics['training_accuracy'], 
-                                  after_metrics['testing_accuracy'],
-                                  path = config['base_path'],
-                                  title= f"accuracy_{name_str}"
-                                )
-
-    save_model_state(kernel, params, main_centroid, sub_centroid, f"{config['base_path']}/model/model_{name_str}.pth")
-    
-    session.report(metrics)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="This parser receives the yaml config file")
@@ -161,6 +211,7 @@ if __name__ == "__main__":
 
     ray.init(log_to_driver=False)
     search_space = {
+        'repeat': tune.grid_search(list(range(1, config.ray_config['ray_num_trial_samples'] + 1))),
         'name': config.dataset['name'],
         'file': None if config.dataset['file'] == 'None' else file_path,
         'n_samples': config.dataset['n_samples'],
@@ -194,25 +245,23 @@ if __name__ == "__main__":
         'clusters': tune.grid_search(config.agent['clusters']),
         'decesion_boundary': config.agent['decesion_boundary'],
         'use_kmeans': tune.grid_search(config.agent['use_kmeans']),
-        'ray_logging_path': config.ray_config['ray_logging_path']
+        'ray_logging_path': config.ray_config['ray_logging_path']  # directory for CSVs
     }
 
     def trial_name_creator(trial):
         return trial.__str__() + '_' + trial.experiment_tag + ','
 
     tuner = tune.Tuner(
-                        tune.with_resources(train, 
-                                            resources={"cpu": config.ray_config['num_cpus'], 
-                                                    "gpu": config.ray_config['num_gpus']}
-                                            ),
-                        
-                        tune_config=tune.TuneConfig(
-                                                    num_samples=config.ray_config['ray_num_trial_samples'],
-                                                    trial_dirname_creator=trial_name_creator,
-                                                ),
-
-                        param_space=search_space,
-                    )
+        tune.with_resources(
+            train,
+            resources={"cpu": config.ray_config['num_cpus'], "gpu": config.ray_config['num_gpus']}
+        ),
+        tune_config=tune.TuneConfig(
+            num_samples=config.ray_config['ray_num_trial_samples'],
+            trial_dirname_creator=trial_name_creator,
+        ),
+        param_space=search_space,
+    )
 
     tuner.fit()
     ray.shutdown()

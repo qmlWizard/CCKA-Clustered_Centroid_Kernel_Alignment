@@ -1,18 +1,7 @@
-import pennylane as qml
 from pennylane import numpy as np
 import torch
-from torch import nn
-from torch.utils.data import DataLoader, TensorDataset
-import torch.optim as optim
-from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-import math
-import yaml
-import time
-import os
-
+import datetime
+from pathlib import Path
 
 def to_python_native(obj):
     if isinstance(obj, torch.Tensor):  # Convert tensors to Python scalars
@@ -93,20 +82,38 @@ def to_numpy_kernel(K):
     except ImportError:
         pass
 
-    # Case 3: TensorFlow Tensor
-    try:
-        import tensorflow as tf
-        if isinstance(K, tf.Tensor):
-            return K.numpy()
-    except ImportError:
-        pass
-
-    # Case 4: Qiskit Matrix or List
+    # Case 3: Qiskit Matrix or List
     if hasattr(K, 'tolist'):
         return np.array(K.tolist(), dtype=np.float64)
 
-    # Case 5: Plain Python list or nested lists
+    # Case 4: Plain Python list or nested lists
     if isinstance(K, (list, tuple)):
         return np.array(K, dtype=np.float64)
 
     raise TypeError(f"Unsupported kernel type: {type(K)}")
+
+
+def _ensure_dir(p: Path):
+    p.mkdir(parents=True, exist_ok=True)
+
+def _append_csv_row(csv_path: Path, row: dict, header_cols: list):
+    _ensure_dir(csv_path.parent)
+    file_exists = csv_path.exists()
+    with csv_path.open("a", newline="") as f:
+        if not file_exists:
+            f.write(",".join(header_cols) + "\n")
+        # write row with missing values as empty
+        vals = [str(row.get(col, "")) for col in header_cols]
+        f.write(",".join(vals) + "\n")
+
+def _safe_bool_str(x):
+    if isinstance(x, bool): return "on" if x else "off"
+    if x in (None, "", "None"): return ""
+    # accept "on"/"off"/"true"/"false"
+    s = str(x).strip().lower()
+    if s in ["true","on","1","yes"]: return "on"
+    if s in ["false","off","0","no"]: return "off"
+    return s
+
+def _now_iso():
+    return datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")

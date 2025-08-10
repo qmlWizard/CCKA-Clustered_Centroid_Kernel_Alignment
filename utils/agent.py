@@ -42,7 +42,10 @@ class TrainModel():
                  lambda_co=0.01,
                  clusters=4,
                  get_decesion_boundary = False,
-                 use_kmeans = False
+                 use_kmeans = False,
+                 logger = None,
+                 config=None,
+                 run_id=None
                  ):
         super().__init__()
         self._kernel = kernel
@@ -87,6 +90,9 @@ class TrainModel():
         if self._method in ['ccka', 'quack']:
             self._epochs = int(epochs / 10)
             self._get_alignment_every = int(self._get_alignment_every / 10)
+        self._logger = logger
+        self._config = config
+        self._run_id = run_id  # Use run_id from config if available
 
         data_dim = self._training_data.shape[1]
         self._class_centroids = nn.ParameterList([
@@ -192,8 +198,6 @@ class TrainModel():
         if result.numel() != 1:
             raise RuntimeError(f"Expected scalar result but got shape {result.shape} with {result.numel()} elements")
         return result.reshape(())
-
-
     
     def _loss_kao(self, K, Y, cl):
         TA = self.centroid_target_alignment(K, Y, cl)
@@ -259,6 +263,7 @@ class TrainModel():
         self.kernel_params_history = []  
         self.best_kernel_params = None
         for epoch in range(epochs):
+            time0 = time.time()
             if self._method in ['ccka', 'quack']:
                 for nkao in range(10):
                     _class = epoch % len(self._n_classes)
@@ -290,6 +295,7 @@ class TrainModel():
                         class_centroid_labels = training_labels 
                     x_0 = main_centroid.repeat(class_centroids.shape[0],1)
                     x_1 = class_centroids 
+                    self._per_epoch_executions += x_0.shape[0]
                     self._optimizers[_class].zero_grad()
                     K = self._kernel(x_0, x_1).to(torch.float32)
                     current_label = self._n_classes[_class].item()
@@ -297,23 +303,9 @@ class TrainModel():
                     loss_co.backward()
                     self._optimizers[_class].step()              
 
-                if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
-                    x_0 = self._main_centroids[0].repeat(class_centroids.shape[0], 1)
-                    x_1 = class_centroids
-                    K = self._kernel(x_0, x_1).to(torch.float32)
-                    current_alignment0 = self.centroid_target_alignment(K, class_centroid_labels, -1)
-
-                    x_0 = self._main_centroids[1].repeat(class_centroids.shape[0], 1)
-                    x_1 = class_centroids
-                    K = self._kernel(x_0, x_1).to(torch.float32)
-                    current_alignment1 = self.centroid_target_alignment(K, class_centroid_labels, 1)
-
-                    self.alignment_arr0.append(current_alignment0.detach().cpu().numpy())
-                    self.alignment_arr1.append(current_alignment1.detach().cpu().numpy())
-                    print("------------------------------------------------------------------")
-                    print(f"Epoch: {epoch}th, Alignment Centroid  1 : {current_alignment0}")
-                    print(f"Epoch: {epoch}th, Alignment Centroid -1 : {current_alignment1}")
-                    print("------------------------------------------------------------------")
+                evaluation_metrics = self.evaluate_test(self._testing_data, self._testing_labels, position=epoch)
+                acc_iter = evaluation_metrics['testing_accuracy']
+                current_alignment = evaluation_metrics['alignment']
             else:
                 sampled_data, sampled_labels = samples_func(training_data, training_labels)
                 sampled_labels = sampled_labels.to(torch.float32)
@@ -326,16 +318,27 @@ class TrainModel():
                 optimizer.step()
                 self._loss_arr.append(loss.item())
                 self._per_epoch_executions += x_0.shape[0]
-                if self._get_alignment_every and (epoch + 1) % self._get_alignment_every * 10 == 0:
-                    x_0 = training_data.repeat(training_data.shape[0],1)
-                    x_1 = training_data.repeat_interleave(training_data.shape[0], dim=0)
-                    K = self._kernel(x_0, x_1).to(torch.float32)
-                    self._training_labels = torch.tensor(self._training_labels, dtype = torch.float32) 
-                    current_alignment = loss_func(K.reshape(self._training_data.shape[0],self._training_data.shape[0]), self._training_labels)
-                    self.alignment_arr0.append(current_alignment.detach().cpu().numpy())
-                    print("------------------------------------------------------------------")
-                    print(f"Epoch: {epoch}th, Alignment: {current_alignment}")
-                    print("------------------------------------------------------------------")
+                evaluation_metrics = self.evaluate(self._testing_data, self._testing_labels, position=epoch)
+                acc_iter = evaluation_metrics['testing_accuracy']
+                current_alignment = evaluation_metrics['alignment']
+            if self._logger:
+                # Per-iteration (inside your train loop or iter_logger callback)
+                self._logger.log_per_iter({
+                                            "repeat": self._config.get('repeat', 1),
+                                            "dataset": self._config['name'],
+                                            "method": self._config.get('train_method', 'CCKA'),
+                                            "run_id": self._run_id,                         # include repeat suffix if used
+                                            "iteration": epoch,                             # 1..epochs
+                                            "accuracy": acc_iter,                           # per-epoch accuracy
+                                            "alignment": current_alignment,                 # per-epoch alignment
+                                            "loss": loss_kao if self._method in ['ccka', 'quack'] else loss,
+                                            "circuits": self._per_epoch_executions,
+                                            "time_sec": time.time() - time0,
+                                            "subcentroids": self._config.get('clusters', ""),
+                                            "noise_level": self._config.get('noise', ""),
+                                            "mitigation": "",                               # "on"/"off" if you have it
+                                            "n_samples": self._config.get('n_samples', "")
+                                        })
         
         return  self._kernel, list(self._kernel.parameters()), self._main_centroids, self._class_centroids
 
@@ -350,6 +353,7 @@ class TrainModel():
         self.best_kernel_params = None
         self._n = int(training_labels.unique().numel())
         for epoch in range(epochs):
+            time0 = time.time()
             for _class in range(self._n):
                 for nkao in range(10):
                     class_idx = _class if isinstance(_class, int) else _class.item()
@@ -383,31 +387,28 @@ class TrainModel():
                     self._optimizers[_class].step()
 
             if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
-                class_centroids = torch.stack(list(self._class_centroids))
-                class_centroid_labels = torch.stack(list(self._class_centroid_labels))
-
-                self.alignment_arr = []  # make sure this is initialized in __init__ as list of lists or dict if needed
-
-                print("------------------------------------------------------------------")
-                print(f"Epoch: {epoch} — Alignment per main centroid")
-
-                for i, main_centroid in enumerate(self._main_centroids):
-                    x_0 = main_centroid.repeat(class_centroids.shape[0], 1)
-                    x_1 = class_centroids
-
-                    K = self._kernel(x_0, x_1).to(torch.float32)
-
-                    # Create binary labels: +1 for current class, -1 for others
-                    binary_labels = torch.where(class_centroid_labels == i, 1, -1)
-
-                    current_alignment = self.centroid_target_alignment(K, binary_labels, 1)  # target label is +1
-
-                    # Optional: use a dict or list of lists to store each alignment
-                    self.alignment_arr.append(current_alignment.detach().cpu().numpy())
-
-                    print(f"Centroid {i} (label={i}): Alignment = {current_alignment.item()}")
-
-                print("------------------------------------------------------------------")
+                evaluation_metrics = self.evaluate_test(self._testing_data, self._testing_labels, position=epoch)
+                acc_iter = evaluation_metrics['testing_accuracy']
+                current_alignment = evaluation_metrics['alignment']
+            
+            if self._logger:
+                # Per-iteration (inside your train loop or iter_logger callback)
+                self._logger.log_per_iter({
+                                            "repeat": self._config.get('repeat', 1),
+                                            "dataset": self._config['name'],
+                                            "method": self._config.get('train_method', 'CCKA'),
+                                            "run_id": self._run_id,                         # include repeat suffix if used
+                                            "iteration": epoch,                             # 1..epochs
+                                            "accuracy": acc_iter,                           # per-epoch accuracy
+                                            "alignment": current_alignment,                 # per-epoch alignment
+                                            "loss": loss_kao ,
+                                            "circuits": self._per_epoch_executions,
+                                            "time_sec": time.time() - time0,
+                                            "subcentroids": self._config.get('clusters', ""),
+                                            "noise_level": self._config.get('noise', ""),
+                                            "mitigation": "",                               # "on"/"off" if you have it
+                                            "n_samples": self._config.get('n_samples', "")
+                                        })
 
         return self._kernel, list(self._kernel.parameters()), self._main_centroids, self._class_centroids
 
