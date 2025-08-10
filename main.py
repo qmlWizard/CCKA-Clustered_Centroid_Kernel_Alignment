@@ -1,3 +1,4 @@
+import tempfile
 import torch
 import ray
 from ray import tune
@@ -18,8 +19,8 @@ from pathlib import Path
 from utils.data_generator import DataGenerator
 from utils.agent import TrainModel
 from utils.helper import to_python_native, gen_experiment_name, set_seed, save_model_state, _now_iso, _safe_bool_str, _ensure_dir, _append_csv_row
-from utils.plotter import alignment_progress_over_iterations, plot_initial_final_accuracies
 from utils.logger import Logger
+print("Logger class loaded from:", Logger.__module__)
 
 # === Backend Configuration ===
 if torch.backends.mps.is_available():
@@ -48,17 +49,9 @@ PER_RUN_COLUMNS = [
 # === END helpers ===
 
 def train(config):
-
-    logger = Logger(dataset_name=config['name'], log_dir=config['ray_logging_path'], mirror_json=False)
+    logger = Logger(dataset_name=config['name'], log_dir=config.get('base_path'), mirror_json=False)
 
     repeat_idx = int(config.get('repeat', 1))
-    
-    # Build paths
-    ray_logging_path = Path(config['ray_logging_path'])
-    per_iter_csv = ray_logging_path / "per_iter_logs.csv"
-    per_run_csv = ray_logging_path / "per_run_summary.csv"
-
-    name_str = f"_{config['name']}_{config['n_qubits']}_{config['ansatz']}_{config['ansatz_layers']}_{config['optimizer']}_{config['lr']}_{config['mclr']}_{config['cclr']}_{config['train_method']}_{config['lambda_kao']}_{config['lambda_co']}_{config['clusters']}_Kmeans_{config['use_kmeans']}"
 
     data_generator = DataGenerator(
         dataset_name=config['name'],
@@ -207,11 +200,12 @@ if __name__ == "__main__":
 
     path_from_home = str(Path.cwd())
     file_path = path_from_home + config.dataset['file']
-    base_path = path_from_home + config.agent['base_path']
+    base_path = str((Path.cwd() / str(config.agent['base_path']).lstrip(os.sep)).resolve())
+    Path(base_path).mkdir(parents=True, exist_ok=True)
 
     ray.init(log_to_driver=False)
     search_space = {
-        'repeat': tune.grid_search(list(range(1, config.ray_config['ray_num_trial_samples'] + 1))),
+        'repeat': config.ray_config['ray_iteration'],
         'name': config.dataset['name'],
         'file': None if config.dataset['file'] == 'None' else file_path,
         'n_samples': config.dataset['n_samples'],

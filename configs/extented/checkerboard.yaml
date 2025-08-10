@@ -2,12 +2,13 @@
 
 ray_config:
   ray_local_mode:         False
-  num_cpus:               2
+  num_cpus:               4
   num_gpus:               0
   method:                 QuantumKernels
-  ray_logging_path:       logs/checkerboard
-  ray_num_trial_samples:  5
+  ray_logging_path:       checkerboard
+  ray_num_trial_samples:  1
   type:                   train
+  ray_iteration:          1
 
 ## DataSet Configuration
 dataset:
@@ -44,7 +45,7 @@ agent:
   target_accuracy:      0.95
   get_alignment_every:  1
   validate_every_epoch: 1
-  base_path:            /results/checkerboard
+  base_path:            results/checkerboard
   lambda_kao:           [0.001]
   lambda_co:            [0.001]
   clusters:             [2, 3, 4, 5, 8, 10]

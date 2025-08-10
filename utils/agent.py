@@ -17,7 +17,6 @@ import yaml
 import time
 import os
 from utils.helper import to_python_native
-from utils.plotter import kernel_heatmap, decision_boundary, decision_boundary_pennylane
 from utils.probabilistic_classifer import CentroidBasedClassifier
 
 
@@ -386,10 +385,9 @@ class TrainModel():
                     loss_co.backward()
                     self._optimizers[_class].step()
 
-            if self._get_alignment_every and (epoch + 1) % self._get_alignment_every == 0:
-                evaluation_metrics = self.evaluate_test(self._testing_data, self._testing_labels, position=epoch)
-                acc_iter = evaluation_metrics['testing_accuracy']
-                current_alignment = evaluation_metrics['alignment']
+            evaluation_metrics = self.evaluate_test(self._testing_data, self._testing_labels, position=epoch)
+            acc_iter = evaluation_metrics['testing_accuracy']
+            current_alignment = evaluation_metrics['alignment']
             
             if self._logger:
                 # Per-iteration (inside your train loop or iter_logger callback)
@@ -464,18 +462,6 @@ class TrainModel():
         accuracy = accuracy_score(test_labels_np, test_preds.numpy())
         f1 = f1_score(test_labels_np, test_preds.numpy(), average='weighted')
 
-        if self._get_decesion_boundary:
-            df = decision_boundary_pennylane(
-                model=clf,
-                training_data=self._training_data,
-                training_labels=self._training_labels,
-                test_data=test_data,
-                test_labels=test_labels,
-                kernel_fn=self._kernel,
-                path=self._base_path,
-                title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{self._method}_{self._kernel._n_qubits}_{position}"
-            )
-
 
         metrics = {
             'alignment': current_alignment,
@@ -511,17 +497,7 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
-        if self._get_decesion_boundary == True:
-            df = decision_boundary_pennylane(
-                                    model=self._model,
-                                    training_data=self._training_data,
-                                    training_labels=self._training_labels,
-                                    test_data=test_data,
-                                    test_labels=test_labels,
-                                    kernel_fn=self._kernel,
-                                    path=self._base_path,
-                                    title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{self._method}_{self._kernel._n_qubits}_{position}"
-                                )
+
         metrics = {
             'alignment': current_alignment,
             'executions': self._per_epoch_executions,
@@ -574,17 +550,6 @@ class TrainModel():
         predictions = self._model.predict(_matrix)
         accuracy = accuracy_score(test_labels, predictions)
         f1 = f1_score(test_labels, predictions, average='weighted')
-        df = decision_boundary(
-                                model=self._model,
-                                training_data=self._training_data,
-                                training_labels=self._training_labels,
-                                test_data=test_data,
-                                test_labels=test_labels,
-                                kernel=self._kernel,
-                                compute_test_kernel_row=self.compute_test_kernel_row,
-                                path=self._base_path,
-                                title=f"decision_boundary_plot_{self._clusters}_{self._kernel._ansatz}_{position}"
-                            )
 
         metrics = {
             'alignment': current_alignment,

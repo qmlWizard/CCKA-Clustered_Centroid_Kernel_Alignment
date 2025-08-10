@@ -1,8 +1,18 @@
-import os
-import json
 from pathlib import Path
 from typing import Dict, List, Optional
 import pandas as pd
+import os, json, time
+
+# Try POSIX advisory locking; fallback to naive retry on non-POSIX.
+try:
+    import fcntl
+    def _lock_file(f):
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+    def _unlock_file(f):
+        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+except Exception:
+    def _lock_file(f): pass
+    def _unlock_file(f): pass
 
 PER_ITER_COLUMNS = [
     "dataset","method","run_id","iteration","accuracy","alignment","loss",
@@ -51,6 +61,16 @@ class Logger:
         if self.mirror_json:
             self._ensure_json_array(self.per_iter_json_path)
             self._ensure_json_array(self.per_run_json_path)
+        
+        self.log_dir = Path(log_dir).resolve()
+        try:
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            print(f"[Logger] Could not create {self.log_dir} ({e}). Falling back to /tmp.")
+            self.log_dir = Path("/tmp/ray_logs_fallback")
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        print(f"[Logger] Writing logs to: {self.log_dir}")
 
     # ------------- public API -------------
 
@@ -93,17 +113,36 @@ class Logger:
     # ------------- helpers -------------
 
     @staticmethod
-    def _ensure_csv_header(path: Path, header_cols: List[str]):
+    def _ensure_csv_header(path: Path, header_cols):
         if not path.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
-            with path.open("w", newline="") as f:
-                f.write(",".join(header_cols) + "\n")
+            with path.open("a", newline="") as f:
+                _lock_file(f)
+                try:
+                    if f.tell() == 0:
+                        f.write(",".join(header_cols) + "\n")
+                        f.flush(); os.fsync(f.fileno())
+                finally:
+                    _unlock_file(f)
 
     @staticmethod
-    def _append_csv_row(path: Path, row: Dict, header_cols: List[str]):
+    def _append_csv_row(path: Path, row: dict, header_cols):
         vals = [Logger._to_str(row.get(col, "")) for col in header_cols]
-        with path.open("a", newline="") as f:
-            f.write(",".join(vals) + "\n")
+        for attempt in range(5):
+            try:
+                with path.open("a", newline="") as f:
+                    _lock_file(f)
+                    try:
+                        f.write(",".join(vals) + "\n")
+                        f.flush(); os.fsync(f.fileno())
+                    finally:
+                        _unlock_file(f)
+                break
+            except OSError as e:
+                time.sleep(0.05 * (attempt + 1))
+                if attempt == 4:
+                    print(f"[Logger] Failed to append to {path}: {e}")
+
 
     @staticmethod
     def _read_csv(path: Path, header_cols: List[str]) -> pd.DataFrame:
