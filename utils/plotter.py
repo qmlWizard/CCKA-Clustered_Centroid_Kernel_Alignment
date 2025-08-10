@@ -26,7 +26,6 @@ def kernel_heatmap(K, path, title="Kernel Heatmap"):
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.set_facecolor(background_color)
     sns.heatmap(K, cmap='viridis', ax=ax)
-    ax.set_title(title, fontsize=14, fontweight='bold')
     ax.set_xlabel("Samples", fontsize=12)
     ax.set_ylabel("Samples", fontsize=12)
     ax.spines['top'].set_visible(False)
@@ -61,7 +60,6 @@ def alignment_progress_over_iterations(alignment_arrs, path, title="Alignment Pr
         ax.plot(processed[0], label='Alignment', color=color_pos)
 
     # Axis and title setup
-    ax.set_title(title, fontsize=14, fontweight='bold')
     ax.set_xlabel("Iteration", fontsize=12)
     ax.set_ylabel("Alignment Score", fontsize=12)
     ax.grid(True, linestyle='--', alpha=0.6)
@@ -118,7 +116,6 @@ def plot_initial_final_accuracies(initial_train_acc, initial_test_acc,
 
     # Add labels and titles
     ax.set_ylabel('Accuracy (%)', fontsize=12)
-    ax.set_title(title, fontsize=14, fontweight='bold')
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=12)
     ax.legend()
@@ -209,7 +206,6 @@ def decision_boundary(model, training_data, training_labels, test_data, test_lab
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    ax.set_title(title, fontsize=8, fontweight='bold', pad=10)
     ax.legend(loc='upper right', fontsize=8, frameon=False)
 
     os.makedirs(path, exist_ok=True)
@@ -289,7 +285,6 @@ def decision_boundary_pennylane(model, training_data, training_labels, test_data
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    ax.set_title(title, fontsize=8, fontweight='bold', pad=10)
     ax.legend(loc='upper right', fontsize=8, frameon=False)
 
     os.makedirs(path, exist_ok=True)

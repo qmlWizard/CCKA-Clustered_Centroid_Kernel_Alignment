@@ -9,7 +9,8 @@ import shutil
 from collections import namedtuple
 import os
 import datetime
-
+import sys
+from pathlib import Path
 
 # Custom Libraries
 from utils.data_generator import DataGenerator
@@ -26,6 +27,8 @@ elif torch.xpu.is_available():
     device = torch.device("xpu")
 else:
     device = torch.device("cpu")
+
+print("Select device: ", device)
 
 set_seed(42)
 
@@ -152,10 +155,14 @@ if __name__ == "__main__":
         data = yaml.load(f, Loader=yaml.FullLoader)
     config = namedtuple("ObjectName", data.keys())(*data.values())
 
+    path_from_home = str(Path.cwd())
+    file_path = path_from_home + config.dataset['file']
+    base_path = path_from_home + config.agent['base_path']
+
     ray.init(log_to_driver=False)
     search_space = {
         'name': config.dataset['name'],
-        'file': None if config.dataset['file'] == 'None' else config.dataset['file'],
+        'file': None if config.dataset['file'] == 'None' else file_path,
         'n_samples': config.dataset['n_samples'],
         'noise': config.dataset['noise'],
         'num_sectors': config.dataset['num_sectors'],
@@ -181,7 +188,7 @@ if __name__ == "__main__":
         'target_accuracy': config.agent['target_accuracy'],
         'get_alignment_every': config.agent['get_alignment_every'],
         'validate_every_epoch': config.agent['validate_every_epoch'],
-        'base_path': config.agent['base_path'],
+        'base_path': base_path,
         'lambda_kao': tune.grid_search(config.agent['lambda_kao']),
         'lambda_co': tune.grid_search(config.agent['lambda_co']),
         'clusters': tune.grid_search(config.agent['clusters']),

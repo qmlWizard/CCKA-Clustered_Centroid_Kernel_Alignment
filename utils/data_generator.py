@@ -8,13 +8,25 @@ from sklearn.decomposition import PCA
 from matplotlib.colors import ListedColormap
 from sklearn.inspection import DecisionBoundaryDisplay
 from sklearn.model_selection import train_test_split
-
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (needed for 3D)
+from sklearn.decomposition import PCA
 
 
 class DataGenerator:
 
-    def __init__(self, dataset_name=None, file_path=None, n_samples=1000, noise=0.1, num_sectors=3, points_per_sector=10,
-                 grid_size=4, sampling_radius=0.05, n_pca_features=None):
+    def __init__(self, 
+                 dataset_name=None, 
+                 file_path=None, 
+                 n_samples=1000, 
+                 noise=0.1, 
+                 num_sectors=3, 
+                 points_per_sector=10,
+                 grid_size=4, 
+                 sampling_radius=0.05, 
+                 n_pca_features=None,
+                 test_size=0.2
+        ):
+        
         self.dataset_name = dataset_name
         self.file_path = file_path
         self.n_samples = n_samples
@@ -25,6 +37,7 @@ class DataGenerator:
         self.sampling_radius = sampling_radius
         self.n_pca_features = n_pca_features
         self.dmin, self.dmax = 0, 1
+        self._test_size = test_size
 
     from sklearn.datasets import load_wine  # Add this import if not already present
 
@@ -136,7 +149,7 @@ class DataGenerator:
             if self.n_pca_features:
                 X_scaled = self.apply_pca(X_scaled)
 
-            x_train_scaled, x_test_scaled, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+            x_train_scaled, x_test_scaled, y_train, y_test = train_test_split(X, y, test_size=self._test_size, random_state=42)
 
             return (
                     pd.DataFrame(x_train_scaled, columns=[f'Feature {i+1}' for i in range(x_train_scaled.shape[1])]),
@@ -213,71 +226,181 @@ class DataGenerator:
         y = np.array(labels)
         return X, y
 
+
+
+    def _to_numpy(self, x):
+        # Accept torch, pandas, numpy
+        try:
+            import torch
+            if isinstance(x, torch.Tensor):
+                return x.detach().cpu().numpy()
+        except Exception:
+            pass
+        import pandas as pd
+        if isinstance(x, (pd.DataFrame, pd.Series)):
+            return x.to_numpy()
+        return np.asarray(x)
+
     def plot_dataset(self, train_features, train_labels, test_features, test_labels, classifier=None):
+        # --- Normalize types ---
+        Xtr = self._to_numpy(train_features)
+        Xte = self._to_numpy(test_features)
+        ytr = self._to_numpy(train_labels).reshape(-1)
+        yte = self._to_numpy(test_labels).reshape(-1)
 
-        # Convert torch tensors to numpy arrays for compatibility with matplotlib
-        #train_features = train_features.detach().cpu().numpy()
-        #train_labels = train_labels.detach().cpu().numpy()
-        #test_features = test_features.detach().cpu().numpy()
-        #test_labels = test_labels.detach().cpu().numpy()
+        # Ensure 2D feature arrays
+        if Xtr.ndim == 1: Xtr = Xtr.reshape(-1, 1)
+        if Xte.ndim == 1: Xte = Xte.reshape(-1, 1)
 
-        train_features = train_features.to_numpy() if isinstance(train_features, pd.DataFrame) else train_features
-        test_features = test_features.to_numpy() if isinstance(test_features, pd.DataFrame) else test_features
-        train_labels = train_labels.to_numpy() if isinstance(train_labels, pd.Series) else train_labels
-        test_labels = test_labels.to_numpy() if isinstance(test_labels, pd.Series) else test_labels
+        assert Xtr.shape[1] == Xte.shape[1], "Train/Test feature dims differ"
+        d = Xtr.shape[1]
 
-        fig, ax = plt.subplots(figsize=(6, 6))
+        # Style
+        fig = None
         plt.style.use('seaborn-v0_8')
 
-        # Set background color to gray
-        ax.set_facecolor("#eaeaf2")
+        # Colors for labels +1 / -1 (fallback otherwise)
+        pos_color = '#ff7f0f'
+        neg_color = '#1f77b4'
 
-        # Plot decision boundary if classifier is provided
-        if classifier:
-            x_min, x_max = min(train_features[:, 0].min(), test_features[:, 0].min()) - 1, max(train_features[:, 0].max(), test_features[:, 0].max()) + 1
-            y_min, y_max = min(train_features[:, 1].min(), test_features[:, 1].min()) - 1, max(train_features[:, 1].max(), test_features[:, 1].max()) + 1
-            xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))
-            Z = classifier.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
-            cmap_background = ListedColormap(["#ffcccb", "#add8e6"])
-            ax.contourf(xx, yy, Z, alpha=0.3, cmap=cmap_background)
+        # --- 1D ---
+        if d == 1:
+            fig, ax = plt.subplots(figsize=(7, 3))
+            ax.set_facecolor("#eaeaf2")
 
-        # Plot training data as solid circles
-        ax.scatter(
-            train_features[train_labels == 1][:, 0], train_features[train_labels == 1][:, 1],
-            c='#ff7f0f', s=160, edgecolor='#ff7f0f', alpha=0.8
-        )
-        ax.scatter(
-            train_features[train_labels == -1][:, 0], train_features[train_labels == -1][:, 1],
-            c='#1f77b4', s=160, edgecolor='#1f77b4', alpha=0.8
-        )
+            # Light vertical jitter so points don’t overlap
+            rng = np.random.default_rng(42)
+            jitter_tr = (rng.random(len(ytr)) - 0.5) * 0.06
+            jitter_te = (rng.random(len(yte)) - 0.5) * 0.06
 
-        # Plot testing data as hollow circles
-        ax.scatter(
-            test_features[test_labels == 1][:, 0], test_features[test_labels == 1][:, 1],
-            edgecolor='#ff7f0f', facecolors='none', s=160, alpha=1, linewidth=1.5
-        )
-        ax.scatter(
-            test_features[test_labels == -1][:, 0], test_features[test_labels == -1][:, 1],
-            edgecolor='#1f77b4', facecolors='none', s=160, alpha=1, linewidth=1.5
-        )
+            # Train
+            ax.scatter(Xtr[ytr == 1, 0], 0.2 + jitter_tr[ytr == 1],
+                    c=pos_color, s=60, edgecolor=pos_color, alpha=0.9, label='train +1')
+            ax.scatter(Xtr[ytr == -1, 0], -0.2 + jitter_tr[ytr == -1],
+                    c=neg_color, s=60, edgecolor=neg_color, alpha=0.9, label='train -1')
 
-        ax.set_xlabel('Feature 1', fontsize=12)
-        ax.set_ylabel('Feature 2', fontsize=12)
-        ax.set_title(f'{self.dataset_name} Dataset', fontsize=14, fontweight='bold')
+            # Test (hollow)
+            ax.scatter(Xte[yte == 1, 0], 0.2 + jitter_te[yte == 1],
+                    facecolors='none', edgecolor=pos_color, s=70, linewidth=1.5, label='test +1')
+            ax.scatter(Xte[yte == -1, 0], -0.2 + jitter_te[yte == -1],
+                    facecolors='none', edgecolor=neg_color, s=70, linewidth=1.5, label='test -1')
 
-        # Remove grid
-        ax.grid(axis='y', linestyle='--', alpha=0.6)
-        ax.grid(axis='x', linestyle='--', alpha=0.6)
+            ax.set_yticks([-0.2, 0.2])
+            ax.set_yticklabels(['−1', '+1'])
+            ax.set_xlabel('Feature 1')
+            ax.set_title(f'{self.dataset_name} Dataset (1D)', fontsize=13, fontweight='bold')
+            ax.grid(axis='x', linestyle='--', alpha=0.6)
+            ax.grid(axis='y', linestyle='--', alpha=0.3)
+            ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
+            ax.legend(loc='upper right', frameon=False)
 
+        # --- 2D ---
+        elif d == 2:
+            fig, ax = plt.subplots(figsize=(6, 6))
+            ax.set_facecolor("#eaeaf2")
 
-        # Remove spines for a clean look
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+            # Train solid
+            ax.scatter(Xtr[ytr == 1][:, 0], Xtr[ytr == 1][:, 1],
+                    c=pos_color, s=160, edgecolor=pos_color, alpha=0.8, label='train +1')
+            ax.scatter(Xtr[ytr == -1][:, 0], Xtr[ytr == -1][:, 1],
+                    c=neg_color, s=160, edgecolor=neg_color, alpha=0.8, label='train -1')
+
+            # Test hollow
+            ax.scatter(Xte[yte == 1][:, 0], Xte[yte == 1][:, 1],
+                    edgecolor=pos_color, facecolors='none', s=160, alpha=1, linewidth=1.5, label='test +1')
+            ax.scatter(Xte[yte == -1][:, 0], Xte[yte == -1][:, 1],
+                    edgecolor=neg_color, facecolors='none', s=160, alpha=1, linewidth=1.5, label='test -1')
+
+            # Optional decision boundary for classifiers with predict/predict_proba/decision_function
+            if classifier is not None and callable(getattr(classifier, "predict", None)):
+                # Build a grid over the joint train+test span
+                allX = np.vstack([Xtr, Xte])
+                x_min, x_max = allX[:, 0].min() - 0.5, allX[:, 0].max() + 0.5
+                y_min, y_max = allX[:, 1].min() - 0.5, allX[:, 1].max() + 0.5
+                xx, yy = np.meshgrid(
+                    np.linspace(x_min, x_max, 300),
+                    np.linspace(y_min, y_max, 300)
+                )
+                grid = np.c_[xx.ravel(), yy.ravel()]
+                # Prefer decision_function > predict_proba > predict
+                if callable(getattr(classifier, "decision_function", None)):
+                    zz = classifier.decision_function(grid)
+                    levels = [0.0]
+                elif callable(getattr(classifier, "predict_proba", None)):
+                    proba = classifier.predict_proba(grid)
+                    # Two-class: take prob of positive class
+                    zz = proba[:, 1] - 0.5
+                    levels = [0.0]
+                else:
+                    pred = classifier.predict(grid)
+                    zz = pred.reshape(-1)
+                    levels = [0.0]
+                zz = zz.reshape(xx.shape)
+                ax.contour(xx, yy, zz, levels=levels, linewidths=1.2, linestyles='--')
+
+            ax.set_xlabel('Feature 1', fontsize=12)
+            ax.set_ylabel('Feature 2', fontsize=12)
+            ax.set_title(f'{self.dataset_name} Dataset (2D)', fontsize=14, fontweight='bold')
+            ax.grid(axis='y', linestyle='--', alpha=0.6)
+            ax.grid(axis='x', linestyle='--', alpha=0.6)
+            ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
+            ax.legend(loc='best', frameon=False)
+
+        # --- 3D ---
+        elif d == 3:
+            fig = plt.figure(figsize=(7, 6))
+            ax = fig.add_subplot(111, projection='3d')
+            ax.set_facecolor("#eaeaf2")
+
+            # Train solid
+            ax.scatter(Xtr[ytr == 1, 0], Xtr[ytr == 1, 1], Xtr[ytr == 1, 2],
+                    s=60, edgecolor=pos_color, c=pos_color, alpha=0.85, label='train +1')
+            ax.scatter(Xtr[ytr == -1, 0], Xtr[ytr == -1, 1], Xtr[ytr == -1, 2],
+                    s=60, edgecolor=neg_color, c=neg_color, alpha=0.85, label='train -1')
+
+            # Test hollow
+            ax.scatter(Xte[yte == 1, 0], Xte[yte == 1, 1], Xte[yte == 1, 2],
+                    s=70, edgecolor=pos_color, facecolors='none', linewidth=1.2, label='test +1')
+            ax.scatter(Xte[yte == -1, 0], Xte[yte == -1, 1], Xte[yte == -1, 2],
+                    s=70, edgecolor=neg_color, facecolors='none', linewidth=1.2, label='test -1')
+
+            ax.set_xlabel('Feature 1')
+            ax.set_ylabel('Feature 2')
+            ax.set_zlabel('Feature 3')
+            ax.set_title(f'{self.dataset_name} Dataset (3D)', fontsize=13, fontweight='bold')
+            ax.legend(loc='upper left', frameon=False)
+
+        # --- >3D → PCA(2) ---
+        else:
+            # Fit PCA on combined data so train/test share the same projection
+            X_all = np.vstack([Xtr, Xte])
+            pca = PCA(n_components=2, random_state=42)
+            X_all_2d = pca.fit_transform(X_all)
+            Xtr_2d = X_all_2d[:len(Xtr)]
+            Xte_2d = X_all_2d[len(Xtr):]
+
+            fig, ax = plt.subplots(figsize=(6, 6))
+            ax.set_facecolor("#eaeaf2")
+
+            ax.scatter(Xtr_2d[ytr == 1, 0], Xtr_2d[ytr == 1, 1],
+                    c=pos_color, s=160, edgecolor=pos_color, alpha=0.8, label='train +1')
+            ax.scatter(Xtr_2d[ytr == -1, 0], Xtr_2d[ytr == -1, 1],
+                    c=neg_color, s=160, edgecolor=neg_color, alpha=0.8, label='train -1')
+
+            ax.scatter(Xte_2d[yte == 1, 0], Xte_2d[yte == 1, 1],
+                    edgecolor=pos_color, facecolors='none', s=160, alpha=1, linewidth=1.5, label='test +1')
+            ax.scatter(Xte_2d[yte == -1, 0], Xte_2d[yte == -1, 1],
+                    edgecolor=neg_color, facecolors='none', s=160, alpha=1, linewidth=1.5, label='test -1')
+
+            ax.set_xlabel('PCA1')
+            ax.set_ylabel('PCA2')
+            ax.set_title(f'{self.dataset_name} Dataset (>3D → PCA2)', fontsize=14, fontweight='bold')
+            ax.grid(axis='both', linestyle='--', alpha=0.6)
+            ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
+            ax.legend(loc='best', frameon=False)
 
         plt.tight_layout()
-
         return fig
-
 
 
 

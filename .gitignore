@@ -1,3 +1,6 @@
 .kgreedy/
 kgreedy/
 .venv/
+plots/
+results/
+data/
