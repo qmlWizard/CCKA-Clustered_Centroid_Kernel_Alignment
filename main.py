@@ -199,7 +199,7 @@ if __name__ == "__main__":
     config = namedtuple("ObjectName", data.keys())(*data.values())
 
     path_from_home = str(Path.cwd())
-    file_path = path_from_home + config.dataset['file'] if config.dataset['file'] is not 'None' else None
+    file_path = path_from_home + config.dataset['file'] if config.dataset['file'] != 'None' else None
     base_path = str((Path.cwd() / str(config.agent['base_path']).lstrip(os.sep)).resolve())
     Path(base_path).mkdir(parents=True, exist_ok=True)
 
@@ -244,7 +244,6 @@ if __name__ == "__main__":
         }
 
         def trial_name_creator(trial):
-            print(trial.iteration)
             return trial.__str__() + '_' + trial.experiment_tag + ','
 
         tuner = tune.Tuner(

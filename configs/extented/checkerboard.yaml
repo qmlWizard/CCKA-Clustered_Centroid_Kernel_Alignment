@@ -27,20 +27,20 @@ dataset:
 ## Quantum Kernel Model Configuration
 qkernel:
   device:           lightning.qubit
-  n_qubits:         [2, 4]
+  n_qubits:         [4]
   trainable:        True
   input_scaling:    True
   data_reuploading: True
-  ansatz:           ['embedding_paper']
-  ansatz_layers:    [4, 6, 8]
+  ansatz:           ['he']
+  ansatz_layers:    [5]
 
 ## Model Training Agent Configuration
 agent:
-  optimizer:            ['gd', 'adam']
+  optimizer:            ['gd']
   lr:                   [0.1]
   mclr:                 [0.01]
   cclr:                 [0.01]
-  epochs:               [100]
+  epochs:               [500]
   train_method:         ['ccka', 'random']
   target_accuracy:      0.95
   get_alignment_every:  1
@@ -48,6 +48,6 @@ agent:
   base_path:            results/checkerboard
   lambda_kao:           [0.001]
   lambda_co:            [0.001]
-  clusters:             [2, 3, 4, 5, 8, 10]
-  use_kmeans:           [True, False]
+  clusters:             [2, 4, 6, 8, 10]
+  use_kmeans:           [False]
   decesion_boundary:    False

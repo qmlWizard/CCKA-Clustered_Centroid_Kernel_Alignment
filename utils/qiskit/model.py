@@ -13,9 +13,6 @@ from utils.qiskit.ansatz import (
 
 from qiskit import QuantumRegister
 
-from utils.qiskit.grad import parameter_shift_rule, spsa_optimizer
-from utils.qiskit.mitigation import Mitigation
-
 class Qkernel(nn.Module):
     def __init__(
         self,
@@ -27,6 +24,7 @@ class Qkernel(nn.Module):
         ansatz_layers,
         use_noisy_backend=False,
         simulator=None,
+        mitigation=None,
         shots=8192,
     ):
         super().__init__()
@@ -41,6 +39,7 @@ class Qkernel(nn.Module):
         self._use_noisy_backend = use_noisy_backend
         self._simulator = simulator
         self._circuit_executions = 0
+        self._mitigation = mitigation
 
         if not self._use_noisy_backend:
             self._projector = torch.zeros((2**self._n_qubits, 2**self._n_qubits))
@@ -75,6 +74,10 @@ class Qkernel(nn.Module):
             raise ValueError(f"Unsupported ansatz: {self._ansatz}")
 
         self._shots = shots
+
+        if self._mitigation is not None:
+            self._mitigation_method = Mitigation(method=self._mitigation)
+            self._survival_prob = self._mitigation_method.get_survival_probability(training_data)
 
     def get_depth(self, x1, x2):
         x1 = x1.detach().cpu().numpy().flatten()
@@ -142,9 +145,7 @@ class Qkernel(nn.Module):
 
         for i in range(n1):
             for j in range(n2):
-                kernel_matrix[i, j] = k.forward(x1[i], x2[j])
+                kernel_matrix[i, j] = self.forward(x1[i], x2[j])
 
         return kernel_matrix
-
-    def fit(self, training_data, training_labels, testing_data, testing_labels):
 
