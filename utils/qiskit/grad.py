@@ -26,8 +26,8 @@ def spsa_optimizer(grad_fn, x0, a=0.1, c=0.1, alpha=0.602, gamma=0.101, max_iter
         delta = 2 * np.random.randint(0, 2, size=x.shape) - 1  # Rademacher distribution
         x_plus = x + ck * delta
         x_minus = x - ck * delta
-        loss_plus = grad_fn(x_plus)
-        loss_minus = grad_fn(x_minus)
+        loss_plus = grad_fn.forward(x_plus)
+        loss_minus = grad_fn.forward(x_minus)
         gk = (loss_plus - loss_minus) / (2.0 * ck * delta)
         x = x - ak * gk
         losses.append(grad_fn(x))
@@ -53,5 +53,5 @@ def parameter_shift_rule(fn, x, shift=np.pi/2):
         x_backward = x.copy()
         x_forward[i] += shift
         x_backward[i] -= shift
-        grad[i] = 0.5 * (fn(x_forward) - fn(x_backward))
+        grad[i] = 0.5 * (fn.forward(x_forward) - fn.forward(x_backward))
     return grad

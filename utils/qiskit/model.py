@@ -13,6 +13,9 @@ from utils.qiskit.ansatz import (
 
 from qiskit import QuantumRegister
 
+from utils.qiskit.grad import parameter_shift_rule, spsa_optimizer
+from utils.qiskit.mitigation import Mitigation
+
 class Qkernel(nn.Module):
     def __init__(
         self,
@@ -131,3 +134,17 @@ class Qkernel(nn.Module):
 
         self._circuit_executions += 1
         return torch.tensor(kernel_value, dtype=torch.float32)
+
+    def kernel_matrix(self, x1, x2):
+        n1 = x1.shape[0]
+        n2 = x2.shape[0]
+        kernel_matrix = torch.zeros((n1, n2), dtype=torch.float32)
+
+        for i in range(n1):
+            for j in range(n2):
+                kernel_matrix[i, j] = k.forward(x1[i], x2[j])
+
+        return kernel_matrix
+
+    def fit(self, training_data, training_labels, testing_data, testing_labels):
+
