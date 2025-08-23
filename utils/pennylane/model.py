@@ -12,7 +12,7 @@ np.random.seed(42)
 
 class Qkernel(nn.Module):
     
-    def __init__(self, device, n_qubits, trainable, input_scaling, data_reuploading, ansatz, ansatz_layers):
+    def __init__(self, device, n_qubits, trainable, input_scaling, data_reuploading, ansatz, ansatz_layers, noise_prob, diff_method):
         super().__init__()
         
         self._device = device
@@ -26,6 +26,8 @@ class Qkernel(nn.Module):
         self._projector = torch.zeros((2**self._n_qubits,2**self._n_qubits))
         self._projector[0,0] = 1
         self._circuit_executions = 0
+        self._noise_prob = noise_prob
+        self._diff_method = diff_method
 
         if self._ansatz == 'he':
             if self._input_scaling:
@@ -42,18 +44,19 @@ class Qkernel(nn.Module):
             self.register_parameter(name="variational", param= nn.Parameter((torch.rand(self._layers, self._n_qubits) * 2 * math.pi) - math.pi, requires_grad=True))
             self.register_parameter(name="rotational", param= nn.Parameter((torch.rand(self._layers, self._n_qubits) * 2 * math.pi) - math.pi, requires_grad=True))
 
+
         dev = qml.device(self._device, wires = range(self._n_qubits))
         if self._ansatz == 'he':
-            self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
+            self._kernel = qml.QNode(qkhe, dev, diff_method= self._diff_method, interface='torch')
         elif self._ansatz == 'embedding_paper':
-            self._kernel = qml.QNode(qkembedding_paper, dev, diff_method='adjoint', interface='torch')
+            self._kernel = qml.QNode(qkembedding_paper, dev, diff_method= self._diff_method, interface='torch')
         elif self._ansatz == 'covariant':
-            self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
+            self._kernel = qml.QNode(qkhe, dev, diff_method= self._diff_method, interface='torch')
         else:
             #self._kernel = qml.QNode(qkhe, dev, diff_method='adjoint', interface='torch')
             print("No Kernel Ansatz selected!")
         
     def forward(self, x1, x2):
-        all_zero_state = self._kernel(x1, x2, self._parameters, self._wires, self._layers, self._projector, self._data_reuploading)
+        all_zero_state = self._kernel(x1, x2, self._parameters, self._wires, self._layers, self._projector, self._data_reuploading, self._noise_prob)
         self._circuit_executions += 1
         return torch.abs(all_zero_state) ** 2
