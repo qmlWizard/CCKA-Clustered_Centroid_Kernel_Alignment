@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> A scalable quantum kernel learning framework that minimizes quantum circuit executions by leveraging clustered centroids for kernel alignment. Developed as part of the MSc Thesis in Applied Computer Science at Deggendorf Institute of Technology.
+> A scalable quantum kernel learning framework that **minimizes circuit executions** by aligning **clustered class centroids**. Developed as part of the MSc Thesis in Applied Computer Science at Deggendorf Institute of Technology.
 
 ---
 
@@ -26,14 +26,9 @@ CCKA-Clustered_Centroid_Kernel_Alignment/
 ├── data/                     # (Empty) directory for input and generated datasets
 ├── plots/                    # Scripts and outputs for result visualizations
 ├── utils/                    # Utility modules for kernels, metrics, alignment loss
-│
-├── classical_rbf.ipynb       # Baseline classical kernel experiments (e.g., RBF)
 ├── comparision.json          # Accuracy results for synthetic datasets
-├── create_datasets.ipynb     # Notebook to generate synthetic datasets
-├── cross_validate.py         # Double-cake and cross-validation runner
 ├── main.py                   # Entry point for training and evaluation
 ├── requirements.txt          # Python dependencies
-├── results.ipynb             # Notebook to visualize and analyze results
 ├── test_ray.py               # Ray parallelization testing
 ```
 
@@ -66,7 +61,7 @@ pip install -r requirements.txt
 
 ### 1. Train the Model (CCKA / QUACK / Random)
 ```bash
-python main.py --backend pennylane --config configs/all_datasets/synthetic/donuts.yaml
+python main.py --backend pennylane --config configs/all_datasets/synthetic/checkerboard.yaml
 ```
 
 Available methods in config:
@@ -78,16 +73,6 @@ Available methods in config:
 ### 2. Run Classical Baseline (RBF)
 ```bash
 jupyter notebook classical_rbf.ipynb
-```
-
-### 3. Generate Synthetic Datasets
-```bash
-jupyter notebook create_datasets.ipynb
-```
-
-### 4. Visualize Results
-```bash
-jupyter notebook results.ipynb
 ```
 
 ---
@@ -104,9 +89,9 @@ The following datasets are supported via configuration files:
 - Corners
 
 ### 📊 Real-World:
-- Microgrid Fault Detection
-- Network Intrusion (KDD’99, DoH)
-- Forest Covertype
+- Adult Income
+- MNIST (Zero vs Non Zero)
+- MNIST (One vs None One)
 
 Each dataset has a dedicated YAML config under `configs/`.
 
@@ -127,12 +112,11 @@ CCKA optimizes a variational quantum kernel using **class-representative centroi
 
 | Dataset       | Initial Accuracy | CCKA Accuracy | QUACK Accuracy | Full Kernel |
 |---------------|------------------|---------------|----------------|-------------|
-| Moons         | 82.2%            | **96.7%**     | 86.7%          | 93%         |
-| Donuts        | 78.9%            | **96.7%**     | 100%           | 100%        |
-| Checkerboard  | 82.5%            | **96.7%**     | 100%           | 100%        |
-| Double Cake   | 80%              | **96.7%**     | 86.7%          | 73.3%       |
-
-See [results.ipynb](notebooks/results.ipynb) for full plots.
+| Checkerboard  | 80.0%            | **96.7%**     | 100%           | 100%        |
+| Corners       | 89.0%            | **93.0%**     | 96.0%          | 94.0%       |
+| Double Cake   | 83.3%            | **96.7%**     | 91.1%          | 73.3%       |
+| Moons         | 82.9%            | **96.7%**     | 86.7%          | 96.7%       |
+| Donuts        | 78.9%            | **85.0%**     | 86.7%          | 80.0%       |
 
 ---
 
@@ -143,7 +127,7 @@ If you use this code or the CCKA methodology in your work, please cite:
 ```
 @misc{ajarekar2025ccka,
   author       = {Digvijaysinh Ajarekar},
-  title        = {CCKA: Clustered Centroid Kernel Alignment - Thesis Code},
+  title        = {CCKA: Clustered Centroid Kernel Alignment},
   year         = {2025},
   howpublished = {\url{https://github.com/qmlWizard/CCKA-Clustered_Centroid_Kernel_Alignment}},
   note         = {MSc Thesis, Deggendorf Institute of Technology}
@@ -160,4 +144,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## 🙏 Acknowledgments
 
-This work was developed as part of the master's thesis at **Deggendorf Institute of Technology**, under the supervision of **Prof. Dr. Helena Liebelt**. Special thanks to supporting colleagues, research groups, and the open-source community.
+This work was developed as part of the master's thesis at **Deggendorf Institute of Technology**, under the supervision of **Prof. Dr. Helena Liebelt** and **Mr. Rodrigo Coelho**, AI Modelling, Fraunhofer IISB, Erlangen. Special thanks to supporting colleagues, research groups, and the open-source community.

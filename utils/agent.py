@@ -302,7 +302,7 @@ class TrainModel():
                     loss_co.backward()
                     self._optimizers[_class].step()              
 
-                evaluation_metrics = self.evaluate_test(self._testing_data, self._testing_labels, position=epoch)
+                evaluation_metrics = self.evaluate(self._testing_data, self._testing_labels, position=epoch)
                 acc_iter = evaluation_metrics['testing_accuracy']
                 current_alignment = evaluation_metrics['alignment']
             else:
@@ -385,7 +385,7 @@ class TrainModel():
                     loss_co.backward()
                     self._optimizers[_class].step()
 
-            evaluation_metrics = self.evaluate_test(self._testing_data, self._testing_labels, position=epoch)
+            evaluation_metrics = self.evaluate(self._testing_data, self._testing_labels, position=epoch)
             acc_iter = evaluation_metrics['testing_accuracy']
             current_alignment = evaluation_metrics['alignment']
             

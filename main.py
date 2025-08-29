@@ -42,7 +42,7 @@ PER_ITER_COLUMNS = [
     "circuits","time_sec","subcentroids","noise_level","mitigation","n_samples"
 ]
 PER_RUN_COLUMNS = [
-    "dataset","method","run_id","test_accuracy","train_time_sec","circuits_total",
+    "dataset","method","run_id","alignment", "test_accuracy","train_time_sec","circuits_total",
     "subcentroids","noise_level","mitigation","n_samples"
 ]
 
@@ -77,7 +77,7 @@ def train(config):
     dataset_name = config['name']
     method = str(config.get('train_method', 'CCKA')) or "CCKA"
     subcentroids = config.get('clusters', "")
-    noise_level = config.get('noise', "")
+    noise_level = config.get('noise_level', "")
     mitigation = _safe_bool_str(config.get('mitigation', ""))  # not in your search_space yet; remains blank
     n_samples = config.get('n_samples', "")
 
@@ -89,7 +89,10 @@ def train(config):
         input_scaling=config['input_scaling'],
         data_reuploading=config['data_reuploading'],
         ansatz=config['ansatz'],
-        ansatz_layers=config['ansatz_layers']
+        ansatz_layers=config['ansatz_layers'],
+        noise_prob=config['noise_level'],
+        diff_method="backprop",
+        shots=None
     )
 
     agent = TrainModel(
@@ -122,7 +125,7 @@ def train(config):
     if args.backend == 'qiskit':
         before_metrics = agent.evaluate_parallel(testing_data, testing_labels, 'before')
     else:
-        before_metrics = agent.evaluate_test(testing_data, testing_labels, 'before')
+        before_metrics = agent.evaluate(testing_data, testing_labels, 'before')
     print(before_metrics)
 
     # === Training (timed)
@@ -138,7 +141,7 @@ def train(config):
     if args.backend == 'qiskit':
         after_metrics = agent.evaluate_parallel(testing_data, testing_labels, 'after')
     else:
-        after_metrics = agent.evaluate_test(testing_data, testing_labels, 'after')
+        after_metrics = agent.evaluate(testing_data, testing_labels, 'after')
     print(after_metrics)
 
     # === Build per-run JSON-like metrics (Ray) and append to CSV ===
@@ -225,6 +228,7 @@ if __name__ == "__main__":
             'data_reuploading': config.qkernel['data_reuploading'],
             'ansatz': tune.grid_search(config.qkernel['ansatz']),
             'ansatz_layers': tune.grid_search(config.qkernel['ansatz_layers']),
+            'noise_level': tune.grid_search(config.qkernel['noise_level']),
             'optimizer': tune.grid_search(config.agent['optimizer']),
             'lr': tune.grid_search(config.agent['lr']),
             'mclr': tune.grid_search(config.agent['mclr']),
