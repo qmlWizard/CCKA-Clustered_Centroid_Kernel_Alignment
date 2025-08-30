@@ -49,9 +49,10 @@ PER_RUN_COLUMNS = [
 # === END helpers ===
 
 def train(config):
-    logger = Logger(dataset_name=config['name'], log_dir=config.get('base_path'), mirror_json=False)
+    
 
     repeat_idx = int(config.get('repeat', 1))
+    logger = Logger(dataset_name=config['name'], log_dir=config.get('base_path'), mirror_json=False, per_run_csv=f'per_run_summary_{repeat_idx}.csv', per_iter_csv='per_iter_logs.csv')
 
     data_generator = DataGenerator(
         dataset_name=config['name'],
@@ -91,6 +92,7 @@ def train(config):
         ansatz=config['ansatz'],
         ansatz_layers=config['ansatz_layers'],
         noise_prob=config['noise_level'],
+        noisy = config['noisy'],
         diff_method="backprop",
         shots=None
     )
@@ -174,6 +176,7 @@ def train(config):
         "dataset": dataset_name,
         "method": method,
         "run_id": run_id,
+        "alignment": after_metrics.get('alignment', None),
         "test_accuracy": test_acc_final if test_acc_final is not None else "",
         "train_time_sec": f"{train_time_sec:.6f}",
         "circuits_total": circuits_total if circuits_total is not None else "",
@@ -228,6 +231,7 @@ if __name__ == "__main__":
             'data_reuploading': config.qkernel['data_reuploading'],
             'ansatz': tune.grid_search(config.qkernel['ansatz']),
             'ansatz_layers': tune.grid_search(config.qkernel['ansatz_layers']),
+            'noisy': config.qkernel['noisy'],
             'noise_level': tune.grid_search(config.qkernel['noise_level']),
             'optimizer': tune.grid_search(config.agent['optimizer']),
             'lr': tune.grid_search(config.agent['lr']),
