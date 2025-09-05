@@ -1,5 +1,0 @@
-dataset,method,run_id,test_accuracy,train_time_sec,circuits_total,subcentroids,noise_level,mitigation,n_samples
-checkerboard,ccka,ccka_lr0_1_lr0_01_lr0_01_optgd_epochs500_epochs0_001_epochs0_001_clusters2__rep1,0.7333333333333333,394.040305,4000,2,0.5,,60
-checkerboard,ccka,ccka_lr0_1_lr0_01_lr0_01_optgd_epochs500_epochs0_001_epochs0_001_clusters4__rep1,0.7,516.930637,8000,4,0.5,,60
-checkerboard,ccka,ccka_lr0_1_lr0_01_lr0_01_optgd_epochs500_epochs0_001_epochs0_001_clusters6__rep1,0.43333333333333335,638.577327,12000,6,0.5,,60
-checkerboard,ccka,ccka_lr0_1_lr0_01_lr0_01_optgd_epochs500_epochs0_001_epochs0_001_clusters8__rep1,0.4666666666666667,757.631339,16000,8,0.5,,60

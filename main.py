@@ -93,7 +93,7 @@ def train(config):
         ansatz_layers=config['ansatz_layers'],
         noise_prob=config['noise_level'],
         noisy = config['noisy'],
-        diff_method="backprop",
+        diff_method="adjoint",
         shots=None
     )
 
@@ -132,10 +132,7 @@ def train(config):
 
     # === Training (timed)
     t0 = time.time()
-    if multi_class:
-        kernel, params, main_centroid, sub_centroid = agent.fit_multiclass(training_data, training_labels)
-    else:
-        kernel, params, main_centroid, sub_centroid = agent.fit_kernel(training_data, training_labels)
+    kernel, params, main_centroid, sub_centroid = agent.fit_kernel(training_data, training_labels)
     train_time_sec = time.time() - t0
     print('Training Complete')
 
@@ -209,16 +206,16 @@ if __name__ == "__main__":
     base_path = str((Path.cwd() / str(config.agent['base_path']).lstrip(os.sep)).resolve())
     Path(base_path).mkdir(parents=True, exist_ok=True)
 
-    for i in range(1, 5):
+    for i in range(1, 2): # 5 repeats
         ray.init(log_to_driver=False)
         search_space = {
             'repeat': i,
             'name': config.dataset['name'],
             'file': None if config.dataset['file'] == 'None' else file_path,
-            'n_samples': config.dataset['n_samples'],
+            'n_samples': tune.grid_search(config.dataset['n_samples']),
             'noise': config.dataset['noise'],
-            'num_sectors': config.dataset['num_sectors'],
-            'points_per_sector': config.dataset['points_per_sector'],
+            'num_sectors': tune.grid_search(config.dataset['num_sectors']),
+            'points_per_sector': tune.grid_search(config.dataset['points_per_sector']),
             'grid_size': config.dataset['grid_size'],
             'sampling_radius': config.dataset['sampling_radius'],
             'training_size': config.dataset['training_size'],
@@ -252,7 +249,7 @@ if __name__ == "__main__":
         }
 
         def trial_name_creator(trial):
-            return trial.__str__() + '_' + trial.experiment_tag + ','
+            return trial.__str__()
 
         tuner = tune.Tuner(
             tune.with_resources(
