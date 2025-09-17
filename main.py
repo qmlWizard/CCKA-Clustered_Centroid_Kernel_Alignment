@@ -43,7 +43,7 @@ PER_ITER_COLUMNS = [
 ]
 PER_RUN_COLUMNS = [
     "dataset","method","run_id","alignment", "test_accuracy","train_time_sec","circuits_total",
-    "subcentroids","noise_level","mitigation","n_samples"
+    "subcentroids","noise_level","mitigation","n_samples", "centroid_method"
 ]
 
 # === END helpers ===
@@ -80,7 +80,7 @@ def train(config):
     subcentroids = config.get('clusters', "")
     noise_level = config.get('noise_level', "")
     mitigation = _safe_bool_str(config.get('mitigation', ""))  # not in your search_space yet; remains blank
-    n_samples = config.get('n_samples', "")
+    n_samples = int(config.get('num_sectors', "")) * int(config.get('points_per_sector', ""))
 
     # === Kernel/model ===
     kernel = Qkernel(
@@ -173,7 +173,7 @@ def train(config):
         "dataset": dataset_name,
         "method": method,
         "run_id": run_id,
-        "alignment": after_metrics.get('alignment', None),
+        "alignment": after_metrics['alignment'].detach().cpu().item() if 'alignment' in after_metrics else "",
         "test_accuracy": test_acc_final if test_acc_final is not None else "",
         "train_time_sec": f"{train_time_sec:.6f}",
         "circuits_total": circuits_total if circuits_total is not None else "",
@@ -181,6 +181,7 @@ def train(config):
         "noise_level": noise_level,
         "mitigation": mitigation,
         "n_samples": n_samples,
+        "centroid_method": config.get('use_kmeans', False),
     }
 
     logger.log_per_run(per_run_row)

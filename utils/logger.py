@@ -21,7 +21,7 @@ PER_ITER_COLUMNS = [
 
 PER_RUN_COLUMNS = [
     "dataset","method","run_id","alignment", "test_accuracy","train_time_sec","circuits_total",
-    "subcentroids","noise_level","mitigation","n_samples"
+    "subcentroids","noise_level","mitigation","n_samples", "centroid_method"
 ]
 
 class Logger:

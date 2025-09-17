@@ -38,5 +38,31 @@
       "random": 80,
       "quack": 86.7,
       "rbf": 80
+    },
+
+  "zero vs non zero": {
+      "initial": 89,
+      "ccka": 93,
+      "random": 76,
+      "quack": 87,
+      "rbf": 98
+    },
+
+  "one vs non one": {
+      "initial": 88,
+      "ccka": 92,
+      "random": 88,
+      "quack": 95,
+      "rbf": 98 
+    },
+
+  "adult": {
+      "initial": 68,
+      "ccka": 74,
+      "random": 68,
+      "quack": 82,
+      "rbf": 74
     }
+
+  
 }
