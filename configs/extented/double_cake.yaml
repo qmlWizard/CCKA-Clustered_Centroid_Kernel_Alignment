@@ -16,7 +16,7 @@ dataset:
   file:              None
   n_samples:         [20]
   noise:             0.5
-  num_sectors:       [2, 3, 5, 7, 8, 9]
+  num_sectors:       [7, 8, 9, 10]
   points_per_sector: [10]
   grid_size:         4
   sampling_radius:   0.1
@@ -43,7 +43,7 @@ agent:
   mclr:                 [0.01]
   cclr:                 [0.01]
   epochs:               [100]
-  train_method:         ['ccka']
+  train_method:         ['random']
   target_accuracy:      0.95
   get_alignment_every:  1
   validate_every_epoch: 1
