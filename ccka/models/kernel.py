@@ -53,4 +53,3 @@ class KernelModel:
     def forward(self, x1, x2, weights):
         self.circuit_executions += len(x1)
         return self._vectorized_kernel(x1, x2, weights)  
-
