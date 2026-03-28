@@ -34,7 +34,7 @@ class KernelModel:
         # ----- device
         if noisy:
             self._device_name = 'default.mixed'
-            self._shots = 1000
+            self._shots = 1024
         else:
             self._device_name = device_name
             self._shots = None
