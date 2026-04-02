@@ -7,7 +7,9 @@ ccka.egg-info/dependency_links.txt
 ccka.egg-info/requires.txt
 ccka.egg-info/top_level.txt
 ccka/aligner/__init__.py
+ccka/aligner/kta.py
 ccka/circuits/__init__.py
 ccka/circuits/angleEmbeddingKernel.py
 ccka/models/__init__.py
+ccka/models/hardware_runner.py
 ccka/models/kernel.py

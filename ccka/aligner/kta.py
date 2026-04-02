@@ -226,10 +226,29 @@ class BaseKTA(ABC):
     def regular_kernel_matrix(
         self, weights, X: jnp.ndarray
     ) -> jnp.ndarray:
-        """Full N×N kernel matrix for a single dataset X."""
+        """Full NxN kernel matrix using upper-triangular computation."""
         N = X.shape[0]
-        x1, x2 = self._pairwise(X, X)
-        return self.kernel_model.forward(x1, x2, weights).reshape(N, N)
+
+        # Get indices for upper triangular (including diagonal)
+        iu, ju = jnp.triu_indices(N)
+
+        # Gather pairs
+        x1 = X[iu]
+        x2 = X[ju]
+
+        # Compute kernel values only for upper triangle
+        k_vals = self.kernel_model.forward(x1, x2, weights)
+
+        # Initialize full matrix
+        K = jnp.zeros((N, N))
+
+        # Fill upper triangle
+        K = K.at[iu, ju].set(k_vals)
+
+        # Mirror to lower triangle
+        K = K.at[ju, iu].set(k_vals)
+
+        return K
 
     def nystrom_kernel_matrix(
         self, weights, X: jnp.ndarray
@@ -423,7 +442,7 @@ class BaseKTA(ABC):
             "time":                     time.perf_counter() - start,
             "circuit_executions":       self.kernel_model.circuit_executions,
         }
-        print_training_summary(history)
+        #print_training_summary(history)
         return history
 
 
@@ -498,12 +517,9 @@ class GreedyKTA(BaseKTA):
         self.greedy_samples = greedy_samples
 
     def _get_batch(self, epoch: int) -> tuple[jnp.ndarray, jnp.ndarray]:
-        K = np.asarray(
-            self._apply_centering(self._kernel_matrix(self.weights, self.xtrain))
-        )
-        svm = SVC(kernel="precomputed", C=1.0, probability=True, max_iter=10_000)
+        K = self.nystrom_kernel_matrix(self.weights, self.xtrain)
+        svm = SVC(kernel="precomputed", C=1.0, probability=True, max_iter=10000)
         svm.fit(K, np.asarray(self.ytrain))
-
         probs       = svm.predict_proba(K)[:, 1]
         uncertainty = 1.0 - np.abs(2.0 * probs - 1.0)
         k    = min(self.greedy_samples, len(self.xtrain))
@@ -803,6 +819,7 @@ class CentroidBasedKTA(BaseKTA):
         l : float
             Class-label multiplier forwarded to _loss_kao_cl.
         """
+        self.weights = jnp.array(self.weights)
         param_shape = self.weights.shape
 
         for idx in np.ndindex(param_shape):
@@ -985,7 +1002,7 @@ class CentroidBasedKTA(BaseKTA):
             self.weights = self._kao_parameter_update(main_centroid, X_cl, y_cl, l=l_kao)
 
             # ── CO step: update centroid positions (every 2 epochs) ───────
-            if epoch % 2 == 0:
+            if epoch % 1 == 0:
                 y_sub = jnp.where(self.sub_centroid_labels == cl_kao, 1.0, -1.0)
                 self.main_centroids, self.sub_centroids = self._centroid_update(
                     self.main_centroids,
@@ -1050,7 +1067,7 @@ class CentroidBasedKTA(BaseKTA):
             "time":                     time.perf_counter() - start,
             "circuit_executions":       self.kernel_model.circuit_executions,
         }
-        print_training_summary(history)
+        #print_training_summary(history)
         return history
 
 
@@ -1330,7 +1347,7 @@ class QuackKTA(BaseKTA):
         │      using  l = -current_label  (flipped, matching PyTorch).
         └─ (4) SVM evaluation and history logging.
         """
-        init = self.svm_training(self.xtrain, self.ytrain)
+        #init = self.svm_training(self.xtrain, self.ytrain)
         alignment_hist: list[float] = []
         loss_hist:      list[float] = []
         train_acc, test_acc, f1s, precs, recs = [], [], [], [], []
@@ -1403,8 +1420,8 @@ class QuackKTA(BaseKTA):
         history: dict[str, Any] = {
             "weights":                  self.weights,
             "main_centroids":           main_cent_hist,
-            "init_train_accuracy":      init["train_accuracy"],
-            "init_test_accuracy":       init["test_accuracy"],
+            "init_train_accuracy":      "0", #init["train_accuracy"],
+            "init_test_accuracy":       "0", #init["test_accuracy"],
             "alignment_history":        alignment_hist,
             "loss_history":             loss_hist,
             "train_accuracy_history":   train_acc,
@@ -1417,7 +1434,7 @@ class QuackKTA(BaseKTA):
             "time":                     time.perf_counter() - start,
             "circuit_executions":       self.kernel_model.circuit_executions,
         }
-        print_training_summary(history)
+        ##print_training_summary(history)
         return history
 
 
@@ -1438,7 +1455,7 @@ __all__ = [
     "GreedyKTA",
     "CentroidBasedKTA",
     "QuackKTA",
-    "print_training_summary",
+    "#print_training_summary",
     # aliases
     "fullKTA",
     "randomKTA",

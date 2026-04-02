@@ -28,13 +28,10 @@ keywords = [
 dependencies = [
     "pennylane==0.38.0",
     "PennyLane-Lightning==0.38.0",
+    "pennylane-qiskit==0.38.0,
 
-    "jax==0.4.14",
-    "jaxlib==0.4.14",
-
-    "torch==2.7.1",
-    "torchvision==0.22.1",
-    "torchaudio==2.7.1",
+    "jax==0.4.17",
+    "jaxlib==0.4.17",
 
     "scikit-learn==1.6.1",
     "scipy==1.13.1",
@@ -46,7 +43,8 @@ dependencies = [
 
     "ray==2.48.0",
     "requests==2.32.4",
-    "PyYAML==6.0.2"
+    "PyYAML==6.0.2",
+    "tqdm"
 ]
 
 [project.optional-dependencies]
