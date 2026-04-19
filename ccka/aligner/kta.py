@@ -7,21 +7,35 @@ to a classification task via gradient-based or analytical KTA maximization:
     FullKTA           – gradient computed on the entire training set each epoch
     RandomKTA         – stochastic mini-batch sampling each epoch
     GreedyKTA         – active-learning selection of the most uncertain samples
-    CentroidBasedKTA  – alternating analytical optimization of kernel weights and centroids
+    CentroidBasedKTA  – alternating gradient-based optimization of kernel weights and centroids
     QuackKTA          – QUACK strategy: uses full training data instead of sub-centroids
-                        (direct port of the PyTorch 'quack' method)
+                        with gradient-based optimization of kernel weights and main centroids
 
 All strategies share a common abstract base (BaseKTA) that houses kernel matrix
 construction, SVM evaluation, centering, and the main training loop.
 
-Kernel computation alignment with PyTorch TrainModel:
-  - KAO loss uses  kernel(main_centroid, sub_centroids)  [vector], not a self-matrix
-  - Centroid alignment includes the class-label multiplier  l  matching
-    PyTorch's  centroid_target_alignment(K, Y, l)
-  - CO loss penalises only the relevant main centroid (matching PyTorch)
-  - CO step uses the flipped label  –l  (matching  -current_label  in PyTorch)
-  - CentroidBasedKTA and QuackKTA retain the analytical (arctan2 / finite-diff)
-    parameter update rules — these are NOT changed.
+Alignment with PyTorch TrainModel (train_method='ccka'):
+  -------------------------------------------------------
+  PyTorch uses a SINGLE Adam optimizer for the KAO step that jointly updates
+  both kernel weights and sub-centroids:
+
+      self._kernel_optimizer = optim.Adam([
+          {'params': self._kernel.parameters(), 'lr': self._lr},
+          {'params': self._class_centroids,     'lr': self._cclr},
+      ])
+
+  The CO step uses a *separate* per-class optimizer that updates ONLY the
+  main centroid for the selected class:
+
+      self._optimizers[_class] = optim.Adam([{'params': main_centroid, 'lr': self._mclr}])
+
+  This module replicates that behaviour exactly:
+    - _kao_weight_optimizer  (lr=learning_rate)   ← kernel weights
+    - _kao_sub_optimizer     (lr=sub_centroid_lr) ← sub-centroids (jointly w/ KAO)
+    - _co_main_optimizer     (lr=centroid_lr)     ← main centroids only (CO step)
+
+  CO box constraint uses relu(c-1)+relu(-c) matching PyTorch (not per-feature bounds).
+  CO step uses raw sub-centroid labels, not ±1 conversion.
 
 Backward-compatible lowercase aliases are exported at module level.
 """
@@ -348,8 +362,6 @@ class BaseKTA(ABC):
         svm = SVC(kernel="precomputed", C=1.0, probability=True, max_iter=10_000)
         svm.fit(K_train, y_train_np)
 
-        # Centre the test kernel relative to the training kernel's column means —
-        # statistically correct for kernel centering at inference time.
         K_test_raw = np.asarray(
             self.test_kernel_matrix(self.weights, self.xtrain, self.xtest)
         )
@@ -442,7 +454,6 @@ class BaseKTA(ABC):
             "time":                     time.perf_counter() - start,
             "circuit_executions":       self.kernel_model.circuit_executions,
         }
-        #print_training_summary(history)
         return history
 
 
@@ -464,9 +475,6 @@ class RandomKTA(BaseKTA):
     """
     Stochastic KTA: draw a random mini-batch each epoch.
     Mirrors PyTorch  train_method='random'.
-
-    Uses a shuffled permutation that resets when exhausted, ensuring every
-    sample is eventually seen without replacement within each pass.
 
     Parameters
     ----------
@@ -501,9 +509,6 @@ class GreedyKTA(BaseKTA):
     """
     Active-learning KTA: select the *k* most uncertain training points per epoch.
 
-    Uncertainty is measured by SVM margin — points closest to the decision
-    boundary (``|2p − 1|`` small) are the most informative.
-
     Parameters
     ----------
     greedy_samples : int
@@ -528,29 +533,40 @@ class GreedyKTA(BaseKTA):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Centroid-based alternating optimizer — analytical updates
+# Centroid-based alternating optimizer — matches PyTorch train_method='ccka'
 # ─────────────────────────────────────────────────────────────────────────────
 
 class CentroidBasedKTA(BaseKTA):
     """
     Alternating centroid–kernel optimization (CCKA).
-    Mirrors PyTorch  train_method='ccka'.
+    Mirrors PyTorch  train_method='ccka' exactly.
 
-    Each outer epoch alternates between:
+    PyTorch optimizer structure (replicated here):
+    ──────────────────────────────────────────────
+    KAO step — ONE joint Adam across kernel weights + sub-centroids:
 
-    * **KAO inner step** – analytically update kernel *weights* to maximise
-      KTA computed as  kernel(main_centroid_cl, sub_centroids)  (a vector,
-      matching PyTorch's  x_0 = main_centroid.repeat(N,1);  x_1 = centroids).
-      L2 regularisation is applied to the weights.
+        optim.Adam([
+            {'params': kernel.parameters(), 'lr': lr},
+            {'params': class_centroids,     'lr': cclr},
+        ])
 
-    * **CO inner step** – analytically update *centroid positions* (main and
-      sub) to maximise the same centroid-KTA, with the class label *flipped*
-      (``-cl_kao``) matching PyTorch's  ``-current_label`` in the CO loss.
-      A box-constraint regulariser keeps centroid values within the per-feature
-      min/max of the training data.
+    CO step — ONE Adam per main centroid (only that centroid updated):
 
-    The update rules themselves (arctan2 for weights, finite-diff Newton for
-    centroids) are the analytical approach and are preserved exactly.
+        optim.Adam([{'params': main_centroids[cl], 'lr': mclr}])
+
+    This is replicated using three separate optax optimizers:
+      - _kao_weight_optimizer  (learning_rate)   ← kernel weights  (KAO only)
+      - _kao_sub_optimizer     (sub_centroid_lr) ← sub-centroids   (KAO only)
+      - _co_main_optimizer     (centroid_lr)     ← main centroids  (CO only)
+
+    KAO loss: 1 − TA(K, Y_raw, l) + λ_kao · L2(weights)
+      where K = kernel(main_centroid_cl, all_sub_centroids),
+            Y_raw = raw sub-centroid labels,
+            l = +current_label  (matches PyTorch centroid_target_alignment)
+
+    CO loss:  1 − TA(K, Y_raw, l) + λ_co · Σ relu(c−1) + relu(−c)
+      where l = −current_label  (flipped, matching PyTorch _loss_co call),
+            box constraint is [0, 1] matching PyTorch relu(c−1)+relu(−c).
 
     Parameters
     ----------
@@ -562,10 +578,14 @@ class CentroidBasedKTA(BaseKTA):
         Weight of the box-constraint regulariser in the CO loss.
     lambda_kao : float
         Weight of the L2 regulariser in the KAO loss.
-    eps : float
-        Finite-difference step size for centroid gradient estimation.
-    alpha : float
-        Newton step damping factor for centroid updates.
+    learning_rate : float
+        Learning rate for kernel weight updates (maps to PyTorch lr).
+    centroid_lr : float
+        Learning rate for main centroid CO updates (maps to PyTorch mclr).
+        Defaults to learning_rate.
+    sub_centroid_lr : float
+        Learning rate for sub-centroid KAO updates (maps to PyTorch cclr).
+        Defaults to centroid_lr.
     """
 
     def __init__(
@@ -576,27 +596,26 @@ class CentroidBasedKTA(BaseKTA):
         *,
         centroids: int = 4,
         clustering: str = "regular",
-        lambda_co: float = 0.01,
+        lambda_co: float = 0.001,
         lambda_kao: float = 0.001,
-        eps: float = 0.01,
-        alpha: float = 0.1,
+        learning_rate: float = 0.01,
+        centroid_lr: float | None = None,
+        sub_centroid_lr: float | None = None,   # maps to PyTorch cclr
         **kwargs: Any,
     ) -> None:
-        super().__init__(kernel_model, data, labels, **kwargs)
+        super().__init__(kernel_model, data, labels, learning_rate=learning_rate, **kwargs)
 
-        self.n_centroids  = centroids
-        self.use_kmeans   = clustering.lower() == "kmeans"
-        self.lambda_co    = lambda_co
-        self.lambda_kao   = lambda_kao
-        self.n_classes    = int(jnp.unique(self.ytrain).shape[0])
-        self.eps          = eps
-        self.alpha        = alpha
+        self.n_centroids     = centroids
+        self.use_kmeans      = clustering.lower() == "kmeans"
+        self.lambda_co       = lambda_co
+        self.lambda_kao      = lambda_kao
+        self.n_classes       = int(jnp.unique(self.ytrain).shape[0])
 
-        # Per-feature min/max of training data — used in the CO box constraint
-        # so centroids are kept within the actual data range, not a hard [0, 1].
-        X_np = np.asarray(self.xtrain)
-        self._feat_min = jnp.array(X_np.min(axis=0), dtype=jnp.float32)
-        self._feat_max = jnp.array(X_np.max(axis=0), dtype=jnp.float32)
+        # Learning rates: kernel_lr | main_centroid_lr (mclr) | sub_centroid_lr (cclr)
+        self._centroid_lr    = centroid_lr if centroid_lr is not None else learning_rate
+        self._sub_centroid_lr = (
+            sub_centroid_lr if sub_centroid_lr is not None else self._centroid_lr
+        )
 
         (
             self.main_centroids,
@@ -604,6 +623,27 @@ class CentroidBasedKTA(BaseKTA):
             self.sub_centroids,
             self.sub_centroid_labels,
         ) = self._compute_centroids(self.xtrain, self.ytrain)
+
+        # ── Three separate optimizers matching PyTorch's optimizer structure ─
+        #
+        #   PyTorch KAO: optim.Adam([kernel_params@lr, class_centroids@cclr])
+        #   → replicated with two separate optax optimizers that both step
+        #     during the KAO update (joint gradient, separate states).
+        #
+        #   PyTorch CO: optim.Adam([main_centroid@mclr])
+        #   → replicated with one optax optimizer on main_centroids only.
+
+        # KAO — kernel weights
+        self._kao_weight_optimizer = self._build_optimizer(self.learning_rate)
+        self._kao_weight_opt_state = self._kao_weight_optimizer.init(self.weights)
+
+        # KAO — sub-centroids (jointly updated with weights in KAO step)
+        self._kao_sub_optimizer    = self._build_optimizer(self._sub_centroid_lr)
+        self._kao_sub_opt_state    = self._kao_sub_optimizer.init(self.sub_centroids)
+
+        # CO — main centroids only
+        self._co_main_optimizer    = self._build_optimizer(self._centroid_lr)
+        self._co_main_opt_state    = self._co_main_optimizer.init(self.main_centroids)
 
     # ── Centroid initialisation ────────────────────────────────────────────
 
@@ -622,10 +662,10 @@ class CentroidBasedKTA(BaseKTA):
         n_cls         = len(unique_labels)
         D             = X_np.shape[1]
 
-        main_cents  = jnp.zeros((n_cls, D),                   dtype=jnp.float32)
-        main_labels = jnp.zeros((n_cls,),                     dtype=jnp.float32)
+        main_cents  = jnp.zeros((n_cls, D),                    dtype=jnp.float32)
+        main_labels = jnp.zeros((n_cls,),                      dtype=jnp.float32)
         sub_cents   = jnp.zeros((n_cls * self.n_centroids, D), dtype=jnp.float32)
-        sub_labels  = jnp.zeros((n_cls * self.n_centroids,),  dtype=jnp.float32)
+        sub_labels  = jnp.zeros((n_cls * self.n_centroids,),   dtype=jnp.float32)
 
         for ci, label in enumerate(unique_labels):
             class_data = jnp.array(X_np[y_np == label], dtype=jnp.float32)
@@ -671,75 +711,31 @@ class CentroidBasedKTA(BaseKTA):
         x0 = jnp.repeat(main_centroid[None, :], N, axis=0)
         return self.kernel_model.forward(x0, X, weights).reshape(-1)
 
-    # ── Centroid-alignment (vector KTA) ───────────────────────────────────
-
-    def _centroid_alignment(
-        self,
-        weights,
-        main_centroids: jnp.ndarray,
-        sub_centroids: jnp.ndarray,
-        cl: float,
-        l: float = 1.0,
-    ) -> jnp.ndarray:
-        """
-        Centroid-level KTA matching PyTorch centroid_target_alignment(K, Y, l):
-
-            TA = l · dot(K, Y) / (||K|| · ||Y||)
-
-        where
-            K[i] = kernel(main_centroid_cl, sub_centroid_i)
-            Y[i] = +1  if  sub_centroid_label[i] == cl,  else  −1
-
-        Parameters
-        ----------
-        cl : float
-            The class whose main centroid is used as the reference point.
-        l : float
-            Class-label multiplier (matches PyTorch's ``l`` parameter).
-            Pass  +current_label  for KAO,  -current_label  for CO.
-        """
-        main_idx       = jnp.where(self.main_centroid_labels == cl)[0][0]
-        main_centroid  = main_centroids[main_idx]
-
-        K = self._centroid_kernel_vec(weights, main_centroid, sub_centroids)
-        Y = jnp.where(self.sub_centroid_labels == cl, 1.0, -1.0)
-
-        numerator   = l * jnp.dot(K, Y)
-        denominator = jnp.linalg.norm(K) * jnp.linalg.norm(Y)
-        return numerator / (denominator + 1e-10)
-
-    # ── KAO loss (kernel weights) ──────────────────────────────────────────
+    # ── KAO loss — differentiable in both weights AND sub_centroids ────────
 
     def _loss_kao_cl(
         self,
         weights,
+        sub_centroids: jnp.ndarray,   # explicit arg so JAX can diff w.r.t. it
         main_centroid: jnp.ndarray,
-        X_cl: jnp.ndarray,
-        y_cl: jnp.ndarray,
+        y_raw: jnp.ndarray,           # raw sub-centroid labels (not ±1 converted)
         l: float = 1.0,
     ) -> jnp.ndarray:
         """
-        KAO loss for the selected class — matches PyTorch _loss_kao(K, Y, cl):
+        KAO loss for the selected class:
 
-            loss = 1 − TA + λ_kao · L2(weights)
+            loss = 1 − TA(K, Y_raw, l) + λ_kao · L2(weights)
 
-        Kernel is computed as a vector:
-            K[i] = kernel(main_centroid, X_cl[i])
-        matching PyTorch's  x_0 = main_centroid.repeat(N,1);  x_1 = class_centroids.
+        K is the vector kernel(main_centroid, sub_centroids).
+        Y_raw are the raw class labels of each sub-centroid.
+        l = +current_label (matches PyTorch centroid_target_alignment).
 
-        Parameters
-        ----------
-        main_centroid : jnp.ndarray, shape (D,)
-            Main centroid of the current class.
-        X_cl : jnp.ndarray, shape (M, D)
-            Sub-centroids of the current class.
-        y_cl : jnp.ndarray, shape (M,)
-            ±1 labels for X_cl.
-        l : float
-            Class-label multiplier (matches PyTorch's  current_label  argument).
+        Both ``weights`` (argnums=0) and ``sub_centroids`` (argnums=1) are
+        differentiable — matching PyTorch's joint Adam optimizer that updates
+        kernel params and class_centroids together.
         """
-        K = self._centroid_kernel_vec(weights, main_centroid, X_cl)
-        Y = y_cl.astype(jnp.float32)
+        K = self._centroid_kernel_vec(weights, main_centroid, sub_centroids)
+        Y = y_raw.astype(jnp.float32)
 
         numerator   = l * jnp.dot(K, Y)
         denominator = jnp.linalg.norm(K) * jnp.linalg.norm(Y)
@@ -751,196 +747,123 @@ class CentroidBasedKTA(BaseKTA):
 
         return 1.0 - kta + self.lambda_kao * l2
 
-    # ── CO loss (centroid positions) ───────────────────────────────────────
+    # ── CO loss — differentiable in main_centroids only ───────────────────
 
-    def _loss_co(
+    def _loss_co_cl(
         self,
         weights,
         main_centroids: jnp.ndarray,
-        sub_centroids: jnp.ndarray,
         cl: float,
-        l: float = 1.0,
+        y_raw: jnp.ndarray,           # raw sub-centroid labels
+        l: float = -1.0,              # −current_label (PyTorch convention)
     ) -> jnp.ndarray:
         """
-        CO loss — matches PyTorch _loss_co(K, Y, centroid, cl=-current_label):
+        CO loss for the selected class:
 
-            loss = 1 − TA + λ_co · box_penalty(main_centroid_cl)
+            loss = 1 − TA(K, Y_raw, l) + λ_co · Σ relu(c−1) + relu(−c)
 
-        Only the main centroid for class ``cl`` is regularised, matching
-        PyTorch which penalises  self._main_centroids[_class]  only.
+        K = kernel(main_centroid_cl, all_sub_centroids).
+        Box constraint uses relu(c−1)+relu(−c) matching PyTorch [0,1] penalty.
+        l = −current_label (flipped vs KAO, matching PyTorch _loss_co call).
 
-        Box constraint uses per-feature training-data min/max rather than the
-        hard [0, 1] in PyTorch — keeps centroids within the actual data range.
-
-        Parameters
-        ----------
-        cl : float
-            Class label for which the main centroid is selected.
-        l : float
-            Class-label multiplier; pass  -current_label  for the CO step to
-            match PyTorch's flipped label.
+        Only ``main_centroids`` (argnums=1) is differentiated — matching
+        PyTorch's per-class Adam that updates only the relevant main centroid.
+        sub_centroids are read from self.sub_centroids (treated as constants).
         """
-        kta = self._centroid_alignment(weights, main_centroids, sub_centroids, cl, l)
+        main_idx      = jnp.argmax(self.main_centroid_labels == cl)
+        main_centroid = main_centroids[main_idx]
 
-        # Penalise only the relevant main centroid (matches PyTorch behaviour)
-        main_idx = jnp.where(self.main_centroid_labels == cl)[0][0]
-        main_c   = main_centroids[main_idx]
-        penalty  = jnp.sum(
-            jax.nn.relu(main_c - self._feat_max)
-            + jax.nn.relu(self._feat_min - main_c)
+        # self.sub_centroids is a constant here — not in argnums
+        K = self._centroid_kernel_vec(weights, main_centroid, self.sub_centroids)
+        Y = y_raw.astype(jnp.float32)
+
+        numerator   = l * jnp.dot(K, Y)
+        denominator = jnp.linalg.norm(K) * jnp.linalg.norm(Y)
+        kta         = numerator / (denominator + 1e-10)
+
+        # [0,1] box constraint — matches PyTorch:
+        #   relu(centroid - 1.0) + relu(-centroid)
+        penalty = jnp.sum(
+            jax.nn.relu(main_centroid - 1.0) + jax.nn.relu(-main_centroid)
         )
+
         return 1.0 - kta + self.lambda_co * penalty
 
-    # ── Analytical weight update (KAO) ────────────────────────────────────
-    # Analytical approach — do NOT modify the update rule.
+    # ── Joint KAO update: weights + sub_centroids simultaneously ──────────
 
-    def _kao_parameter_update(
+    def _kao_joint_update(
         self,
         main_centroid: jnp.ndarray,
-        X_cl: jnp.ndarray,
-        y_cl: jnp.ndarray,
+        y_raw: jnp.ndarray,
         l: float = 1.0,
-    ) -> jnp.ndarray:
-        """
-        Analytical kernel-weight update using an arctan2-based rule.
-
-        Evaluates the KAO loss at three parameter offsets (0, π/2, π) per
-        parameter index and solves for the optimal shift analytically.
-        Matches the original analytical approach — update rule is unchanged.
-
-        Parameters
-        ----------
-        main_centroid : jnp.ndarray, shape (D,)
-            Main centroid for the current class (passed through to _loss_kao_cl).
-        X_cl : jnp.ndarray
-            Sub-centroids for the current class.
-        y_cl : jnp.ndarray
-            ±1 labels for X_cl.
-        l : float
-            Class-label multiplier forwarded to _loss_kao_cl.
-        """
-        self.weights = jnp.array(self.weights)
-        param_shape = self.weights.shape
-
-        for idx in np.ndindex(param_shape):
-            param_plus_delta  = self.weights.at[idx].add(jnp.pi)
-            param_minus_delta = self.weights.at[idx].add(jnp.pi / 2)
-
-            loss_pi        = self._loss_kao_cl(param_plus_delta,  main_centroid, X_cl, y_cl, l)
-            loss_pi_over_2 = self._loss_kao_cl(param_minus_delta, main_centroid, X_cl, y_cl, l)
-            loss_zero      = self._loss_kao_cl(self.weights,       main_centroid, X_cl, y_cl, l)
-
-            numer = 2 * loss_pi_over_2 - loss_pi - loss_zero
-            denom = loss_pi - loss_zero
-
-            delta   = jnp.arctan2(numer, denom + 1e-10)
-            new_val = self.weights[idx] - delta
-            self.weights = self.weights.at[idx].set(new_val)
-
-        return self.weights
-
-    # ── Analytical centroid update (CO) ───────────────────────────────────
-    # Analytical approach — do NOT modify the update rule.
-
-    def _centroid_update(
-        self,
-        main_centroids: jnp.ndarray,
-        sub_centroids: jnp.ndarray,
-        y_sub: jnp.ndarray,
-        eps: float = 0.01,
-        cl_kao: float | None = None,
-        mask_kao: np.ndarray | None = None,
-        l: float = -1.0,
     ) -> tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Analytical centroid update via finite-difference Newton steps.
+        One gradient step jointly updating kernel *weights* and *sub_centroids*.
 
-        Passes ``l`` (flipped class label) to ``_loss_co``, matching PyTorch's
-        ``-current_label`` in the CO step.
-        Analytical update rule is unchanged.
+        Matches PyTorch:
+            optimizer = Adam([kernel_params@lr, class_centroids@cclr])
+            loss_kao.backward()
+            optimizer.step()
 
-        Parameters
-        ----------
-        l : float
-            Class-label multiplier for _loss_co; should be ``-cl_kao`` to match
-            PyTorch's  loss_co(..., -current_label).
+        Gradients are computed simultaneously w.r.t. both (argnums 0 and 1),
+        then applied via their respective optax optimizers (separate lr support).
+
+        Returns
+        -------
+        new_weights, new_sub_centroids
         """
-        main_centroids = self.main_centroids
-        sub_centroids  = self.sub_centroids
+        grad_fn = jax.grad(self._loss_kao_cl, argnums=(0, 1))
+        grads_w, grads_sub = grad_fn(
+            self.weights, self.sub_centroids, main_centroid, y_raw, l
+        )
 
-        main_idx    = np.where(self.main_centroid_labels == cl_kao)[0][0]
-        sub_indices = np.where(mask_kao)[0]
+        # Update kernel weights (lr = learning_rate)
+        updates_w, self._kao_weight_opt_state = self._kao_weight_optimizer.update(
+            grads_w, self._kao_weight_opt_state
+        )
+        new_weights = ox.apply_updates(self.weights, updates_w)
 
-        # ── Update main centroid ───────────────────────────────────────────
-        for idx in np.ndindex(self.main_centroids[main_idx].shape):
-            feat_idx = idx[0]
+        # Update sub-centroids (lr = sub_centroid_lr / cclr)
+        updates_sub, self._kao_sub_opt_state = self._kao_sub_optimizer.update(
+            grads_sub, self._kao_sub_opt_state
+        )
+        new_sub = ox.apply_updates(self.sub_centroids, updates_sub)
 
-            def loss_fn_main(val):
-                mc_updated = self.main_centroids.at[main_idx, feat_idx].set(val)
-                return -self._loss_co(self.weights, mc_updated, self.sub_centroids, cl_kao, l)
+        return new_weights, new_sub
 
-            current_val = self.main_centroids[main_idx, feat_idx]
+    # ── CO update: main centroid only ─────────────────────────────────────
 
-            L_plus  = loss_fn_main(current_val + eps)
-            L_minus = loss_fn_main(current_val - eps)
-            L0      = loss_fn_main(current_val)
+    def _co_main_update(
+        self,
+        cl: float,
+        y_raw: jnp.ndarray,
+        l: float = -1.0,
+    ) -> jnp.ndarray:
+        """
+        One gradient step updating *main_centroids* only for class ``cl``.
 
-            grad = (L_plus - L_minus) / (2 * eps)
-            hess = (L_plus - 2 * L0 + L_minus) / (eps ** 2 + 1e-10)
+        Matches PyTorch:
+            self._optimizers[_class].step()  # only main_centroid[cl]
 
-            if jnp.abs(hess) < 1e-6 or jnp.isnan(hess) or jnp.isnan(grad):
-                step = -self.alpha * grad
-            else:
-                step = -self.alpha * grad / (jnp.abs(hess) + 1e-10)
+        sub_centroids are NOT updated here (they are constants in _loss_co_cl).
 
-            new_val = current_val + step
-            new_val = jnp.clip(new_val, self._feat_min[feat_idx], self._feat_max[feat_idx])
+        Returns
+        -------
+        new_main_centroids   (only [cl_idx] row actually moves)
+        """
+        grad_fn = jax.grad(self._loss_co_cl, argnums=1)
+        grads_main = grad_fn(
+            self.weights, self.main_centroids, cl, y_raw, l
+        )
 
-            global_L0 = -self._loss_co(
-                self.weights, self.main_centroids, self.sub_centroids, cl_kao, l
-            )
-            if loss_fn_main(new_val) < global_L0:
-                self.main_centroids = self.main_centroids.at[main_idx, feat_idx].set(new_val)
+        updates_main, self._co_main_opt_state = self._co_main_optimizer.update(
+            grads_main, self._co_main_opt_state
+        )
+        new_main = ox.apply_updates(self.main_centroids, updates_main)
 
-        # ── Update sub-centroids ───────────────────────────────────────────
-        for si in sub_indices:
-            for idx in np.ndindex(self.sub_centroids[si].shape):
-                feat_idx = idx[0]
-
-                def loss_fn_sub(val):
-                    sc_updated = self.sub_centroids.at[si, feat_idx].set(val)
-                    return self._loss_co(
-                        self.weights, self.main_centroids, sc_updated, cl_kao, l
-                    )
-
-                current_val = self.sub_centroids[si, feat_idx]
-
-                L_plus  = loss_fn_sub(current_val + eps)
-                L_minus = loss_fn_sub(current_val - eps)
-                L0      = loss_fn_sub(current_val)
-
-                grad = (L_plus - L_minus) / (2 * eps)
-                hess = (L_plus - 2 * L0 + L_minus) / (eps ** 2 + 1e-10)
-
-                if jnp.abs(hess) < 1e-6 or jnp.isnan(hess) or jnp.isnan(grad):
-                    step = self.alpha * grad
-                else:
-                    step = self.alpha * grad / (jnp.abs(hess) + 1e-10)
-
-                new_val = current_val + step
-                new_val = jnp.clip(new_val, self._feat_min[feat_idx], self._feat_max[feat_idx])
-
-                global_L0 = self._loss_co(
-                    self.weights, self.main_centroids, self.sub_centroids, cl_kao, l
-                )
-                if loss_fn_sub(new_val) < global_L0:
-                    self.sub_centroids = self.sub_centroids.at[si, feat_idx].set(new_val)
-
-        return self.main_centroids, self.sub_centroids
-
-    def get_circuit_executions(self) -> int:
-        self.kernel_model.circuit_executions = 0
-        return self.kernel_model.circuit_executions
+        # Clip to [0, 1] — enforces the box constraint used in the CO loss penalty
+        new_main = jnp.clip(new_main, 0.0, 1.0)
+        return new_main
 
     # ── BaseKTA abstract method (fallback; align() is fully overridden) ────
 
@@ -952,19 +875,16 @@ class CentroidBasedKTA(BaseKTA):
     def align(self) -> dict[str, Any]:
         """
         Alternating KAO / CO optimisation loop matching PyTorch fit_kernel
-        with  train_method='ccka':
+        with  train_method='ccka'.
 
         For each outer epoch:
-        ├─ (1) Select class  cl  (cycles through unique labels)
-        ├─ (2) KAO step  — analytically update kernel *weights* using
-        │      kernel(main_centroid_cl, sub_centroids)  with  l = +cl_kao.
-        ├─ (3) CO step (every 2 epochs)  — analytically update centroid
-        │      positions using the FLIPPED label  l = −cl_kao, matching
-        │      PyTorch's  loss_co(..., −current_label).
+        ├─ (1) Select class cl (cycles through unique labels)
+        ├─ (2) 10× KAO steps — joint gradient on kernel *weights* AND
+        │      *sub_centroids* simultaneously (matching PyTorch's single Adam
+        │      with both param groups).  l = +current_label.
+        ├─ (3) 10× CO steps — gradient on *main_centroids* only.
+        │      sub_centroids are held fixed.  l = −current_label.
         └─ (4) SVM evaluation and history logging.
-
-        In addition to the standard history keys the returned dict also
-        contains ``main_centroids`` and ``sub_centroids`` (per-epoch snapshots).
         """
         init = self.svm_training(self.xtrain, self.ytrain)
         alignment_hist: list[float] = []
@@ -973,52 +893,52 @@ class CentroidBasedKTA(BaseKTA):
         main_cent_hist: list[jnp.ndarray] = []
         sub_cent_hist:  list[jnp.ndarray] = []
 
-        sc_labels_np       = np.asarray(self.sub_centroid_labels)
-        unique_labels_np   = np.unique(np.asarray(self.ytrain))
-        n_cls              = len(unique_labels_np)
+        unique_labels_np = np.unique(np.asarray(self.ytrain))
+        n_cls            = len(unique_labels_np)
 
-        best_test_acc      = -jnp.inf
-        best_weights       = self.weights
+        best_test_acc       = -jnp.inf
+        best_weights        = self.weights
         best_main_centroids = self.main_centroids
         best_sub_centroids  = self.sub_centroids
+
+        # Raw sub-centroid labels (unchanged throughout training)
+        y_raw = self.sub_centroid_labels
 
         start = time.perf_counter()
         for epoch in tqdm(range(self.epochs), desc="[CentroidBasedKTA] KTA alignment"):
 
-            # ── Select class for this epoch ────────────────────────────────
+            # ── (1) Select class ───────────────────────────────────────────
             cl_kao = unique_labels_np[epoch % n_cls]
-            l_kao  = float(cl_kao)          # KAO uses +current_label
-            l_co   = -float(cl_kao)         # CO  uses -current_label (PyTorch convention)
+            l_kao  = float(cl_kao)       # KAO: +current_label
+            l_co   = -float(cl_kao)      # CO:  -current_label (PyTorch)
 
-            mask_kao    = sc_labels_np == cl_kao
-            X_cl        = jnp.array(np.asarray(self.sub_centroids)[mask_kao])
-            y_cl        = jnp.where(sc_labels_np[mask_kao] == cl_kao, 1.0, -1.0)
-
-            # Main centroid for current class
-            main_idx      = int(jnp.where(self.main_centroid_labels == cl_kao)[0][0])
+            main_idx      = int(jnp.argmax(self.main_centroid_labels == cl_kao))
             main_centroid = self.main_centroids[main_idx]
 
-            # ── KAO step: update kernel weights ───────────────────────────
-            self.weights = self._kao_parameter_update(main_centroid, X_cl, y_cl, l=l_kao)
+            # ── (2) 10× KAO steps: jointly update weights + sub_centroids ──
+            #   Mirrors PyTorch:
+            #     for nkao in range(10):
+            #         loss_kao.backward(); optimizer.step()  ← joint
+            for _ in range(10):
+                self.weights, self.sub_centroids = self._kao_joint_update(
+                    main_centroid, y_raw, l=l_kao
+                )
+                # Refresh main_centroid reference after sub_centroids may shift
+                # (main_centroid is a *view* into main_centroids, recompute it)
+                main_centroid = self.main_centroids[main_idx]
 
-            # ── CO step: update centroid positions (every 2 epochs) ───────
-            if epoch % 1 == 0:
-                y_sub = jnp.where(self.sub_centroid_labels == cl_kao, 1.0, -1.0)
-                self.main_centroids, self.sub_centroids = self._centroid_update(
-                    self.main_centroids,
-                    self.sub_centroids,
-                    y_sub,
-                    eps=self.eps,
-                    cl_kao=cl_kao,
-                    mask_kao=mask_kao,
-                    l=l_co,         # flipped label for CO — matches PyTorch
+            # ── (3) 10× CO steps: update main_centroid only ────────────────
+            #   Mirrors PyTorch:
+            #     for nco in range(10):
+            #         loss_co.backward(); self._optimizers[_class].step()
+            for _ in range(10):
+                self.main_centroids = self._co_main_update(
+                    cl=cl_kao, y_raw=y_raw, l=l_co
                 )
 
+            # ── (4) Evaluation & history ───────────────────────────────────
             alignment_hist.append(
                 float(self.alignment(self.weights, self.xtrain, self.ytrain))
-            )
-            loss_hist.append(
-                float(self._loss_kao_cl(self.weights, main_centroid, X_cl, y_cl, l_kao))
             )
             main_cent_hist.append(self.main_centroids)
             sub_cent_hist.append(self.sub_centroids)
@@ -1040,7 +960,6 @@ class CentroidBasedKTA(BaseKTA):
         self.weights        = best_weights
         self.main_centroids = best_main_centroids
         self.sub_centroids  = best_sub_centroids
-        
 
         final_result = self.svm_training(self.xtrain, self.ytrain)
         train_acc.append(final_result["train_accuracy"])
@@ -1067,12 +986,11 @@ class CentroidBasedKTA(BaseKTA):
             "time":                     time.perf_counter() - start,
             "circuit_executions":       self.kernel_model.circuit_executions,
         }
-        #print_training_summary(history)
         return history
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# QUACK — full-data variant of CentroidBasedKTA
+# QUACK — full-data variant of CentroidBasedKTA, optax gradient descent
 # ─────────────────────────────────────────────────────────────────────────────
 
 class QuackKTA(BaseKTA):
@@ -1089,13 +1007,11 @@ class QuackKTA(BaseKTA):
 
     This means:
     * **No sub-centroids** are allocated or optimised.
-    * **KAO** analytically updates kernel *weights* using the full training
-      set kernel vector.
-    * **CO**  analytically updates the *main centroid* for the selected class
-      (sub-centroids = training data, immutable).
-
-    Both the arctan2 weight update and finite-diff centroid update rules are
-    the same analytical approach as CentroidBasedKTA.
+    * **KAO** uses optax gradient descent on kernel *weights* using the full
+      training-set kernel vector (no joint sub-centroid update — matches
+      PyTorch QUACK which only puts kernel.parameters() in kernel_optimizer).
+    * **CO**  uses optax gradient descent on the *main centroid* for the
+      selected class (training data is immutable).
 
     Parameters
     ----------
@@ -1103,10 +1019,8 @@ class QuackKTA(BaseKTA):
         Weight of the box-constraint regulariser in the CO loss.
     lambda_kao : float
         Weight of the L2 regulariser in the KAO loss.
-    eps : float
-        Finite-difference step size for centroid gradient estimation.
-    alpha : float
-        Newton step damping factor for centroid updates.
+    centroid_lr : float
+        Learning rate for centroid (CO) updates. Defaults to learning_rate.
     """
 
     def __init__(
@@ -1117,17 +1031,15 @@ class QuackKTA(BaseKTA):
         *,
         lambda_co: float  = 0.01,
         lambda_kao: float = 0.001,
-        eps: float        = 0.01,
-        alpha: float      = 0.1,
+        centroid_lr: float | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(kernel_model, data, labels, **kwargs)
 
         self.lambda_co  = lambda_co
         self.lambda_kao = lambda_kao
-        self.eps        = eps
-        self.alpha      = alpha
         self.n_classes  = int(jnp.unique(self.ytrain).shape[0])
+        self._centroid_lr = centroid_lr if centroid_lr is not None else self.learning_rate
 
         X_np = np.asarray(self.xtrain)
         self._feat_min = jnp.array(X_np.min(axis=0), dtype=jnp.float32)
@@ -1135,15 +1047,20 @@ class QuackKTA(BaseKTA):
 
         self.main_centroids, self.main_centroid_labels = self._init_main_centroids()
 
+        # KAO: kernel weights only (no sub-centroids in QUACK)
+        self._kao_optimizer = self._build_optimizer(self.learning_rate)
+        self._kao_opt_state = self._kao_optimizer.init(self.weights)
+
+        # CO: main centroids only
+        self._co_optimizer  = self._build_optimizer(self._centroid_lr)
+        self._co_opt_state  = self._co_optimizer.init(self.main_centroids)
+
     # ── Centroid initialisation ────────────────────────────────────────────
 
     def _init_main_centroids(
         self,
     ) -> tuple[jnp.ndarray, jnp.ndarray]:
-        """
-        One main centroid per class = class mean.
-        Matches PyTorch _get_centroids (main centroid part only).
-        """
+        """One main centroid per class = class mean."""
         X_np = np.asarray(self.xtrain)
         y_np = np.asarray(self.ytrain)
         unique_labels = np.unique(y_np)
@@ -1190,7 +1107,7 @@ class QuackKTA(BaseKTA):
         l: float = 1.0,
     ) -> jnp.ndarray:
         """
-        KAO loss for QUACK — matches PyTorch _loss_kao(K, training_labels, current_label):
+        KAO loss for QUACK:
 
             loss = 1 − TA(K, Y, l) + λ_kao · L2(weights)
 
@@ -1221,7 +1138,7 @@ class QuackKTA(BaseKTA):
         l: float = -1.0,
     ) -> jnp.ndarray:
         """
-        CO loss for QUACK — matches PyTorch _loss_co(K, training_labels, main_centroid, -current_label):
+        CO loss for QUACK:
 
             loss = 1 − TA(K, Y, l) + λ_co · box_penalty(main_centroid)
 
@@ -1241,91 +1158,40 @@ class QuackKTA(BaseKTA):
         )
         return 1.0 - kta + self.lambda_co * penalty
 
-    # ── Analytical weight update (KAO) ────────────────────────────────────
-    # Analytical approach — do NOT modify the update rule.
+    # ── Gradient-descent weight update (KAO) ──────────────────────────────
 
-    def _kao_parameter_update_quack(
+    def _kao_weight_update_quack(
         self,
         main_centroid: jnp.ndarray,
         X_train: jnp.ndarray,
         y_train: jnp.ndarray,
         l: float = 1.0,
     ) -> jnp.ndarray:
-        """
-        Analytical kernel-weight update (arctan2 rule) using the full training set.
-        Same analytical approach as CentroidBasedKTA._kao_parameter_update.
-        """
-        param_shape = self.weights.shape
+        grad_fn = jax.grad(self._loss_kao_quack, argnums=0)
+        grads = grad_fn(self.weights, main_centroid, X_train, y_train, l)
+        updates, self._kao_opt_state = self._kao_optimizer.update(
+            grads, self._kao_opt_state
+        )
+        return ox.apply_updates(self.weights, updates)
 
-        for idx in np.ndindex(param_shape):
-            param_plus_delta  = self.weights.at[idx].add(jnp.pi)
-            param_minus_delta = self.weights.at[idx].add(jnp.pi / 2)
+    # ── Gradient-descent centroid update (CO) ─────────────────────────────
 
-            loss_pi        = self._loss_kao_quack(param_plus_delta,  main_centroid, X_train, y_train, l)
-            loss_pi_over_2 = self._loss_kao_quack(param_minus_delta, main_centroid, X_train, y_train, l)
-            loss_zero      = self._loss_kao_quack(self.weights,       main_centroid, X_train, y_train, l)
-
-            numer = 2 * loss_pi_over_2 - loss_pi - loss_zero
-            denom = loss_pi - loss_zero
-
-            delta   = jnp.arctan2(numer, denom + 1e-10)
-            new_val = self.weights[idx] - delta
-            self.weights = self.weights.at[idx].set(new_val)
-
-        return self.weights
-
-    # ── Analytical centroid update (CO) ───────────────────────────────────
-    # Analytical approach — do NOT modify the update rule.
-
-    def _main_centroid_update_quack(
+    def _main_centroid_gradient_update_quack(
         self,
         main_centroid_idx: int,
         X_train: jnp.ndarray,
         y_train: jnp.ndarray,
         l: float = -1.0,
     ) -> jnp.ndarray:
-        """
-        Analytical main-centroid update (finite-diff Newton) for QUACK.
-        Only main centroids are updated — training data is immutable.
-        Same analytical approach as CentroidBasedKTA._centroid_update (main part).
-
-        Parameters
-        ----------
-        l : float
-            Flipped class-label multiplier for CO (matches PyTorch's -current_label).
-        """
-        for idx in np.ndindex(self.main_centroids[main_centroid_idx].shape):
-            feat_idx = idx[0]
-
-            def loss_fn(val):
-                mc_updated = self.main_centroids.at[main_centroid_idx, feat_idx].set(val)
-                return self._loss_co_quack(
-                    self.weights, mc_updated, main_centroid_idx, X_train, y_train, l
-                )
-
-            current_val = self.main_centroids[main_centroid_idx, feat_idx]
-
-            L_plus  = loss_fn(current_val + self.eps)
-            L_minus = loss_fn(current_val - self.eps)
-            L0      = loss_fn(current_val)
-
-            grad = (L_plus - L_minus) / (2 * self.eps)
-            hess = (L_plus - 2 * L0 + L_minus) / (self.eps ** 2 + 1e-10)
-
-            if jnp.abs(hess) < 1e-6 or jnp.isnan(hess) or jnp.isnan(grad):
-                step = -self.alpha * grad
-            else:
-                step = -self.alpha * grad / (jnp.abs(hess) + 1e-10)
-
-            new_val = current_val + step
-            new_val = jnp.clip(new_val, self._feat_min[feat_idx], self._feat_max[feat_idx])
-
-            if loss_fn(new_val) < L0:
-                self.main_centroids = self.main_centroids.at[
-                    main_centroid_idx, feat_idx
-                ].set(new_val)
-
-        return self.main_centroids
+        grad_fn = jax.grad(self._loss_co_quack, argnums=1)
+        grads = grad_fn(
+            self.weights, self.main_centroids, main_centroid_idx, X_train, y_train, l
+        )
+        updates, self._co_opt_state = self._co_optimizer.update(
+            grads, self._co_opt_state
+        )
+        new_main = ox.apply_updates(self.main_centroids, updates)
+        return jnp.clip(new_main, self._feat_min, self._feat_max)
 
     # ── BaseKTA abstract method ────────────────────────────────────────────
 
@@ -1337,17 +1203,8 @@ class QuackKTA(BaseKTA):
     def align(self) -> dict[str, Any]:
         """
         QUACK alternating KAO / CO optimisation loop.
-        Mirrors PyTorch fit_kernel with  train_method='quack':
-
-        For each outer epoch:
-        ├─ (1) Select class  cl  (cycles through unique labels)
-        ├─ (2) KAO step — analytically update kernel *weights* using
-        │      kernel(main_centroid_cl, X_train)  with  l = +current_label.
-        ├─ (3) CO step (every 2 epochs) — analytically update *main_centroid_cl*
-        │      using  l = -current_label  (flipped, matching PyTorch).
-        └─ (4) SVM evaluation and history logging.
+        Mirrors PyTorch fit_kernel with  train_method='quack'.
         """
-        #init = self.svm_training(self.xtrain, self.ytrain)
         alignment_hist: list[float] = []
         loss_hist:      list[float] = []
         train_acc, test_acc, f1s, precs, recs = [], [], [], [], []
@@ -1360,30 +1217,82 @@ class QuackKTA(BaseKTA):
         best_weights        = self.weights
         best_main_centroids = self.main_centroids
 
+        init = self.svm_training(self.xtrain, self.ytrain)
         start = time.perf_counter()
         for epoch in tqdm(range(self.epochs), desc="[QuackKTA] KTA alignment"):
 
-            # ── Select class and compute labels ───────────────────────────
             cl_kao = unique_labels_np[epoch % n_cls]
-            l_kao  = float(cl_kao)          # KAO: +current_label
-            l_co   = -float(cl_kao)         # CO:  -current_label (PyTorch)
+            l_kao  = float(cl_kao)
+            l_co   = -float(cl_kao)
 
-            main_idx      = int(jnp.where(self.main_centroid_labels == cl_kao)[0][0])
+            main_idx      = int(jnp.argmax(self.main_centroid_labels == cl_kao))
             main_centroid = self.main_centroids[main_idx]
 
-            # y for this class: +1 for same class, -1 for others
             y_kao = jnp.where(self.ytrain == cl_kao, 1.0, -1.0)
 
-            # ── KAO step: update kernel weights ───────────────────────────
-            self.weights = self._kao_parameter_update_quack(
-                main_centroid, self.xtrain, y_kao, l=l_kao
-            )
-
-            # ── CO step: update main centroid (every 2 epochs) ────────────
             if epoch % 2 == 0:
-                self.main_centroids = self._main_centroid_update_quack(
-                    main_idx, self.xtrain, y_kao, l=l_co
-                )
+                for _ in range(10):
+                    self.weights = self._kao_weight_update_quack(
+                        main_centroid, self.xtrain, y_kao, l=l_kao
+                    )
+
+                    alignment_hist.append(
+                        float(self.alignment(self.weights, self.xtrain, self.ytrain))
+                    )
+                    loss_hist.append(
+                        float(self._loss_kao_quack(
+                            self.weights,
+                            self.main_centroids[main_idx],
+                            self.xtrain,
+                            y_kao,
+                            l_kao,
+                        ))
+                    )
+                    main_cent_hist.append(self.main_centroids)
+
+                    result = self.svm_training(self.xtrain, self.ytrain)
+                    train_acc.append(result["train_accuracy"])
+                    test_acc.append(result["test_accuracy"])
+                    f1s.append(result["f1_score"])
+                    precs.append(result["precision_score"])
+                    recs.append(result["recall_score"])
+
+                    if result["test_accuracy"] > best_test_acc:
+                        best_test_acc       = result["test_accuracy"]
+                        best_weights        = self.weights
+                        best_main_centroids = self.main_centroids
+
+            else:
+                for _ in range(10):
+                    self.main_centroids = self._main_centroid_gradient_update_quack(
+                        main_idx, self.xtrain, y_kao, l=l_co
+                    )
+
+                    alignment_hist.append(
+                        float(self.alignment(self.weights, self.xtrain, self.ytrain))
+                    )
+                    loss_hist.append(
+                        float(self._loss_kao_quack(
+                            self.weights,
+                            self.main_centroids[main_idx],
+                            self.xtrain,
+                            y_kao,
+                            l_kao,
+                        ))
+                    )
+                    main_cent_hist.append(self.main_centroids)
+
+                    result = self.svm_training(self.xtrain, self.ytrain)
+                    train_acc.append(result["train_accuracy"])
+                    test_acc.append(result["test_accuracy"])
+                    f1s.append(result["f1_score"])
+                    precs.append(result["precision_score"])
+                    recs.append(result["recall_score"])
+
+                    if result["test_accuracy"] > best_test_acc:
+                        best_test_acc       = result["test_accuracy"]
+                        best_weights        = self.weights
+                        best_main_centroids = self.main_centroids
 
             alignment_hist.append(
                 float(self.alignment(self.weights, self.xtrain, self.ytrain))
@@ -1420,8 +1329,8 @@ class QuackKTA(BaseKTA):
         history: dict[str, Any] = {
             "weights":                  self.weights,
             "main_centroids":           main_cent_hist,
-            "init_train_accuracy":      "0", #init["train_accuracy"],
-            "init_test_accuracy":       "0", #init["test_accuracy"],
+            "init_train_accuracy":      init["train_accuracy"],
+            "init_test_accuracy":       init["test_accuracy"],
             "alignment_history":        alignment_hist,
             "loss_history":             loss_hist,
             "train_accuracy_history":   train_acc,
@@ -1434,7 +1343,6 @@ class QuackKTA(BaseKTA):
             "time":                     time.perf_counter() - start,
             "circuit_executions":       self.kernel_model.circuit_executions,
         }
-        ##print_training_summary(history)
         return history
 
 
@@ -1455,7 +1363,7 @@ __all__ = [
     "GreedyKTA",
     "CentroidBasedKTA",
     "QuackKTA",
-    "#print_training_summary",
+    "print_training_summary",
     # aliases
     "fullKTA",
     "randomKTA",
