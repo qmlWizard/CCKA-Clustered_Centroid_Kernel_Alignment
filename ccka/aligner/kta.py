@@ -421,7 +421,7 @@ class BaseKTA(ABC):
         start = time.perf_counter()
         desc  = f"[{type(self).__name__}] KTA alignment"
 
-        for epoch in tqdm(range(self.epochs), desc=desc):
+        for epoch in range(self.epochs):
             X_b, y_b = self._get_batch(epoch)
 
             loss_hist.append(float(self._loss_fn(self.weights, X_b, y_b)))
@@ -870,6 +870,35 @@ class CentroidBasedKTA(BaseKTA):
     def _get_batch(self, epoch: int) -> tuple[jnp.ndarray, jnp.ndarray]:
         return self.xtrain, self.ytrain
 
+    def kernel_pca(self,
+        K,
+        n_components=2,
+        eps=1e-12
+    ):
+
+        eigvals, eigvecs = jnp.linalg.eigh(K)
+
+        # Sort descending
+        idx = jnp.argsort(eigvals)[::-1]
+
+        eigvals = eigvals[idx]
+        eigvecs = eigvecs[:, idx]
+
+        # Keep top components
+        eigvals = eigvals[:n_components]
+        eigvecs = eigvecs[:, :n_components]
+
+        # Numerical stability
+        eigvals = jnp.maximum(eigvals, eps)
+
+        # ---------------------------------------
+        # Construct embedding
+        # ---------------------------------------
+
+        X_embedded = eigvecs * jnp.sqrt(eigvals)
+
+        return X_embedded
+
     # ── Custom training loop ───────────────────────────────────────────────
 
     def align(self) -> dict[str, Any]:
@@ -892,6 +921,7 @@ class CentroidBasedKTA(BaseKTA):
         train_acc, test_acc, f1s, precs, recs = [], [], [], [], []
         main_cent_hist: list[jnp.ndarray] = []
         sub_cent_hist:  list[jnp.ndarray] = []
+        coords:  list[jnp.ndarray] = []
 
         unique_labels_np = np.unique(np.asarray(self.ytrain))
         n_cls            = len(unique_labels_np)
@@ -905,7 +935,7 @@ class CentroidBasedKTA(BaseKTA):
         y_raw = self.sub_centroid_labels
 
         start = time.perf_counter()
-        for epoch in tqdm(range(self.epochs), desc="[CentroidBasedKTA] KTA alignment"):
+        for epoch in range(self.epochs):
 
             # ── (1) Select class ───────────────────────────────────────────
             cl_kao = unique_labels_np[epoch % n_cls]
@@ -915,24 +945,19 @@ class CentroidBasedKTA(BaseKTA):
             main_idx      = int(jnp.argmax(self.main_centroid_labels == cl_kao))
             main_centroid = self.main_centroids[main_idx]
 
-            # ── (2) 10× KAO steps: jointly update weights + sub_centroids ──
-            #   Mirrors PyTorch:
-            #     for nkao in range(10):
-            #         loss_kao.backward(); optimizer.step()  ← joint
-            for _ in range(10):
-                self.weights, self.sub_centroids = self._kao_joint_update(
+
+            self.weights, self.sub_centroids = self._kao_joint_update(
                     main_centroid, y_raw, l=l_kao
                 )
-                # Refresh main_centroid reference after sub_centroids may shift
-                # (main_centroid is a *view* into main_centroids, recompute it)
-                main_centroid = self.main_centroids[main_idx]
+                
+            main_centroid = self.main_centroids[main_idx]
 
             # ── (3) 10× CO steps: update main_centroid only ────────────────
             #   Mirrors PyTorch:
             #     for nco in range(10):
             #         loss_co.backward(); self._optimizers[_class].step()
-            for _ in range(10):
-                self.main_centroids = self._co_main_update(
+
+            self.main_centroids = self._co_main_update(
                     cl=cl_kao, y_raw=y_raw, l=l_co
                 )
 
@@ -955,6 +980,26 @@ class CentroidBasedKTA(BaseKTA):
                 best_weights        = self.weights
                 best_main_centroids = self.main_centroids
                 best_sub_centroids  = self.sub_centroids
+
+
+            all_points = jnp.concatenate(
+                [
+                    self.xtrain,
+                    self.main_centroids,
+                    self.sub_centroids,
+                ],
+                axis=0,
+            )
+            all_labels = jnp.concatenate(
+                [
+                    self.ytrain,
+                    self.main_centroid_labels,
+                    self.sub_centroid_labels,
+                ],
+                axis=0,
+            )
+            K = np.asarray(self._apply_centering(self._kernel_matrix(self.weights, all_points)))
+            coords.append(self.kernel_pca(K))
 
         # Restore best checkpoint
         self.weights        = best_weights
@@ -985,6 +1030,12 @@ class CentroidBasedKTA(BaseKTA):
             "recall_score_history":     recs,
             "time":                     time.perf_counter() - start,
             "circuit_executions":       self.kernel_model.circuit_executions,
+            "best_main_centroids":      best_main_centroids,
+            "best_sub_centroids":       best_sub_centroids,
+            "coords":                   coords,
+            "coords_labels":            all_labels,
+            "xtrain":                   self.xtrain,
+            "ytrain":                   self.ytrain,
         }
         return history
 
@@ -1219,7 +1270,7 @@ class QuackKTA(BaseKTA):
 
         init = self.svm_training(self.xtrain, self.ytrain)
         start = time.perf_counter()
-        for epoch in tqdm(range(self.epochs), desc="[QuackKTA] KTA alignment"):
+        for epoch in range(self.epochs):
 
             cl_kao = unique_labels_np[epoch % n_cls]
             l_kao  = float(cl_kao)
