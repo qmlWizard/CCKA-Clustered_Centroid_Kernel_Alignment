@@ -16,26 +16,29 @@ class quackEmbeddingCircuit:
             reupload    : whether to re-upload features each rep
             noisy       : if True, apply depolarising noise after every gate
                         on BOTH the forward (x1) and manual-adjoint (x2) passes
-            noise_level : depolarising error probability p ∈ [0, 1]
+            noise_level : depolarising / coherent error probability p ∈ [0, 1]
 
         Device requirement
         ------------------
         noisy=False  →  default.qubit  (state-vector)
         noisy=True   →  default.mixed  (density-matrix)
     """
-    def __init__(self, num_qubits, reps=1, reupload=True, noisy=False, noise_level=0.01):
+
+    def __init__(self, num_qubits, reps=1, reupload=True, noisy=False, noise_type= 'depolarising', noise_level=0.0, seed=0):
         self.num_qubits  = num_qubits
         self.reps        = reps
         self.reupload    = reupload
         self.noisy       = noisy
+        self.noise_type  = noise_type
         self.noise_level = noise_level
         self.wires       = list(range(num_qubits))
+        self.seed        = seed
 
     def _depolarise(self, wire, apply_noise):
-        if self.noisy and apply_noise:
+        if self.noisy and apply_noise and self.noise_type == 'depolarising':
             qml.DepolarizingChannel(self.noise_level, wires=wire)
 
-    def feature_map(self, x, scale, apply_noise=True):
+    def feature_map(self, x, scale, apply_noise=False):
         scale = qml.math.asarray(scale)   # ← backend-agnostic
         for i, wire in enumerate(self.wires):
             qml.Hadamard(wires=wire)
@@ -43,7 +46,7 @@ class quackEmbeddingCircuit:
             qml.RZ(scale[i] * x[i], wires=wire)
             self._depolarise(wire, apply_noise)
 
-    def _feature_map_dagger(self, x, scale, apply_noise=True):
+    def _feature_map_dagger(self, x, scale, apply_noise=False):
         scale = qml.math.asarray(scale)
         for i in reversed(range(self.num_qubits)):
             wire = self.wires[i]
@@ -52,9 +55,8 @@ class quackEmbeddingCircuit:
             qml.Hadamard(wires=wire)
             self._depolarise(wire, apply_noise)
 
-    def ansatz(self, var, rot, apply_noise=True):
+    def ansatz(self, var, rot, apply_noise=False):
         var = qml.math.asarray(var)
-        rot = qml.math.asarray(rot)
         for i, wire in enumerate(self.wires):
             qml.RY(var[i], wires=wire)
             self._depolarise(wire, apply_noise)
@@ -64,7 +66,7 @@ class quackEmbeddingCircuit:
             self._depolarise(self.wires[i], apply_noise)
             self._depolarise(target, apply_noise)
 
-    def _ansatz_dagger(self, var, rot, apply_noise=True):
+    def _ansatz_dagger(self, var, rot, apply_noise=False):
         var = qml.math.asarray(var)
         rot = qml.math.asarray(rot)
         for i in reversed(range(self.num_qubits)):
@@ -77,7 +79,7 @@ class quackEmbeddingCircuit:
             qml.RY(-var[i], wires=wire)
             self._depolarise(wire, apply_noise)
 
-    def _build_circuit(self, x, weights, apply_noise=True):
+    def _build_circuit(self, x, weights, apply_noise=False):
         idx = 0
         for rep in range(self.reps):
             scale = weights[idx: idx + self.num_qubits]; idx += self.num_qubits
@@ -87,7 +89,7 @@ class quackEmbeddingCircuit:
                 self.feature_map(x, scale, apply_noise)
             self.ansatz(var, rot, apply_noise)
 
-    def _build_circuit_dagger(self, x, weights, apply_noise=True):
+    def _build_circuit_dagger(self, x, weights, apply_noise=False):
         params, idx = [], 0
         for _ in range(self.reps):
             scale = weights[idx: idx + self.num_qubits]; idx += self.num_qubits
@@ -101,8 +103,12 @@ class quackEmbeddingCircuit:
                 self._feature_map_dagger(x, scale, apply_noise)
 
     def kernel_circuit(self, x1, x2, weights):
-        self._build_circuit(x1, weights, apply_noise=True)
-        self._build_circuit_dagger(x2, weights, apply_noise=True)
+        if self.noisy and self.noise_type == 'coherent':
+            key = jax.random.PRNGKey(self.seed)
+            coherent_noise = jax.random.normal(key, shape=weights.shape) * self.noise_level
+            weights = weights + coherent_noise
+        self._build_circuit(x1, weights, apply_noise=self.noisy)
+        self._build_circuit_dagger(x2, weights, apply_noise=self.noisy)
         return qml.expval(qml.Projector([0] * self.num_qubits, wires=self.wires))
 
     def init_weights(self, seed=0, minval=-np.pi, maxval=np.pi):

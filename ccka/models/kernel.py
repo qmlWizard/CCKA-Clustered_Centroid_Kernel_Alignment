@@ -21,6 +21,7 @@ class KernelModel:
                  matrix_normalisation: bool = False,
                  landmark_points: int = 0,
                  noisy: bool = False,
+                 noise_type: bool = False,
                  seed: int = 42
     ):
 
@@ -30,6 +31,7 @@ class KernelModel:
         self.diff_method = diff_method
         self.landmark_points = landmark_points
         self.noisy = noisy
+        self.noise_type = 'depolarising' if noise_type else 'none'
         self.seed = seed
         self.backend = backend 
         self.circuit_executions = 0
