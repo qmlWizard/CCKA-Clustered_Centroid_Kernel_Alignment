@@ -1,0 +1,6 @@
+method,centroids,n_seeds,best_test_acc_mean,best_test_acc_std,best_test_acc_min,best_test_acc_max,global_kta_mean,centroid_kta_mean,block_ratio_mean,f1_mean,circuit_executions_mean,wall_time_s_mean,acc_per_1k_execs_mean,acc_per_1k_execs_std
+FullKTA,N/A,5,1.0,0.0,1.0,1.0,0.3901,0.3901,5.5475,1.0,68206,12.6,0.0147,0.0
+RandomKTA,2,5,1.0,0.0,1.0,1.0,0.2354,0.2354,1.9389,1.0,307677,11.5,0.0033,0.0
+CCKA (ours),4,5,1.0,0.0,1.0,1.0,0.1376,0.1704,1.2771,1.0,201143,14.4,0.005,0.0
+GreedyKTA,10,5,0.9333,0.0919,0.7667,1.0,0.2882,0.2882,2.6146,0.9333,200186,11.0,0.0053,0.0021
+QuackKTA,2,5,0.8333,0.0,0.8333,0.8333,0.3574,0.0117,3.453,0.8331,774963,52.8,0.0011,0.0

@@ -21,8 +21,7 @@ class KernelModel:
                  matrix_normalisation: bool = False,
                  landmark_points: int = 0,
                  noisy: bool = False,
-                 noise_type: bool = False,
-                 seed: int = 42
+                 noise_type: bool = False
     ):
 
         self.matrix_type = matrix_type
@@ -32,7 +31,6 @@ class KernelModel:
         self.landmark_points = landmark_points
         self.noisy = noisy
         self.noise_type = 'depolarising' if noise_type else 'none'
-        self.seed = seed
         self.backend = backend 
         self.circuit_executions = 0
         if circuit is None:
@@ -51,7 +49,6 @@ class KernelModel:
         dev = qml.device(self._device_name, wires = self.circuit.num_qubits, shots = self._shots)
 
         # ----- circuit
-
         self.circuit_instance = qml.QNode(self.circuit.kernel_circuit, dev, interface= self.interface, diff_method= self.diff_method)
         self._kernel = jax.jit(self.circuit_instance)
         self._vectorized_kernel = jax.vmap(

@@ -1,15 +1,22 @@
-pennylane==0.38.0
-PennyLane-Lightning==0.38.0
-pennylane-qiskit==0.38.0
-jax==0.4.17
-jaxlib==0.4.17
-scikit-learn==1.6.1
-scipy==1.11.4
-pandas==2.3.1
-matplotlib==3.9.4
-seaborn==0.13.2
-plotly==6.2.0
-ray==2.48.0
-requests==2.32.4
-PyYAML==6.0.2
-tqdm
+pennylane<0.41,>=0.38
+PennyLane-Lightning<0.41,>=0.38
+pennylane-qiskit<0.41,>=0.38
+numpy<3,>=1.24
+scipy<2,>=1.11
+scikit-learn<2,>=1.4
+pandas<3,>=2.0
+matplotlib<4,>=3.8
+seaborn<1,>=0.13
+plotly<7,>=6
+ray<3,>=2.40
+requests<3,>=2.32
+PyYAML<7,>=6
+tqdm>=4.66
+
+[:python_version < "3.11"]
+jax==0.4.30
+jaxlib==0.4.30
+
+[:python_version >= "3.11"]
+jax<0.5,>=0.4.30
+jaxlib<0.5,>=0.4.30

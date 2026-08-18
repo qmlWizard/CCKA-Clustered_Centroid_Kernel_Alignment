@@ -1,11 +1,26 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: ccka
 Version: 0.1.0
 Summary: Clustered Centroid Kernel Alignment for Quantum and Classical Kernels
-Home-page: UNKNOWN
-License: UNKNOWN
-Platform: UNKNOWN
-Requires-Python: >=3.9
-
-UNKNOWN
-
+Requires-Python: >=3.9,<3.12
+Requires-Dist: pennylane<0.41,>=0.38
+Requires-Dist: PennyLane-Lightning<0.41,>=0.38
+Requires-Dist: pennylane-qiskit<0.41,>=0.38
+Requires-Dist: jax==0.4.30; python_version < "3.11"
+Requires-Dist: jaxlib==0.4.30; python_version < "3.11"
+Requires-Dist: jax<0.5,>=0.4.30; python_version >= "3.11"
+Requires-Dist: jaxlib<0.5,>=0.4.30; python_version >= "3.11"
+Requires-Dist: numpy<3,>=1.24
+Requires-Dist: scipy<2,>=1.11
+Requires-Dist: scikit-learn<2,>=1.4
+Requires-Dist: pandas<3,>=2.0
+Requires-Dist: matplotlib<4,>=3.8
+Requires-Dist: seaborn<1,>=0.13
+Requires-Dist: plotly<7,>=6
+Requires-Dist: ray<3,>=2.40
+Requires-Dist: requests<3,>=2.32
+Requires-Dist: PyYAML<7,>=6
+Requires-Dist: tqdm>=4.66
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

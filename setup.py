@@ -5,26 +5,35 @@ setup(
     version="0.1.0",
     description="Clustered Centroid Kernel Alignment for Quantum and Classical Kernels",
     packages=find_packages(),
-    python_requires=">=3.9",
+    python_requires=">=3.9,<3.12",
     install_requires=[
-        "pennylane==0.38.0",
-        "PennyLane-Lightning==0.38.0",
-        "pennylane-qiskit==0.38.0",
+        # Quantum
+        "pennylane>=0.38,<0.41",
+        "PennyLane-Lightning>=0.38,<0.41",
+        "pennylane-qiskit>=0.38,<0.41",
 
-        "jax==0.4.17",
-        "jaxlib==0.4.17",
+        # JAX (Python-version specific)
+        "jax==0.4.30; python_version<'3.11'",
+        "jaxlib==0.4.30; python_version<'3.11'",
 
-        "scikit-learn==1.6.1",
-        "scipy==1.11.4",
-        "pandas==2.3.1",
+        "jax>=0.4.30,<0.5; python_version>='3.11'",
+        "jaxlib>=0.4.30,<0.5; python_version>='3.11'",
 
-        "matplotlib==3.9.4",
-        "seaborn==0.13.2",
-        "plotly==6.2.0",
+        # Scientific Computing
+        "numpy>=1.24,<3",
+        "scipy>=1.11,<2",
+        "scikit-learn>=1.4,<2",
+        "pandas>=2.0,<3",
 
-        "ray==2.48.0",
-        "requests==2.32.4",
-        "PyYAML==6.0.2",
-        "tqdm"
+        # Visualization
+        "matplotlib>=3.8,<4",
+        "seaborn>=0.13,<1",
+        "plotly>=6,<7",
+
+        # Utilities
+        "ray>=2.40,<3",
+        "requests>=2.32,<3",
+        "PyYAML>=6,<7",
+        "tqdm>=4.66",
     ],
 )

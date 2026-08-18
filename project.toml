@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,7 @@ name = "ccka"
 version = "0.1.0"
 description = "Clustered Centroid Kernel Alignment for Quantum and Classical Kernels"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10,<3.13"
 license = { text = "MIT" }
 
 authors = [
@@ -26,32 +26,38 @@ keywords = [
 ]
 
 dependencies = [
-    "pennylane==0.38.0",
-    "PennyLane-Lightning==0.38.0",
-    "pennylane-qiskit==0.38.0,
+    # Quantum
+    "pennylane>=0.38,<0.41",
+    "PennyLane-Lightning>=0.38,<0.41",
+    "pennylane-qiskit>=0.38,<0.41",
 
-    "jax==0.4.17",
-    "jaxlib==0.4.17",
+    # JAX
+    "jax>=0.4.30,<0.5",
+    "jaxlib>=0.4.30,<0.5",
 
-    "scikit-learn==1.6.1",
-    "scipy==1.13.1",
-    "pandas==2.3.1",
+    # Scientific stack
+    "numpy>=1.26,<3",
+    "scipy>=1.13,<2",
+    "scikit-learn>=1.6,<2",
+    "pandas>=2.2,<3",
 
-    "matplotlib==3.9.4",
-    "seaborn==0.13.2",
-    "plotly==6.2.0",
+    # Visualization
+    "matplotlib>=3.9,<4",
+    "seaborn>=0.13,<1",
+    "plotly>=6,<7",
 
-    "ray==2.48.0",
-    "requests==2.32.4",
-    "PyYAML==6.0.2",
-    "tqdm"
+    # Utilities
+    "ray>=2.48,<3",
+    "requests>=2.32,<3",
+    "PyYAML>=6,<7",
+    "tqdm>=4.66"
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "black",
-    "ruff",
+    "pytest>=8",
+    "black>=24",
+    "ruff>=0.6",
     "ipykernel",
     "jupyterlab"
 ]

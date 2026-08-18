@@ -1,67 +1,3 @@
-"""
-Kernel Target Alignment (KTA) optimizers for quantum kernel methods.
-
-This module provides five strategies for aligning a parameterized quantum kernel
-to a classification task via gradient-based or analytical KTA maximization:
-
-    FullKTA           – gradient computed on the entire training set each epoch
-    RandomKTA         – stochastic mini-batch sampling each epoch
-    GreedyKTA         – active-learning selection of the most uncertain samples
-    CentroidBasedKTA  – alternating gradient-based optimization of kernel weights and centroids
-    QuackKTA          – QUACK strategy: uses full training data instead of sub-centroids
-                        with gradient-based optimization of kernel weights and main centroids
-
-All strategies share a common abstract base (BaseKTA) that houses kernel matrix
-construction, SVM evaluation, centering, and the main training loop.
-
-Alignment with PyTorch TrainModel (train_method='ccka'):
-  -------------------------------------------------------
-  PyTorch uses a SINGLE Adam optimizer for the KAO step that jointly updates
-  both kernel weights and sub-centroids:
-
-      self._kernel_optimizer = optim.Adam([
-          {'params': self._kernel.parameters(), 'lr': self._lr},
-          {'params': self._class_centroids,     'lr': self._cclr},
-      ])
-
-  The CO step uses a *separate* per-class optimizer that updates ONLY the
-  main centroid for the selected class:
-
-      self._optimizers[_class] = optim.Adam([{'params': main_centroid, 'lr': self._mclr}])
-
-  This module replicates that behaviour exactly:
-    - _kao_weight_optimizer  (lr=learning_rate)   <- kernel weights
-    - _kao_sub_optimizer     (lr=sub_centroid_lr) <- sub-centroids (jointly w/ KAO)
-    - _co_main_optimizer     (lr=centroid_lr)     <- main centroids only (CO step)
-
-  CO box constraint uses relu(c-1)+relu(-c) matching PyTorch (not per-feature bounds).
-  CO step uses raw sub-centroid labels, not +/-1 conversion.
-
-Backward-compatible lowercase aliases are exported at module level.
-
-NEW -- Diagnostic extensions (Experiments 1, 2, 4):
-  --------------------------------------------------
-  Experiment 1: Centroid-Space KTA vs Global KTA
-    All methods now log `centroid_kta_history` in their history dict.
-    For non-centroid methods this equals global KTA (no separate centroid
-    space exists). For CCKA/QUACK it reflects the TA actually being optimized:
-      CCKA  -> TA(kernel(main_c, sub_centroids), y_sub, l)  averaged over classes
-      QUACK -> TA(kernel(main_c, X_train),       y_binary, l) averaged over classes
-
-  Experiment 2: Kernel Matrix Block Structure
-    BaseKTA gains `block_diagonal_ratio()` which computes:
-        ratio = mean(K[same-class pairs]) / mean(K[different-class pairs])
-    All methods log `block_ratio_history` per epoch.
-    A high ratio means the kernel has learned a clean block-diagonal structure
-    even when global KTA is lower.
-
-  Experiment 4: Embedding Space via Kernel PCA
-    BaseKTA gains `kernel_pca()` (was only in CentroidBasedKTA before).
-    All methods log `coords` (2D kPCA projection of their data per epoch) and
-    `coords_labels`. For CCKA the projection includes train + main + sub centroids
-    so centroid motion is visible. For other methods only train points are projected.
-"""
-
 from __future__ import annotations
 
 import time
@@ -182,8 +118,12 @@ class BaseKTA(ABC):
         epochs: int = 100,
         learning_rate: float = 0.01,
         optimizer: str = "adam",
+        seed: int = 42,
         **_ignored: Any,
     ) -> None:
+
+        self.seed = seed
+        
         if matrix_type not in self._MATRIX_TYPES:
             raise ValueError(
                 f"matrix_type must be one of {self._MATRIX_TYPES!r}, got {matrix_type!r}"
@@ -205,10 +145,10 @@ class BaseKTA(ABC):
         self.optimizer_name = optimizer.lower()
 
         self.xtrain, self.xtest, self.ytrain, self.ytest = self._split_data(
-            data, labels, seed=42
+            data, labels, seed= self.seed
         )
 
-        self.weights = kernel_model.circuit.init_weights()
+        self.weights = kernel_model.circuit.init_weights(seed= self.seed)
         self._optimizer = self._build_optimizer(self.learning_rate)
         self.opt_state = self._optimizer.init(self.weights)
 
@@ -430,7 +370,7 @@ class BaseKTA(ABC):
         y_train_np = np.asarray(y)
         y_test_np  = np.asarray(self.ytest)
 
-        svm = SVC(kernel="precomputed", C=1.0, probability=True, max_iter=10_000)
+        svm = SVC(kernel="precomputed", C=1.0, probability=True, max_iter=10_000, random_state=self.seed)
         svm.fit(K_train, y_train_np)
 
         K_test_raw = np.asarray(
@@ -595,7 +535,7 @@ class RandomKTA(BaseKTA):
         if random_samples <= 0:
             raise ValueError("random_samples must be > 0")
         self.random_samples = random_samples
-        self._rng = jax.random.PRNGKey(0)
+        self._rng = jax.random.PRNGKey(self.seed)
         self._perm: jnp.ndarray | None = None
         self._ptr: int = 0
         self._reshuffle()
@@ -631,7 +571,7 @@ class GreedyKTA(BaseKTA):
 
     def _get_batch(self, epoch: int) -> tuple[jnp.ndarray, jnp.ndarray]:
         K = self.nystrom_kernel_matrix(self.weights, self.xtrain)
-        svm = SVC(kernel="precomputed", C=1.0, probability=True, max_iter=10000)
+        svm = SVC(kernel="precomputed", C=1.0, probability=True, max_iter=10000, random_state=self.seed)
         svm.fit(K, np.asarray(self.ytrain))
         probs       = svm.predict_proba(K)[:, 1]
         uncertainty = 1.0 - np.abs(2.0 * probs - 1.0)
@@ -751,11 +691,13 @@ class CentroidBasedKTA(BaseKTA):
 
             if self.use_kmeans and class_data.shape[0] >= self.n_centroids:
                 km = KMeans(
-                    n_clusters=self.n_centroids, n_init="auto", random_state=42
+                    n_clusters=self.n_centroids, n_init="auto", random_state=self.seed
                 ).fit(np.asarray(class_data))
                 sc = jnp.array(km.cluster_centers_, dtype=jnp.float32)
             else:
-                chunks = jnp.array_split(class_data, self.n_centroids)
+                perm = np.random.default_rng(self.seed).permutation(class_data.shape[0])
+                shuffled = class_data[perm]
+                chunks = jnp.array_split(shuffled, self.n_centroids)
                 sc = jnp.stack(
                     [jnp.mean(chunk, axis=0) for chunk in chunks]
                 ).astype(jnp.float32)
