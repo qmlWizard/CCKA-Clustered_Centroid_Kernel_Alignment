@@ -1,6 +1,9 @@
+import json
+
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pennylane as qml
 import pytest
 
 from ccka.aligner.kta import (
@@ -14,8 +17,10 @@ from ccka.models.kernel import KernelModel
 from experiments.experiments import (
     METHOD_LABELS,
     METHODS,
+    _experiment_specs,
     _make_aligner,
     _prepare_data,
+    _run_one,
 )
 
 
@@ -178,6 +183,29 @@ def test_noisy_kernel_uses_serial_pairs_with_parameter_shift():
     assert np.all(np.isfinite(np.asarray(gradient)))
 
 
+def test_depolarizing_spelling_applies_noise_channel():
+    circuit = quackEmbeddingCircuit(
+        num_qubits=1,
+        reps=1,
+        noisy=True,
+        noise_type="depolarizing",
+        noise_level=0.1,
+    )
+    with qml.tape.QuantumTape() as tape:
+        circuit.feature_map(
+            jnp.asarray([0.2]),
+            jnp.asarray([1.0]),
+            apply_noise=True,
+        )
+    assert (
+        sum(
+            operation.name == "DepolarizingChannel"
+            for operation in tape.operations
+        )
+        == 2
+    )
+
+
 def test_experiment_methods_exclude_greedy_and_have_paper_labels():
     assert "greedyKTA" not in METHODS
     assert METHOD_LABELS == {
@@ -280,3 +308,55 @@ def test_prepare_data_uses_all_features_above_minimum_qubit_count():
         settings={"min_n_qubits": 5, "validation_fraction": 0.2},
     )
     assert data[0].shape[1] == 10
+
+
+def test_ccka_specs_include_matching_k_one_baseline_and_unique_ablations():
+    config = {
+        "training": {"centroids": [2, 4]},
+        "experiments": {
+            "methods": ["ccka"],
+            "ccka_initializations": ["regular"],
+            "ccka_ablations": {
+                "main_only": {"centroids": 1, "update_kao": False},
+                "sub_only": {"centroids": 1, "update_co": False},
+            },
+        },
+    }
+    specs = list(_experiment_specs(config))
+    assert sum(spec[3] == "full" for spec in specs) == 3
+    assert sum(spec[3] == "main_only" for spec in specs) == 1
+    assert sum(spec[3] == "sub_only" for spec in specs) == 1
+    assert any(spec[1] == 1 and spec[3] == "full" for spec in specs)
+
+
+def test_experiment_result_serializes_per_epoch_validation_history(monkeypatch):
+    class _FakeAligner:
+        def align(self):
+            return {
+                "validation_accuracy_history": [0.5, 0.75],
+                "best_validation_accuracy": 0.75,
+                "final_svm_metrics": {
+                    "validation_accuracy": 0.75,
+                    "test_accuracy": 0.7,
+                    "f1_score": 0.7,
+                    "precision_score": 0.7,
+                    "recall_score": 0.7,
+                },
+                "circuit_executions": 12,
+            }
+
+    monkeypatch.setattr(
+        "experiments.experiments._make_aligner",
+        lambda *args, **kwargs: _FakeAligner(),
+    )
+    result = _run_one(
+        "checkerboard",
+        "fullKTA",
+        _splits(),
+        _settings(),
+        0,
+        {"type": "none", "level": 0.0},
+        0,
+        0,
+    )
+    assert json.loads(result["validation_accuracy_history"]) == [0.5, 0.75]

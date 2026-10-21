@@ -60,6 +60,22 @@ YAML config. Results are written as CSV to the configured `output_csv` path;
 failed runs are logged with their settings and stop the batch instead of being
 silently skipped.
 
+For Ray runs, plot a completed run's CSVs after it finishes:
+
+```bash
+python experiments/plot_results.py \
+  --input results/default-YYYYMMDD-HHMMSS \
+  --output results/default-YYYYMMDD-HHMMSS/plots
+```
+
+The plotting script writes runtime and circuit-count figures, validation
+accuracy histories (mean across seeds with min/max bands), CCKA centroid
+sweeps, coherent/depolarizing-noise comparisons, and ablation figures.
+Noisy plots use CCKA with regular initialization at K=2 by default; override
+that choice with `--noise-centroids K`. Epoch histories are recorded in the
+summary CSV, so use results produced by the updated runner. Ablation runs use
+K=1 and include a matching full-CCKA baseline.
+
 Packaged NumPy data are loaded from `data/`; `moons` and `double_cake` are
 generated deterministically. The two named smoke datasets are subsampled for
 speed, so smoke results are checks of execution paths, not reportable

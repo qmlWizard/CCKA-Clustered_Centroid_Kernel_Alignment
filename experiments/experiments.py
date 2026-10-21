@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import itertools
+import json
 import logging
 import time
 from pathlib import Path
@@ -358,6 +359,13 @@ def _run_one(
         "shots": shots if noisy else None,
         "seed": seed,
         "epochs": int(settings.get("epochs", 1)),
+        "validation_accuracy_history": json.dumps(
+            [
+                float(value)
+                for value in history.get("validation_accuracy_history", [])
+            ],
+            separators=(",", ":"),
+        ),
         "best_validation_accuracy": float(history.get("best_validation_accuracy", max(
             history.get("validation_accuracy_history", [float("nan")])
         ))),
@@ -384,17 +392,22 @@ def _experiment_specs(config: dict[str, Any]):
                     "ccka_initializations", ["regular"]
                 ):
                     yield method, K, initialization, "full", True, True
-                for name, variant in config["experiments"].get(
-                    "ccka_ablations", {}
-                ).items():
-                    yield (
-                        method,
-                        int(variant.get("centroids", K)),
-                        str(variant.get("initialization", "regular")),
-                        name,
-                        bool(variant.get("update_kao", True)),
-                        bool(variant.get("update_co", True)),
-                    )
+            initializations = config["experiments"].get(
+                "ccka_initializations", ["regular"]
+            )
+            if 1 not in K_values and "regular" in initializations:
+                yield method, 1, "regular", "full", True, True
+            for name, variant in config["experiments"].get(
+                "ccka_ablations", {}
+            ).items():
+                yield (
+                    method,
+                    int(variant.get("centroids", 1)),
+                    str(variant.get("initialization", "regular")),
+                    name,
+                    bool(variant.get("update_kao", True)),
+                    bool(variant.get("update_co", True)),
+                )
         else:
             K_iter = K_values if method in {"randomKTA", "quackKTA"} else [0]
             for K in K_iter:

@@ -40,7 +40,10 @@ class quackEmbeddingCircuit:
         self.seed        = seed
 
     def _depolarise(self, wire, apply_noise):
-        if self.noisy and apply_noise and self.noise_type == 'depolarising':
+        if self.noisy and apply_noise and self.noise_type in {
+            'depolarising',
+            'depolarizing',
+        }:
             qml.DepolarizingChannel(self.noise_level, wires=wire)
 
     def feature_map(self, x, scale, apply_noise=False):
