@@ -3,7 +3,7 @@ datasets: [checkerboard, corners]
 training:
   epochs: 1
   quack_inner_steps: 1
-  n_qubits: 2
+  min_n_qubits: 5
   reps: 1
   centroids: [2]
   random_samples: 2

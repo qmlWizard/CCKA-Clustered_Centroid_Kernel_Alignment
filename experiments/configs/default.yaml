@@ -2,9 +2,9 @@ datasets: all
 
 training:
   epochs: 100
-  n_qubits: 4
+  min_n_qubits: 5
   reps: 4
-  centroids: [2, 4, 8]
+  centroids: [2, 4, 8, 10]
   random_samples: 8
   inference_landmarks: 32
   validation_fraction: 0.2
@@ -17,7 +17,7 @@ training:
   lambda_co: 0.001
   svm_c: 1.0
 
-seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+seeds: [0, 1, 2]
 
 noise:
   types: [none, depolarizing, coherent]
@@ -26,7 +26,7 @@ noise:
 
 experiments:
   methods: [fullKTA, randomKTA, quackKTA, ccka]
-  ccka_initializations: [regular, random, kmeans]
+  ccka_initializations: [regular]
   ccka_ablations:
     main_only:
       centroids: 1

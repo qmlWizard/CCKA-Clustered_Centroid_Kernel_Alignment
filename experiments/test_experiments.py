@@ -56,7 +56,7 @@ def _splits():
 def _settings():
     return {
         "epochs": 1,
-        "n_qubits": 2,
+        "min_n_qubits": 5,
         "reps": 1,
         "random_samples": 2,
         "inference_landmarks": 3,
@@ -270,4 +270,13 @@ def test_smoke_configs_cover_both_datasets_and_noise_modes():
     for dataset in config["datasets"]:
         data = _prepare_data(dataset, seed=0, settings=config["training"])
         assert len(data) == 6
-        assert data[0].shape[1] == config["training"]["n_qubits"]
+        assert data[0].shape[1] == 5
+
+
+def test_prepare_data_uses_all_features_above_minimum_qubit_count():
+    data = _prepare_data(
+        "qsar_biodegradation",
+        seed=0,
+        settings={"min_n_qubits": 5, "validation_fraction": 0.2},
+    )
+    assert data[0].shape[1] == 10

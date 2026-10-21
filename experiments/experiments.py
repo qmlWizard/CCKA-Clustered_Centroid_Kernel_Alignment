@@ -153,7 +153,11 @@ def _prepare_data(
         stratify=y_train,
     )
 
-    n_qubits = int(settings.get("n_qubits", 4))
+    n_qubits = max(
+        5,
+        int(settings.get("min_n_qubits", 5)),
+        X_train.shape[1],
+    )
     if X_train.shape[1] > n_qubits:
         n_components = min(n_qubits, X_train.shape[1], len(X_train))
         pca = PCA(n_components=n_components, random_state=seed)
@@ -298,7 +302,7 @@ def _run_one(
 ) -> dict[str, Any]:
     noisy = noise["type"] != "none"
     circuit = quackEmbeddingCircuit(
-        num_qubits=int(settings.get("n_qubits", 4)),
+        num_qubits=data[0].shape[1],
         reps=int(settings.get("reps", 2)),
         reupload=True,
         noisy=noisy,
@@ -343,6 +347,7 @@ def _run_one(
         "method": method_name,
         "method_label": METHOD_LABELS[method_name],
         "backend": BACKEND,
+        "n_qubits": int(data[0].shape[1]),
         "ablation": ablation,
         "initialization": initialization,
         "centroids_per_class": centroids if method_name == "ccka" else None,
