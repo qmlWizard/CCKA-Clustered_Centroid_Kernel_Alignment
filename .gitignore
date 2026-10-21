@@ -3,3 +3,15 @@ kgreedy/
 .venv/
 plots/
 data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test and notebook caches
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Experiment outputs
+results/

@@ -145,3 +145,18 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## 🙏 Acknowledgments
 
 This work was developed as part of the master's thesis at **Deggendorf Institute of Technology**, under the supervision of **Prof. Dr. Helena Liebelt** and **Mr. Rodrigo Coelho**, AI Modelling, Fraunhofer IISB, Erlangen. Special thanks to supporting colleagues, research groups, and the open-source community.
+---
+
+## Distributed experiments
+
+Run the configured sweep across a Ray cluster with:
+
+```bash
+python main.py --config experiments/configs/default.yaml
+```
+
+The default address is `auto`, so start a Ray head and connect worker nodes
+before running. Use `--address local` for a single-machine Ray run. Results are
+written per trial and combined into a summary under `results/<run-name>/`.
+The runner uses JAX/Optax when available and falls back to PyTorch otherwise;
+install a backend with `pip install .[jax]` or `pip install .[torch]`.

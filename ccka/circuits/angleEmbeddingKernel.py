@@ -1,7 +1,12 @@
 import pennylane as qml
 import numpy as np
-import jax
-import jax.numpy as jnp
+
+try:
+    import jax
+    import jax.numpy as jnp
+except ImportError:
+    jax = None
+    jnp = None
 
 
 class quackEmbeddingCircuit:
@@ -104,8 +109,22 @@ class quackEmbeddingCircuit:
 
     def kernel_circuit(self, x1, x2, weights):
         if self.noisy and self.noise_type == 'coherent':
-            key = jax.random.PRNGKey(self.seed)
-            coherent_noise = jax.random.normal(key, shape=weights.shape) * self.noise_level
+            if weights.__class__.__module__.startswith("torch"):
+                import torch
+
+                generator = torch.Generator(device=weights.device)
+                generator.manual_seed(self.seed)
+                coherent_noise = torch.randn(
+                    weights.shape,
+                    dtype=weights.dtype,
+                    device=weights.device,
+                    generator=generator,
+                ) * self.noise_level
+            else:
+                if jax is None:
+                    raise RuntimeError("JAX is required for JAX coherent-noise weights.")
+                key = jax.random.PRNGKey(self.seed)
+                coherent_noise = jax.random.normal(key, shape=weights.shape) * self.noise_level
             weights = weights + coherent_noise
         self._build_circuit(x1, weights, apply_noise=self.noisy)
         self._build_circuit_dagger(x2, weights, apply_noise=self.noisy)
@@ -116,8 +135,12 @@ class quackEmbeddingCircuit:
         total = self.reps * 3 * self.num_qubits
         return rng.uniform(minval, maxval, size=(total,)).astype(np.float64)
 
-    def init_weights_jax(self, seed=0, minval=-jnp.pi, maxval=jnp.pi):
+    def init_weights_jax(self, seed=0, minval=None, maxval=None):
         """Use this variant only in sim mode."""
+        if jax is None or jnp is None:
+            raise RuntimeError("JAX is not installed; use init_weights() instead.")
+        minval = -jnp.pi if minval is None else minval
+        maxval = jnp.pi if maxval is None else maxval
         key = jax.random.PRNGKey(seed)
         total = self.reps * 3 * self.num_qubits
         return jax.random.uniform(key, shape=(total,), minval=minval, maxval=maxval)

@@ -12,13 +12,6 @@ setup(
         "PennyLane-Lightning>=0.38,<0.41",
         "pennylane-qiskit>=0.38,<0.41",
 
-        # JAX (Python-version specific)
-        "jax==0.4.30; python_version<'3.11'",
-        "jaxlib==0.4.30; python_version<'3.11'",
-
-        "jax>=0.4.30,<0.5; python_version>='3.11'",
-        "jaxlib>=0.4.30,<0.5; python_version>='3.11'",
-
         # Scientific Computing
         "numpy>=1.24,<3",
         "scipy>=1.11,<2",
@@ -36,4 +29,12 @@ setup(
         "PyYAML>=6,<7",
         "tqdm>=4.66",
     ],
+    extras_require={
+        "jax": [
+            "jax>=0.4.30,<0.5",
+            "jaxlib>=0.4.30,<0.5",
+            "optax>=0.1.7",
+        ],
+        "torch": ["torch>=2.2,<2.3"],
+    },
 )

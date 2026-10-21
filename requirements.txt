@@ -10,10 +10,9 @@ plotly==6.2.0
 ray==2.48.0
 requests==2.32.4
 PyYAML==6.0.2
-jax==0.4.17
-jaxlib==0.4.17
 autoray==0.6.11
-optax == 0.1.7
 qiskit
 qiskit-aer
 qiskit-ibm-provider
+
+# Install one autodiff backend with: pip install .[jax] or pip install .[torch]

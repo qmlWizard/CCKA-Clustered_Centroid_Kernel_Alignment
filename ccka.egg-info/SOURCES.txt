@@ -1,6 +1,7 @@
 README.md
 setup.py
 ccka/__init__.py
+ccka/backend.py
 ccka.egg-info/PKG-INFO
 ccka.egg-info/SOURCES.txt
 ccka.egg-info/dependency_links.txt
@@ -8,8 +9,14 @@ ccka.egg-info/requires.txt
 ccka.egg-info/top_level.txt
 ccka/aligner/__init__.py
 ccka/aligner/kta.py
+ccka/aligner/kta_jax.py
+ccka/aligner/torch_kta.py
 ccka/circuits/__init__.py
 ccka/circuits/angleEmbeddingKernel.py
 ccka/models/__init__.py
 ccka/models/hardware_runner.py
 ccka/models/kernel.py
+ccka/models/torch_kernel.py
+experiments/__init__.py
+experiments/experiments.py
+experiments/test_experiments.py

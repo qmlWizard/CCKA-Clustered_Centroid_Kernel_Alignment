@@ -13,10 +13,10 @@ requests<3,>=2.32
 PyYAML<7,>=6
 tqdm>=4.66
 
-[:python_version < "3.11"]
-jax==0.4.30
-jaxlib==0.4.30
-
-[:python_version >= "3.11"]
+[jax]
 jax<0.5,>=0.4.30
 jaxlib<0.5,>=0.4.30
+optax>=0.1.7
+
+[torch]
+torch<2.3,>=2.2

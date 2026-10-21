@@ -1,0 +1,46 @@
+datasets: all
+
+training:
+  epochs: 100
+  n_qubits: 4
+  reps: 4
+  centroids: [2, 4, 8]
+  random_samples: 8
+  inference_landmarks: 32
+  validation_fraction: 0.2
+  feature_range: [0.0, 1.0]
+  collect_diagnostics: false
+  learning_rate: 0.05
+  centroid_lr: 0.01
+  sub_centroid_lr: 0.01
+  lambda_kao: 0.001
+  lambda_co: 0.001
+  svm_c: 1.0
+
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+noise:
+  types: [none, depolarizing, coherent]
+  levels: [0.01, 0.05]
+  shots: [256, 1024]
+
+experiments:
+  methods: [fullKTA, randomKTA, quackKTA, ccka]
+  ccka_initializations: [regular, random, kmeans]
+  ccka_ablations:
+    main_only:
+      centroids: 1
+      update_kao: false
+      update_co: true
+    sub_only:
+      centroids: 1
+      update_kao: true
+      update_co: false
+    no_kao:
+      update_kao: false
+      update_co: true
+    no_co:
+      update_kao: true
+      update_co: false
+
+output_csv: results/experiments.csv

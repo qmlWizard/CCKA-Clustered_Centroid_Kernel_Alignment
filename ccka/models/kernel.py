@@ -5,11 +5,22 @@ from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2, Batch
 from qiskit_ibm_runtime.options import SamplerOptions
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 import numpy as np
-import jax
-import jax.numpy as jnp
 from tqdm.auto import tqdm
 
-class KernelModel:
+from ccka.backend import BACKEND
+
+try:
+    import jax
+    import jax.numpy as jnp
+except ImportError:
+    jax = None
+    jnp = None
+
+if BACKEND == "torch":
+    from ccka.models.torch_kernel import TorchKernelModel
+
+
+class JaxKernelModel:
 
     def __init__(self, 
                  circuit = None,
@@ -21,7 +32,8 @@ class KernelModel:
                  matrix_normalisation: bool = False,
                  landmark_points: int = 0,
                  noisy: bool = False,
-                 noise_type: bool = False
+                 noise_type: bool = False,
+                 shots: int | None = None,
     ):
 
         self.matrix_type = matrix_type
@@ -41,7 +53,9 @@ class KernelModel:
         # ----- device
         if noisy:
             self._device_name = 'default.mixed'
-            self._shots = 1024
+            self._shots = 1024 if shots is None else shots
+            if self._shots <= 0:
+                raise ValueError("shots must be > 0 when noisy=True")
         else:
             self._device_name = device_name
             self._shots = None
@@ -58,7 +72,45 @@ class KernelModel:
 
     def forward(self, x1, x2, weights):
         self.circuit_executions += len(x1)
+        if self.noisy:
+            values = []
+            for a, b in zip(x1, x2):
+                value = self._kernel(a, b, weights)
+                if not isinstance(value, jax.core.Tracer):
+                    jax.block_until_ready(value)
+                values.append(value)
+            return jnp.stack(values)
         return self._vectorized_kernel(x1, x2, weights)  
+
+
+if BACKEND == "jax":
+    KernelModel = JaxKernelModel
+else:
+    class KernelModel(TorchKernelModel):
+        def __init__(
+            self,
+            circuit=None,
+            device_name="default.qubit",
+            interface="torch",
+            diff_method="backprop",
+            backend=None,
+            matrix_type="regular",
+            matrix_normalisation=False,
+            landmark_points=0,
+            noisy=False,
+            noise_type=False,
+            shots=None,
+        ):
+            del backend, matrix_type, matrix_normalisation, landmark_points, noise_type
+            if interface != "torch":
+                raise ValueError("The selected fallback backend requires interface='torch'.")
+            super().__init__(
+                circuit=circuit,
+                device_name=device_name,
+                diff_method=diff_method,
+                noisy=noisy,
+                shots=shots,
+            )
 
 
 class HardwareKernelRunner:
