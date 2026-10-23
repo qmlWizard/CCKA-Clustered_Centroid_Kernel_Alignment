@@ -9,6 +9,7 @@ import numpy as np
 import torch
 from sklearn.cluster import KMeans
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 
 
@@ -35,8 +36,12 @@ class TorchExperimentKTA:
         sub_centroid_lr: float | None = None,
         lambda_kao: float = 0.001,
         lambda_co: float = 0.001,
+        co_margin: float = 0.1,
+        co_temperature: float = 0.1,
         svm_c: float = 1.0,
-        inference_landmarks: int = 32,
+        inference_method: str = "svm",
+        inference_neighbors: int = 1,
+        inference_landmarks: int | str = 32,
         inner_steps: int = 10,
         update_kao: bool = True,
         update_co: bool = True,
@@ -47,6 +52,24 @@ class TorchExperimentKTA:
             raise ValueError(f"Unsupported PyTorch experiment method {method!r}.")
         if method == "ccka" and clustering not in {"regular", "random", "kmeans"}:
             raise ValueError("clustering must be regular, random, or kmeans.")
+        if inner_steps <= 0:
+            raise ValueError("inner_steps must be > 0")
+        if co_margin < 0:
+            raise ValueError("co_margin must be non-negative")
+        if co_temperature <= 0:
+            raise ValueError("co_temperature must be positive")
+        if inference_method not in {"svm", "kernel_distance", "centroid"}:
+            raise ValueError(
+                "inference_method must be 'svm', 'kernel_distance', or 'centroid'"
+            )
+        if inference_neighbors <= 0:
+            raise ValueError("inference_neighbors must be positive")
+        if inference_landmarks != "all" and (
+            isinstance(inference_landmarks, bool)
+            or not isinstance(inference_landmarks, int)
+            or inference_landmarks <= 0
+        ):
+            raise ValueError("inference_landmarks must be > 0 or 'all'")
         self.kernel_model = kernel_model
         self.method = method
         self.xtrain = self._tensor(data)
@@ -59,7 +82,11 @@ class TorchExperimentKTA:
         self.random_samples = random_samples
         self.lambda_kao = lambda_kao
         self.lambda_co = lambda_co
+        self.co_margin = co_margin
+        self.co_temperature = co_temperature
         self.svm_c = svm_c
+        self.inference_method = inference_method
+        self.inference_neighbors = inference_neighbors
         self.inference_landmarks = inference_landmarks
         self.inner_steps = inner_steps
         self.update_kao = update_kao
@@ -157,6 +184,18 @@ class TorchExperimentKTA:
 
     def _nystrom_matrices(self, query: torch.Tensor | None = None):
         n = len(self.xtrain)
+        if self.inference_landmarks == "all":
+            train_kernel = self._matrix(self.xtrain)
+            query_kernel = None
+            if query is not None:
+                query_count = len(query)
+                query_kernel = self._kernel_vector(
+                    query.repeat_interleave(n, dim=0),
+                    self.xtrain.repeat(query_count, 1),
+                ).reshape(query_count, n)
+            return train_kernel.detach().numpy(), (
+                None if query_kernel is None else query_kernel.detach().numpy()
+            )
         count = min(self.inference_landmarks, n)
         generator = torch.Generator().manual_seed(self.seed)
         indices = torch.randperm(n, generator=generator)[:count]
@@ -185,13 +224,66 @@ class TorchExperimentKTA:
         )
 
     def _svm_metrics(self, *, evaluate_test: bool = False):
-        train_kernel, validation_kernel = self._nystrom_matrices(self.xvalidation)
-        svm = SVC(kernel="precomputed", C=self.svm_c, random_state=self.seed)
         y_train = self.ytrain.detach().numpy()
         y_validation = self.yvalidation.detach().numpy()
-        svm.fit(train_kernel, y_train)
-        train_prediction = svm.predict(train_kernel)
-        validation_prediction = svm.predict(validation_kernel)
+        predictor = None
+        if self.inference_method == "centroid":
+            train_prediction = self._centroid_predict(self.xtrain)
+            validation_prediction = self._centroid_predict(self.xvalidation)
+            test_prediction = (
+                self._centroid_predict(self.xtest) if evaluate_test else None
+            )
+        else:
+            train_kernel, validation_kernel = self._nystrom_matrices(
+                self.xvalidation
+            )
+            if self.inference_method == "svm":
+                predictor = SVC(
+                    kernel="precomputed", C=self.svm_c, random_state=self.seed
+                )
+                predictor.fit(train_kernel, y_train)
+                train_prediction = predictor.predict(train_kernel)
+                validation_prediction = predictor.predict(validation_kernel)
+            else:
+                train_diagonal = np.diag(train_kernel)
+                validation_diagonal = self._kernel_vector(
+                    self.xvalidation, self.xvalidation
+                ).detach().numpy()
+                train_distances = np.maximum(
+                    train_diagonal[:, None]
+                    + train_diagonal[None, :]
+                    - 2.0 * train_kernel,
+                    0.0,
+                )
+                np.fill_diagonal(train_distances, 0.0)
+                validation_distances = np.maximum(
+                    validation_diagonal[:, None]
+                    + train_diagonal[None, :]
+                    - 2.0 * validation_kernel,
+                    0.0,
+                )
+                predictor = KNeighborsClassifier(
+                    n_neighbors=min(self.inference_neighbors, len(y_train)),
+                    metric="precomputed",
+                )
+                predictor.fit(train_distances, y_train)
+                train_prediction = predictor.predict(train_distances)
+                validation_prediction = predictor.predict(validation_distances)
+            if evaluate_test:
+                _, test_kernel = self._nystrom_matrices(self.xtest)
+                if self.inference_method == "svm":
+                    test_prediction = predictor.predict(test_kernel)
+                else:
+                    test_diagonal = self._kernel_vector(
+                        self.xtest, self.xtest
+                    ).detach().numpy()
+                    test_distances = np.maximum(
+                        test_diagonal[:, None]
+                        + train_diagonal[None, :]
+                        - 2.0 * test_kernel,
+                        0.0,
+                    )
+                    test_prediction = predictor.predict(test_distances)
         metrics = {
             "train_accuracy": float(accuracy_score(y_train, train_prediction)),
             "validation_accuracy": float(
@@ -199,22 +291,57 @@ class TorchExperimentKTA:
             ),
         }
         if evaluate_test:
-            _, test_kernel = self._nystrom_matrices(self.xtest)
             y_test = self.ytest.detach().numpy()
-            prediction = svm.predict(test_kernel)
             metrics.update(
                 {
-                    "test_accuracy": float(accuracy_score(y_test, prediction)),
-                    "f1_score": float(f1_score(y_test, prediction, average="macro")),
+                    "test_accuracy": float(accuracy_score(y_test, test_prediction)),
+                    "f1_score": float(f1_score(y_test, test_prediction, average="macro")),
                     "precision_score": float(
-                        precision_score(y_test, prediction, average="macro")
+                        precision_score(y_test, test_prediction, average="macro")
                     ),
                     "recall_score": float(
-                        recall_score(y_test, prediction, average="macro")
+                        recall_score(y_test, test_prediction, average="macro")
                     ),
                 }
             )
         return metrics
+
+    def _centroid_predict(self, X: torch.Tensor) -> np.ndarray:
+        n_samples = len(X)
+        if self.method == "quackKTA":
+            centers = self.main_centroids
+            scores = self._kernel_vector(
+                X.repeat_interleave(len(centers), dim=0),
+                centers.repeat(n_samples, 1),
+            ).reshape(n_samples, len(centers))
+            return self.main_centroid_labels[scores.argmax(dim=1)].numpy()
+        if self.method == "ccka":
+            main_scores = self._kernel_vector(
+                X.repeat_interleave(len(self.main_centroids), dim=0),
+                self.main_centroids.repeat(n_samples, 1),
+            ).reshape(n_samples, len(self.main_centroids))
+            sub_scores = self._kernel_vector(
+                X.repeat_interleave(len(self.sub_centroids), dim=0),
+                self.sub_centroids.repeat(n_samples, 1),
+            ).reshape(n_samples, len(self.sub_centroids))
+            class_scores = []
+            for label in self.main_centroid_labels:
+                main_index = int(
+                    torch.nonzero(self.main_centroid_labels == label)[0]
+                )
+                sub_mask = self.sub_centroid_labels == label
+                class_scores.append(
+                    0.5
+                    * (
+                        main_scores[:, main_index]
+                        + sub_scores[:, sub_mask].mean(dim=1)
+                    )
+                )
+            stacked = torch.stack(class_scores, dim=1)
+            return self.main_centroid_labels[stacked.argmax(dim=1)].numpy()
+        raise ValueError(
+            f"inference_method='centroid' is unsupported for {self.method!r}"
+        )
 
     @staticmethod
     def _alignment(kernel: torch.Tensor, target: torch.Tensor, sign: float = 1.0):
@@ -225,7 +352,8 @@ class TorchExperimentKTA:
 
     def _centroid_loss(self, main: torch.Tensor, points: torch.Tensor,
                        labels: torch.Tensor, sign: float, regularizer: float,
-                       *, weight_penalty: bool = False):
+                       *, weight_penalty: bool = False,
+                       class_label: float | None = None):
         repeated = main.unsqueeze(0).expand(len(points), -1)
         kernel = self._kernel_vector(repeated, points)
         penalty = torch.zeros((), dtype=kernel.dtype)
@@ -236,9 +364,25 @@ class TorchExperimentKTA:
         elif regularizer:
             penalty = torch.relu(main - self.xtrain.max(dim=0).values).sum()
             penalty = penalty + torch.relu(self.xtrain.min(dim=0).values - main).sum()
+        if self.method == "ccka" and not weight_penalty:
+            if class_label is None:
+                raise ValueError("class_label is required for the CCKA CO loss")
+            same_class = labels == class_label
+            other_class = ~same_class
+            same_similarity = (
+                kernel[same_class].sum() / same_class.sum().clamp_min(1)
+            )
+            other_similarity = (
+                kernel[other_class].sum() / other_class.sum().clamp_min(1)
+            )
+            similarity_gap = same_similarity - other_similarity
+            margin_loss = torch.nn.functional.softplus(
+                (self.co_margin - similarity_gap) / self.co_temperature
+            )
+            return margin_loss + regularizer * penalty
         return 1.0 - self._alignment(kernel, labels, sign) + regularizer * penalty
 
-    def _step(self, epoch: int):
+    def _step(self, epoch: int, inner_steps: int | None = None):
         if self.method in {"fullKTA", "randomKTA"}:
             if self.method == "randomKTA":
                 count = min(self.random_samples, len(self.xtrain))
@@ -263,64 +407,71 @@ class TorchExperimentKTA:
         class_index = epoch % len(classes)
         label = float(classes[class_index])
         main = self.main_centroids[class_index]
+        n_inner_steps = self.inner_steps if inner_steps is None else inner_steps
         if self.method == "ccka":
-            if self.update_kao:
-                self.weight_optimizer.zero_grad()
-                self.sub_optimizer.zero_grad()
-                loss = self._centroid_loss(
-                    main, self.sub_centroids, self.sub_centroid_labels,
-                    label, self.lambda_kao, weight_penalty=True
-                )
-                loss.backward()
-                self.weight_optimizer.step()
-                self.sub_optimizer.step()
-            if self.update_co:
-                self.main_optimizer.zero_grad()
-                loss = self._centroid_loss(
-                    self.main_centroids[class_index],
-                    self.sub_centroids,
-                    self.sub_centroid_labels,
-                    -label,
-                    self.lambda_co,
-                )
-                loss.backward()
-                self.main_optimizer.step()
-                with torch.no_grad():
-                    self.main_centroids.clamp_(0.0, 1.0)
+            for _ in range(n_inner_steps):
+                if self.update_kao:
+                    main = self.main_centroids[class_index]
+                    self.weight_optimizer.zero_grad()
+                    self.sub_optimizer.zero_grad()
+                    loss = self._centroid_loss(
+                        main, self.sub_centroids, self.sub_centroid_labels,
+                        label, self.lambda_kao, weight_penalty=True
+                    )
+                    loss.backward()
+                    self.weight_optimizer.step()
+                    self.sub_optimizer.step()
+                if self.update_co:
+                    self.main_optimizer.zero_grad()
+                    loss = self._centroid_loss(
+                        self.main_centroids[class_index],
+                        self.sub_centroids,
+                        self.sub_centroid_labels,
+                        -label,
+                        self.lambda_co,
+                        class_label=label,
+                    )
+                    loss.backward()
+                    self.main_optimizer.step()
+                    with torch.no_grad():
+                        self.main_centroids.clamp_(0.0, 1.0)
+            return float(loss.detach())
         else:
             labels = torch.where(self.ytrain == label, 1.0, -1.0)
-            for _ in range(self.inner_steps):
-                self.weight_optimizer.zero_grad()
-                loss = self._centroid_loss(
-                    main,
-                    self.xtrain,
-                    labels,
-                    label,
-                    self.lambda_kao,
-                    weight_penalty=True,
-                )
-                loss.backward()
-                self.weight_optimizer.step()
-            for _ in range(self.inner_steps):
-                self.main_optimizer.zero_grad()
-                loss = self._centroid_loss(
-                    self.main_centroids[class_index], self.xtrain, labels,
-                    -label, self.lambda_co
-                )
-                loss.backward()
-                self.main_optimizer.step()
-                with torch.no_grad():
-                    self.main_centroids.clamp_(
-                        self.xtrain.min(dim=0).values,
-                        self.xtrain.max(dim=0).values,
+            if epoch % 2 == 0:
+                for _ in range(n_inner_steps):
+                    self.weight_optimizer.zero_grad()
+                    loss = self._centroid_loss(
+                        main,
+                        self.xtrain,
+                        labels,
+                        label,
+                        self.lambda_kao,
+                        weight_penalty=True,
                     )
+                    loss.backward()
+                    self.weight_optimizer.step()
+            else:
+                for _ in range(n_inner_steps):
+                    self.main_optimizer.zero_grad()
+                    loss = self._centroid_loss(
+                        self.main_centroids[class_index], self.xtrain, labels,
+                        -label, self.lambda_co
+                    )
+                    loss.backward()
+                    self.main_optimizer.step()
+                    with torch.no_grad():
+                        self.main_centroids.clamp_(
+                            self.xtrain.min(dim=0).values,
+                            self.xtrain.max(dim=0).values,
+                        )
         return float(loss.detach()) if "loss" in locals() else 0.0
 
     def align(self):
         start = time.perf_counter()
         initial = self._svm_metrics()
         validation_history, train_history, losses = [], [], []
-        best_accuracy = -float("inf")
+        best_accuracy = float(initial["validation_accuracy"])
         best_weights = self.weights.detach().clone()
         best_main = (
             None if self.main_centroids is None else self.main_centroids.detach().clone()
@@ -328,8 +479,15 @@ class TorchExperimentKTA:
         best_sub = (
             None if self.sub_centroids is None else self.sub_centroids.detach().clone()
         )
-        for epoch in range(self.epochs):
-            losses.append(self._step(epoch))
+        if self.method in {"quackKTA", "ccka"}:
+            outer_epochs = (self.epochs + self.inner_steps - 1) // self.inner_steps
+        else:
+            outer_epochs = self.epochs
+        for epoch in range(outer_epochs):
+            steps_this_epoch = min(
+                self.inner_steps, self.epochs - epoch * self.inner_steps
+            ) if self.method in {"quackKTA", "ccka"} else None
+            losses.append(self._step(epoch, steps_this_epoch))
             metrics = self._svm_metrics()
             train_history.append(metrics["train_accuracy"])
             validation_history.append(metrics["validation_accuracy"])

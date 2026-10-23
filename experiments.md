@@ -10,12 +10,14 @@ The driver writes an individual CSV per completed trial and a cumulative
 `summary.csv` under `results/<config>-<timestamp>/`. Use `--address local` for
 a single-machine run, or `--smoke` for the reduced checkerboard/corners checks.
 
-Data are stratified into training, validation, and held-out test sets. PCA and
-feature scaling are fit using training data only; model checkpoints are chosen
-by validation accuracy. The test set is evaluated once after restoring the
-selected checkpoint. The default study uses ten seeds, a CCKA K sweep, all
-available packaged datasets, and noiseless, depolarizing, and coherent-noise
-conditions at the configured shot counts.
+The full dataset training partition is used for fitting. The dataset test
+partition is used for validation-based checkpoint selection and is also
+evaluated after restoring the selected checkpoint. PCA and feature scaling are
+fit using training data only. Because the same test partition is used for model
+selection and final reporting, the reported test metrics are not an unbiased
+estimate of generalization performance. The default study uses ten seeds, a
+CCKA K sweep, all available packaged datasets, and noiseless, depolarizing, and
+coherent-noise conditions at the configured shot counts.
 
 Compare all-pairwise Full KTA, Random-Pairwise KTA, QUACK, and CCKA under the
 same data split, seed, circuit, and noise settings. CCKA ablations switch KAO

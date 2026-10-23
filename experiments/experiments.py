@@ -82,6 +82,22 @@ METHOD_LABELS = {
 LOGGER = logging.getLogger("ccka.experiments")
 
 
+def _parse_inference_landmarks(value: int | str) -> int | str:
+    if value == "all":
+        return value
+    if isinstance(value, bool):
+        raise ValueError("inference_landmarks must be a positive integer or 'all'.")
+    try:
+        landmarks = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "inference_landmarks must be a positive integer or 'all'."
+        ) from exc
+    if landmarks <= 0:
+        raise ValueError("inference_landmarks must be a positive integer or 'all'.")
+    return landmarks
+
+
 def _generate_dataset(name: str, seed: int, n_samples: int) -> tuple[np.ndarray, np.ndarray]:
     rng = np.random.default_rng(seed)
     if name == "moons":
@@ -140,19 +156,37 @@ def _prepare_data(
     seed: int,
     settings: dict[str, Any],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    X_train, X_test, y_train, y_test = _read_dataset(
+    source_train, source_test, source_y_train, source_y_test = _read_dataset(
         name, seed, settings.get("max_samples")
     )
+    X_all = np.concatenate((source_train, source_test), axis=0)
+    y_all = np.concatenate((source_y_train, source_y_test), axis=0)
+    test_fraction = float(settings.get("test_fraction", 0.5))
     validation_fraction = float(settings.get("validation_fraction", 0.2))
+    if not 0.0 < test_fraction < 1.0:
+        raise ValueError("test_fraction must be in (0, 1).")
     if not 0.0 < validation_fraction < 1.0:
         raise ValueError("validation_fraction must be in (0, 1).")
-    X_train, X_validation, y_train, y_validation = train_test_split(
-        X_train,
-        y_train,
-        test_size=validation_fraction,
+    X_train_validation, X_test, y_train_validation, y_test = train_test_split(
+        X_all,
+        y_all,
+        test_size=test_fraction,
         random_state=seed,
-        stratify=y_train,
+        stratify=y_all,
     )
+    if settings.get("test_as_validation", False):
+        X_train = X_train_validation
+        y_train = y_train_validation
+        X_validation = X_test
+        y_validation = y_test
+    else:
+        X_train, X_validation, y_train, y_validation = train_test_split(
+            X_train_validation,
+            y_train_validation,
+            test_size=validation_fraction,
+            random_state=seed,
+            stratify=y_train_validation,
+        )
 
     n_qubits = max(
         5,
@@ -185,13 +219,13 @@ def _prepare_data(
         label_map = {label: index + 1 for index, label in enumerate(classes)}
     y_train = np.asarray([label_map[label] for label in y_train], dtype=np.int32)
     y_validation = np.asarray(
-        [label_map.get(label, label) for label in y_validation], dtype=np.int32
+        [label_map[label] for label in y_validation], dtype=np.int32
     )
     y_test = np.asarray([label_map.get(label, label) for label in y_test], dtype=np.int32)
 
     return (
         X_train.astype(np.float32),
-        X_validation.astype(np.float32),
+        X_validation,
         X_test.astype(np.float32),
         y_train,
         y_validation,
@@ -212,6 +246,22 @@ def _make_aligner(
     update_co: bool = True,
 ) -> Any:
     X_train, X_validation, X_test, y_train, y_validation, y_test = data
+    inference_method = settings.get(
+        f"{method}_inference_method",
+        settings.get("inference_method", "svm"),
+    )
+    if inference_method not in {"svm", "kernel_distance"}:
+        raise ValueError(
+            f"Unsupported inference method {inference_method!r} for {method}; "
+            "choose 'svm' or 'kernel_distance'."
+        )
+    inference_neighbors = int(settings.get("inference_neighbors", 1))
+    learning_rate = float(
+        settings.get(
+            f"{method}_learning_rate",
+            settings.get("learning_rate", 0.05),
+        )
+    )
     if BACKEND == "torch":
         return TorchExperimentKTA(
             kernel_model=model,
@@ -226,14 +276,27 @@ def _make_aligner(
             clustering=initialization,
             random_samples=int(settings.get("random_samples", centroids)),
             epochs=int(settings.get("epochs", 1)),
-            learning_rate=float(settings.get("learning_rate", 0.05)),
+            learning_rate=learning_rate,
             centroid_lr=float(settings.get("centroid_lr", 0.01)),
             sub_centroid_lr=float(settings.get("sub_centroid_lr", 0.01)),
             lambda_co=float(settings.get("lambda_co", 0.001)),
             lambda_kao=float(settings.get("lambda_kao", 0.001)),
+            co_margin=float(settings.get("co_margin", 0.1)),
+            co_temperature=float(settings.get("co_temperature", 0.1)),
             svm_c=float(settings.get("svm_c", 1.0)),
-            inference_landmarks=int(settings.get("inference_landmarks", 32)),
-            inner_steps=int(settings.get("quack_inner_steps", 10)),
+            inference_method=inference_method,
+            inference_neighbors=inference_neighbors,
+            inference_landmarks=_parse_inference_landmarks(
+                settings.get("inference_landmarks", 32)
+            ),
+            inner_steps=int(
+                settings.get("quack_inner_steps", 10)
+                if method == "quackKTA"
+                else settings.get(
+                    "ccka_inner_steps",
+                    settings.get("quack_inner_steps", 10),
+                )
+            ),
             update_kao=update_kao,
             update_co=update_co,
             seed=seed,
@@ -249,10 +312,14 @@ def _make_aligner(
         "matrix_type": "regular",
         "centering": False,
         "collect_diagnostics": bool(settings.get("collect_diagnostics", False)),
-        "inference_landmarks": int(settings.get("inference_landmarks", 32)),
+        "inference_landmarks": _parse_inference_landmarks(
+            settings.get("inference_landmarks", 32)
+        ),
         "svm_c": float(settings.get("svm_c", 1.0)),
+        "inference_method": inference_method,
+        "inference_neighbors": inference_neighbors,
         "epochs": int(settings.get("epochs", 1)),
-        "learning_rate": float(settings.get("learning_rate", 0.05)),
+        "learning_rate": learning_rate,
         "optimizer": settings.get("optimizer", "adam"),
         "seed": seed,
     }
@@ -280,6 +347,14 @@ def _make_aligner(
             sub_centroid_lr=float(settings.get("sub_centroid_lr", 0.01)),
             lambda_co=float(settings.get("lambda_co", 0.001)),
             lambda_kao=float(settings.get("lambda_kao", 0.001)),
+            co_margin=float(settings.get("co_margin", 0.1)),
+            co_temperature=float(settings.get("co_temperature", 0.1)),
+            inner_steps=int(
+                settings.get(
+                    "ccka_inner_steps",
+                    settings.get("quack_inner_steps", 10),
+                )
+            ),
             update_kao=update_kao,
             update_co=update_co,
         )
@@ -352,6 +427,10 @@ def _run_one(
         "ablation": ablation,
         "initialization": initialization,
         "centroids_per_class": centroids if method_name == "ccka" else None,
+        "inference_landmarks": _parse_inference_landmarks(
+            settings.get("inference_landmarks", 32)
+        ),
+        "inference_method": aligner.inference_method,
         "update_kao": update_kao if method_name == "ccka" else None,
         "update_co": update_co if method_name == "ccka" else None,
         "noise_type": noise["type"],
@@ -381,37 +460,69 @@ def _run_one(
 
 def _experiment_specs(config: dict[str, Any]):
     settings = config["training"]
+    experiment_settings = config["experiments"]
     K_values = [int(value) for value in settings.get("centroids", [4])]
-    methods = config["experiments"].get("methods", list(METHODS))
+    ccka_landmarks = [
+        _parse_inference_landmarks(value)
+        for value in experiment_settings.get(
+            "ccka_inference_landmarks",
+            [settings.get("inference_landmarks", 32)],
+        )
+    ]
+    methods = experiment_settings.get("methods", list(METHODS))
     for method in methods:
         if method not in METHODS:
             raise ValueError(f"Unknown configured method {method!r}.")
         if method == "ccka":
             for K in K_values:
-                for initialization in config["experiments"].get(
+                for initialization in experiment_settings.get(
                     "ccka_initializations", ["regular"]
                 ):
-                    yield method, K, initialization, "full", True, True
-            initializations = config["experiments"].get(
+                    for landmarks in ccka_landmarks:
+                        yield (
+                            method,
+                            K,
+                            initialization,
+                            "full",
+                            True,
+                            True,
+                            landmarks,
+                        )
+            initializations = experiment_settings.get(
                 "ccka_initializations", ["regular"]
             )
             if 1 not in K_values and "regular" in initializations:
-                yield method, 1, "regular", "full", True, True
+                for landmarks in ccka_landmarks:
+                    yield (
+                        method, 1, "regular", "full", True, True, landmarks
+                    )
             for name, variant in config["experiments"].get(
                 "ccka_ablations", {}
             ).items():
-                yield (
-                    method,
-                    int(variant.get("centroids", 1)),
-                    str(variant.get("initialization", "regular")),
-                    name,
-                    bool(variant.get("update_kao", True)),
-                    bool(variant.get("update_co", True)),
-                )
+                for landmarks in ccka_landmarks:
+                    yield (
+                        method,
+                        int(variant.get("centroids", 1)),
+                        str(variant.get("initialization", "regular")),
+                        name,
+                        bool(variant.get("update_kao", True)),
+                        bool(variant.get("update_co", True)),
+                        landmarks,
+                    )
         else:
             K_iter = K_values if method in {"randomKTA", "quackKTA"} else [0]
             for K in K_iter:
-                yield method, K, "not_applicable", "none", True, True
+                yield (
+                    method,
+                    K,
+                    "not_applicable",
+                    "none",
+                    True,
+                    True,
+                    _parse_inference_landmarks(
+                        settings.get("inference_landmarks", 32)
+                    ),
+                )
 
 
 def iter_experiment_jobs(config: dict[str, Any], *, smoke: bool = False):
@@ -451,11 +562,17 @@ def iter_experiment_jobs(config: dict[str, Any], *, smoke: bool = False):
                         ablation,
                         update_kao,
                         update_co,
+                        inference_landmarks,
                     ) in _experiment_specs(config):
+                        job_settings = dict(training)
+                        if method == "ccka":
+                            job_settings["inference_landmarks"] = (
+                                inference_landmarks
+                            )
                         yield {
                             "dataset": dataset_name,
                             "method": method,
-                            "settings": training,
+                            "settings": job_settings,
                             "seed": seed,
                             "noise": noise,
                             "shots": shots,
@@ -464,6 +581,7 @@ def iter_experiment_jobs(config: dict[str, Any], *, smoke: bool = False):
                             "ablation": ablation,
                             "update_kao": update_kao,
                             "update_co": update_co,
+                            "inference_landmarks": inference_landmarks,
                             "data": data,
                         }
 
@@ -500,9 +618,10 @@ def run_experiment_job(job: dict[str, Any], data=None) -> dict[str, Any]:
         )
         raise
     LOGGER.info(
-        "%s | %s | validation=%.4f test=%.4f circuits=%d",
+        "%s | %s | M=%s | validation=%.4f test=%.4f circuits=%d",
         job["dataset"],
         job["method"],
+        result["inference_landmarks"],
         result["validation_accuracy"],
         result["test_accuracy"],
         result["circuit_executions"],

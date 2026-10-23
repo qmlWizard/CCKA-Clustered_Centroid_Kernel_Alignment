@@ -8,14 +8,21 @@ training:
   centroids: [2]
   random_samples: 2
   inference_landmarks: 2
+  inference_method: kernel_distance
+  inference_neighbors: 1
+  validation_fraction: 0.2
+  test_fraction: 0.5
+  quackKTA_inference_method: svm
+  ccka_inference_method: kernel_distance
   collect_diagnostics: false
-  validation_fraction: 0.25
   feature_range: [0.0, 1.0]
   learning_rate: 0.01
   centroid_lr: 0.005
   sub_centroid_lr: 0.005
   lambda_kao: 0.001
   lambda_co: 0.001
+  co_margin: 0.1
+  co_temperature: 0.1
   svm_c: 1.0
   max_samples: 16
 
@@ -29,6 +36,7 @@ noise:
 experiments:
   methods: [fullKTA, randomKTA, quackKTA, ccka]
   ccka_initializations: [regular, random, kmeans]
+  ccka_inference_landmarks: [2, all]
   ccka_ablations:
     main_only:
       centroids: 1

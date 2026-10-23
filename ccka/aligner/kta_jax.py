@@ -9,8 +9,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax as ox
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.cluster import KMeans
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 
 
@@ -119,10 +121,12 @@ class BaseKTA(ABC):
         test_labels: jnp.ndarray | None = None,
         matrix_type: str = "regular",
         landmark_points: int = 0,
-        inference_landmarks: int = 32,
+        inference_landmarks: int | str = 32,
         centering: bool = False,
         collect_diagnostics: bool = True,
         svm_c: float = 1.0,
+        inference_method: str = "svm",
+        inference_neighbors: int = 1,
         epochs: int = 100,
         learning_rate: float = 0.01,
         optimizer: str = "adam",
@@ -150,10 +154,20 @@ class BaseKTA(ABC):
         if centering:
             raise ValueError("Kernel centering is not supported.")
         self.collect_diagnostics = collect_diagnostics
-        if inference_landmarks <= 0:
-            raise ValueError("inference_landmarks must be > 0")
+        if inference_landmarks != "all" and (
+            isinstance(inference_landmarks, bool)
+            or not isinstance(inference_landmarks, int)
+            or inference_landmarks <= 0
+        ):
+            raise ValueError("inference_landmarks must be > 0 or 'all'")
         if svm_c <= 0:
             raise ValueError("svm_c must be > 0")
+        if inference_method not in {"svm", "kernel_distance", "centroid"}:
+            raise ValueError(
+                "inference_method must be 'svm', 'kernel_distance', or 'centroid'"
+            )
+        if inference_neighbors <= 0:
+            raise ValueError("inference_neighbors must be positive")
         supplied_splits = (
             validation_data is not None,
             validation_labels is not None,
@@ -192,6 +206,8 @@ class BaseKTA(ABC):
             )
         self.inference_landmarks = inference_landmarks
         self.svm_c = svm_c
+        self.inference_method = inference_method
+        self.inference_neighbors = inference_neighbors
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.optimizer_name = optimizer.lower()
@@ -438,30 +454,86 @@ class BaseKTA(ABC):
         recall_score, margin. Test metrics are populated only when
         ``evaluate_test=True``.
         """
-        K_train, K_validation, K_test = self._evaluation_kernel_matrices(
-            self.weights, X, self.xvalidation, self.xtest if evaluate_test else None
-        )
-        K_train = np.asarray(K_train)
-        K_validation = np.asarray(K_validation)
         y_train_np = np.asarray(y)
-
-        svm = SVC(
-            kernel="precomputed",
-            C=self.svm_c,
-            probability=True,
-            max_iter=10_000,
-            random_state=self.seed,
-        )
-        svm.fit(K_train, y_train_np)
-
-        y_pred_train = svm.predict(K_train)
-        y_pred_validation = svm.predict(K_validation)
-        dual_coefs   = svm.dual_coef_
-        w_norm_sq    = np.sum(dual_coefs * dual_coefs)
-        margin       = 1.0 / np.sqrt(w_norm_sq)
+        predictor = None
+        margin = float("nan")
+        if self.inference_method == "centroid":
+            y_pred_train = np.asarray(self._centroid_predict(X, self.weights))
+            y_pred_validation = np.asarray(
+                self._centroid_predict(self.xvalidation, self.weights)
+            )
+            y_pred_test = (
+                np.asarray(self._centroid_predict(self.xtest, self.weights))
+                if evaluate_test
+                else None
+            )
+        else:
+            K_train, K_validation, K_test = self._evaluation_kernel_matrices(
+                self.weights,
+                X,
+                self.xvalidation,
+                self.xtest if evaluate_test else None,
+            )
+            K_train = np.asarray(K_train)
+            K_validation = np.asarray(K_validation)
+            if self.inference_method == "svm":
+                predictor = SVC(
+                    kernel="precomputed",
+                    C=self.svm_c,
+                    max_iter=10_000,
+                    random_state=self.seed,
+                )
+                predictor.fit(K_train, y_train_np)
+                y_pred_train = predictor.predict(K_train)
+                y_pred_validation = predictor.predict(K_validation)
+                if evaluate_test:
+                    y_pred_test = predictor.predict(np.asarray(K_test))
+                dual_coefs = predictor.dual_coef_
+                margin = 1.0 / np.sqrt(np.sum(dual_coefs * dual_coefs))
+            else:
+                train_diagonal = np.diag(K_train)
+                validation_diagonal = np.asarray(
+                    self.kernel_model.forward(
+                        self.xvalidation, self.xvalidation, self.weights
+                    )
+                )
+                train_distances = np.maximum(
+                    train_diagonal[:, None]
+                    + train_diagonal[None, :]
+                    - 2.0 * K_train,
+                    0.0,
+                )
+                np.fill_diagonal(train_distances, 0.0)
+                validation_distances = np.maximum(
+                    validation_diagonal[:, None]
+                    + train_diagonal[None, :]
+                    - 2.0 * K_validation,
+                    0.0,
+                )
+                predictor = KNeighborsClassifier(
+                    n_neighbors=min(self.inference_neighbors, len(y_train_np)),
+                    metric="precomputed",
+                )
+                predictor.fit(train_distances, y_train_np)
+                y_pred_train = predictor.predict(train_distances)
+                y_pred_validation = predictor.predict(validation_distances)
+                if evaluate_test:
+                    K_test = np.asarray(K_test)
+                    test_diagonal = np.asarray(
+                        self.kernel_model.forward(
+                            self.xtest, self.xtest, self.weights
+                        )
+                    )
+                    test_distances = np.maximum(
+                        test_diagonal[:, None]
+                        + train_diagonal[None, :]
+                        - 2.0 * K_test,
+                        0.0,
+                    )
+                    y_pred_test = predictor.predict(test_distances)
 
         metrics = {
-            "svm":            svm,
+            "svm":            predictor,
             "train_accuracy": float(accuracy_score(y_train_np, y_pred_train)),
             "validation_accuracy": float(
                 accuracy_score(np.asarray(self.yvalidation), y_pred_validation)
@@ -469,9 +541,7 @@ class BaseKTA(ABC):
             "margin":         float(margin),
         }
         if evaluate_test:
-            K_test = np.asarray(K_test)
             y_test = np.asarray(self.ytest)
-            y_pred_test = svm.predict(K_test)
             metrics.update(
                 {
                     "test_accuracy": float(accuracy_score(y_test, y_pred_test)),
@@ -487,6 +557,11 @@ class BaseKTA(ABC):
                 }
             )
         return metrics
+
+    def _centroid_predict(self, X: jnp.ndarray, weights) -> jnp.ndarray:
+        raise ValueError(
+            f"inference_method='centroid' is unsupported by {type(self).__name__}"
+        )
 
     def _evaluation_kernel_matrices(
         self,
@@ -511,6 +586,17 @@ class BaseKTA(ABC):
         X_validation: jnp.ndarray,
         X_test: jnp.ndarray | None,
     ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray | None]:
+        if self.inference_landmarks == "all":
+            K_train = self._kernel_matrix(weights, X_train)
+            K_validation = self.test_kernel_matrix(
+                weights, X_train, X_validation
+            )
+            K_test = (
+                self.test_kernel_matrix(weights, X_train, X_test)
+                if X_test is not None
+                else None
+            )
+            return K_train, K_validation, K_test
         landmark_count = min(self.inference_landmarks, len(X_train))
         indices = jax.random.permutation(
             jax.random.PRNGKey(self.seed), len(X_train)
@@ -577,7 +663,7 @@ class BaseKTA(ABC):
         block_ratio_hist:   list[float]      = []   # Experiment 2
         loss_hist:          list[float]      = []
         train_acc, validation_acc, svm_margin = [], [], []
-        best_validation_acc = -np.inf
+        best_validation_acc = float(init["validation_accuracy"])
         best_weights = self.weights
         coords_hist:        list[np.ndarray] = []   # Experiment 4
 
@@ -718,10 +804,18 @@ class GreedyKTA(BaseKTA):
 
     def _get_batch(self, epoch: int) -> tuple[jnp.ndarray, jnp.ndarray]:
         K = self.nystrom_kernel_matrix(self.weights, self.xtrain)
-        svm = SVC(kernel="precomputed", C=1.0, probability=True, max_iter=10000, random_state=self.seed)
+        svm = CalibratedClassifierCV(
+            estimator=SVC(
+                kernel="precomputed",
+                C=1.0,
+                max_iter=10_000,
+                random_state=self.seed,
+            ),
+            ensemble=False,
+        )
         svm.fit(K, np.asarray(self.ytrain))
-        probs       = svm.predict_proba(K)[:, 1]
-        uncertainty = 1.0 - np.abs(2.0 * probs - 1.0)
+        probabilities = svm.predict_proba(K)[:, 1]
+        uncertainty = 1.0 - np.abs(2.0 * probabilities - 1.0)
         k    = min(self.greedy_samples, len(self.xtrain))
         topk = np.argsort(-uncertainty)[:k]
         return self.xtrain[topk], self.ytrain[topk]
@@ -768,6 +862,7 @@ class CentroidBasedKTA(BaseKTA):
     learning_rate : float  (maps to PyTorch lr)
     centroid_lr : float    (maps to PyTorch mclr, defaults to learning_rate)
     sub_centroid_lr : float (maps to PyTorch cclr, defaults to centroid_lr)
+    inner_steps : int (defaults to 10)
     """
 
     def __init__(
@@ -780,15 +875,24 @@ class CentroidBasedKTA(BaseKTA):
         clustering: str = "regular",
         lambda_co: float = 0.001,
         lambda_kao: float = 0.001,
+        co_margin: float = 0.1,
+        co_temperature: float = 0.1,
         learning_rate: float = 0.01,
         centroid_lr: float | None = None,
         sub_centroid_lr: float | None = None,
         update_kao: bool = True,
         update_co: bool = True,
+        inner_steps: int = 10,
         **kwargs: Any,
     ) -> None:
         super().__init__(kernel_model, data, labels, learning_rate=learning_rate, **kwargs)
 
+        if inner_steps <= 0:
+            raise ValueError("inner_steps must be > 0")
+        if co_margin < 0:
+            raise ValueError("co_margin must be non-negative")
+        if co_temperature <= 0:
+            raise ValueError("co_temperature must be positive")
         self.n_centroids      = centroids
         if clustering.lower() not in {"regular", "random", "kmeans"}:
             raise ValueError("clustering must be 'regular', 'random', or 'kmeans'")
@@ -796,8 +900,11 @@ class CentroidBasedKTA(BaseKTA):
         self.use_kmeans       = self.clustering == "kmeans"
         self.update_kao       = update_kao
         self.update_co        = update_co
+        self.inner_steps      = inner_steps
         self.lambda_co        = lambda_co
         self.lambda_kao       = lambda_kao
+        self.co_margin        = co_margin
+        self.co_temperature   = co_temperature
         self.n_classes        = int(jnp.unique(self.ytrain).shape[0])
         self._centroid_lr     = centroid_lr if centroid_lr is not None else learning_rate
         self._sub_centroid_lr = (
@@ -889,6 +996,36 @@ class CentroidBasedKTA(BaseKTA):
         x0 = jnp.repeat(main_centroid[None, :], N, axis=0)
         return self.kernel_model.forward(x0, X, weights).reshape(-1)
 
+    def _centroid_predict(self, X: jnp.ndarray, weights) -> jnp.ndarray:
+        n_samples = len(X)
+        main_pairs = (
+            jnp.repeat(X, len(self.main_centroids), axis=0),
+            jnp.tile(self.main_centroids, (n_samples, 1)),
+        )
+        main_scores = self.kernel_model.forward(
+            main_pairs[0], main_pairs[1], weights
+        ).reshape(n_samples, len(self.main_centroids))
+        sub_pairs = (
+            jnp.repeat(X, len(self.sub_centroids), axis=0),
+            jnp.tile(self.sub_centroids, (n_samples, 1)),
+        )
+        sub_scores = self.kernel_model.forward(
+            sub_pairs[0], sub_pairs[1], weights
+        ).reshape(n_samples, len(self.sub_centroids))
+        classes = jnp.unique(self.main_centroid_labels)
+        class_scores = []
+        for label in classes:
+            main_index = jnp.argmax(self.main_centroid_labels == label)
+            sub_mask = self.sub_centroid_labels == label
+            class_scores.append(
+                0.5
+                * (
+                    main_scores[:, main_index]
+                    + jnp.mean(sub_scores[:, sub_mask], axis=1)
+                )
+            )
+        return classes[jnp.argmax(jnp.stack(class_scores, axis=1), axis=1)]
+
     def _evaluation_kernel_matrices(
         self,
         weights,
@@ -896,6 +1033,17 @@ class CentroidBasedKTA(BaseKTA):
         X_validation: jnp.ndarray,
         X_test: jnp.ndarray | None,
     ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray | None]:
+        if self.inference_landmarks == "all":
+            K_train = self.regular_kernel_matrix(weights, X_train)
+            K_validation = self.test_kernel_matrix(
+                weights, X_train, X_validation
+            )
+            K_test = (
+                self.test_kernel_matrix(weights, X_train, X_test)
+                if X_test is not None
+                else None
+            )
+            return K_train, K_validation, K_test
         return self._nystrom_evaluation_kernel_matrices(
             weights, X_train, X_validation, X_test
         )
@@ -963,18 +1111,27 @@ class CentroidBasedKTA(BaseKTA):
         y_raw: jnp.ndarray,
         l: float = -1.0,
     ) -> jnp.ndarray:
-        """CO loss: 1 - TA(K_vec, y_raw, l) + lambda_co * box_penalty."""
+        """Increase same-class kernel similarity over other-class similarity."""
         main_idx      = jnp.argmax(self.main_centroid_labels == cl)
         main_centroid = main_centroids[main_idx]
         K = self._centroid_kernel_vec(weights, main_centroid, self.sub_centroids)
         Y = y_raw.astype(jnp.float32)
-        numerator   = l * jnp.dot(K, Y)
-        denominator = jnp.linalg.norm(K) * jnp.linalg.norm(Y)
-        kta         = numerator / (denominator + 1e-10)
+        same_class = Y == cl
+        other_class = Y != cl
+        same_similarity = jnp.sum(jnp.where(same_class, K, 0.0)) / jnp.maximum(
+            jnp.sum(same_class), 1
+        )
+        other_similarity = jnp.sum(jnp.where(other_class, K, 0.0)) / jnp.maximum(
+            jnp.sum(other_class), 1
+        )
+        similarity_gap = same_similarity - other_similarity
+        margin_loss = jax.nn.softplus(
+            (self.co_margin - similarity_gap) / self.co_temperature
+        )
         penalty = jnp.sum(
             jax.nn.relu(main_centroid - 1.0) + jax.nn.relu(-main_centroid)
         )
-        return 1.0 - kta + self.lambda_co * penalty
+        return margin_loss + self.lambda_co * penalty
 
     # -- Joint KAO update --------------------------------------------------
 
@@ -1010,7 +1167,9 @@ class CentroidBasedKTA(BaseKTA):
     ) -> jnp.ndarray:
         """Update main centroid for class cl only."""
         grad_fn = jax.grad(self._loss_co_cl, argnums=1)
-        grads_main = grad_fn(self.weights, self.main_centroids, cl, y_raw, l)
+        grads_main = grad_fn(
+            self.weights, self.main_centroids, cl, y_raw, l
+        )
         updates_main, self._co_main_opt_state = self._co_main_optimizer.update(
             grads_main, self._co_main_opt_state
         )
@@ -1031,8 +1190,7 @@ class CentroidBasedKTA(BaseKTA):
 
         For each outer epoch:
         |-- (1) Select class cl (cycles through unique labels)
-        |-- (2) 10x KAO steps -- joint gradient on kernel *weights* AND *sub_centroids*
-        |-- (3) 10x CO steps  -- gradient on *main_centroids* only
+        |-- (2) Run ``inner_steps`` iterations, each performing enabled KAO and CO updates
         +-- (4) SVM evaluation + Experiments 1 / 2 / 4 diagnostics
 
         New history keys (Experiments 1, 2, 4):
@@ -1055,7 +1213,7 @@ class CentroidBasedKTA(BaseKTA):
         unique_labels_np = np.unique(np.asarray(self.ytrain))
         n_cls            = len(unique_labels_np)
 
-        best_validation_acc = -np.inf
+        best_validation_acc = float(init["validation_accuracy"])
         best_weights        = self.weights
         best_main_centroids = self.main_centroids
         best_sub_centroids  = self.sub_centroids
@@ -1069,7 +1227,8 @@ class CentroidBasedKTA(BaseKTA):
 
         start = time.perf_counter()
 
-        for epoch in range(self.epochs):
+        outer_epochs = (self.epochs + self.inner_steps - 1) // self.inner_steps
+        for epoch in range(outer_epochs):
 
             # (1) Select class
             cl_kao = unique_labels_np[epoch % n_cls]
@@ -1079,17 +1238,19 @@ class CentroidBasedKTA(BaseKTA):
             main_idx      = int(jnp.argmax(self.main_centroid_labels == cl_kao))
             main_centroid = self.main_centroids[main_idx]
 
-            # (2) KAO: 10x joint weight + sub-centroid updates
-            if self.update_kao:
-                self.weights, self.sub_centroids = self._kao_joint_update(
-                    main_centroid, y_raw, l=l_kao
-                )
-
-            # (3) CO update
-            if self.update_co:
-                self.main_centroids = self._co_main_update(
-                    cl=cl_kao, y_raw=y_raw, l=l_co
-                )
+            steps_this_epoch = min(
+                self.inner_steps, self.epochs - epoch * self.inner_steps
+            )
+            for _ in range(steps_this_epoch):
+                if self.update_kao:
+                    main_centroid = self.main_centroids[main_idx]
+                    self.weights, self.sub_centroids = self._kao_joint_update(
+                        main_centroid, y_raw, l=l_kao
+                    )
+                if self.update_co:
+                    self.main_centroids = self._co_main_update(
+                        cl=cl_kao, y_raw=y_raw, l=l_co
+                    )
 
             # (4) Diagnostics --------------------------------------------------
 
@@ -1254,6 +1415,20 @@ class QuackKTA(BaseKTA):
         x0 = jnp.repeat(main_centroid[None, :], N, axis=0)
         return self.kernel_model.forward(x0, X_train, weights).reshape(-1)
 
+    def _centroid_predict(self, X: jnp.ndarray, weights) -> jnp.ndarray:
+        n_samples = len(X)
+        centers = self.main_centroids
+        pairs = (
+            jnp.repeat(X, len(centers), axis=0),
+            jnp.tile(centers, (n_samples, 1)),
+        )
+        kernel_scores = self.kernel_model.forward(
+            pairs[0], pairs[1], weights
+        ).reshape(n_samples, len(centers))
+        return self.main_centroid_labels[
+            jnp.argmax(kernel_scores, axis=1)
+        ]
+
     # =========================================================================
     # Experiment 1 override: centroid-space KTA for QUACK
     # =========================================================================
@@ -1374,14 +1549,14 @@ class QuackKTA(BaseKTA):
         unique_labels_np = np.unique(np.asarray(self.ytrain))
         n_cls            = len(unique_labels_np)
 
-        best_validation_acc = -np.inf
+        init  = self.svm_training(self.xtrain, self.ytrain)
+        best_validation_acc = float(init["validation_accuracy"])
         best_weights        = self.weights
         best_main_centroids = self.main_centroids
-
-        init  = self.svm_training(self.xtrain, self.ytrain)
         start = time.perf_counter()
 
-        for epoch in range(self.epochs):
+        outer_epochs = (self.epochs + self.inner_steps - 1) // self.inner_steps
+        for epoch in range(outer_epochs):
             cl_kao = unique_labels_np[epoch % n_cls]
             l_kao  = float(cl_kao)
             l_co   = -float(cl_kao)
@@ -1391,8 +1566,11 @@ class QuackKTA(BaseKTA):
             y_kao = jnp.where(self.ytrain == cl_kao, 1.0, -1.0)
 
             # Inner loop: alternate KAO / CO every other outer epoch
+            steps_this_epoch = min(
+                self.inner_steps, self.epochs - epoch * self.inner_steps
+            )
             if epoch % 2 == 0:
-                for _ in range(self.inner_steps):
+                for _ in range(steps_this_epoch):
                     self.weights = self._kao_weight_update_quack(
                         main_centroid, self.xtrain, y_kao, l=l_kao
                     )
@@ -1404,7 +1582,7 @@ class QuackKTA(BaseKTA):
                         best_weights        = self.weights
                         best_main_centroids = self.main_centroids
             else:
-                for _ in range(self.inner_steps):
+                for _ in range(steps_this_epoch):
                     self.main_centroids = self._main_centroid_gradient_update_quack(
                         main_idx, self.xtrain, y_kao, l=l_co
                     )
