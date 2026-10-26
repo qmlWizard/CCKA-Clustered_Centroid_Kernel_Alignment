@@ -295,12 +295,29 @@ class TorchExperimentKTA:
             metrics.update(
                 {
                     "test_accuracy": float(accuracy_score(y_test, test_prediction)),
-                    "f1_score": float(f1_score(y_test, test_prediction, average="macro")),
+                    "f1_score": float(
+                        f1_score(
+                            y_test,
+                            test_prediction,
+                            average="macro",
+                            zero_division=0,
+                        )
+                    ),
                     "precision_score": float(
-                        precision_score(y_test, test_prediction, average="macro")
+                        precision_score(
+                            y_test,
+                            test_prediction,
+                            average="macro",
+                            zero_division=0,
+                        )
                     ),
                     "recall_score": float(
-                        recall_score(y_test, test_prediction, average="macro")
+                        recall_score(
+                            y_test,
+                            test_prediction,
+                            average="macro",
+                            zero_division=0,
+                        )
                     ),
                 }
             )
@@ -479,14 +496,16 @@ class TorchExperimentKTA:
         best_sub = (
             None if self.sub_centroids is None else self.sub_centroids.detach().clone()
         )
-        if self.method in {"quackKTA", "ccka"}:
-            outer_epochs = (self.epochs + self.inner_steps - 1) // self.inner_steps
-        else:
-            outer_epochs = self.epochs
+        outer_epochs = (self.epochs + self.inner_steps - 1) // self.inner_steps
         for epoch in range(outer_epochs):
-            steps_this_epoch = min(
-                self.inner_steps, self.epochs - epoch * self.inner_steps
-            ) if self.method in {"quackKTA", "ccka"} else None
+            steps_this_epoch = (
+                min(
+                    self.inner_steps,
+                    self.epochs - epoch * self.inner_steps,
+                )
+                if self.method in {"quackKTA", "ccka"}
+                else None
+            )
             losses.append(self._step(epoch, steps_this_epoch))
             metrics = self._svm_metrics()
             train_history.append(metrics["train_accuracy"])

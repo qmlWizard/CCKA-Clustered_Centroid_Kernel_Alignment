@@ -262,6 +262,25 @@ def _make_aligner(
             settings.get("learning_rate", 0.05),
         )
     )
+    if method == "ccka":
+        inner_steps = int(
+            settings.get(
+                "ccka_inner_steps",
+                settings.get("quack_inner_steps", 10),
+            )
+        )
+    elif method == "quackKTA":
+        inner_steps = int(settings.get("quack_inner_steps", 10))
+    else:
+        inner_steps = int(
+            settings.get(
+                "inner_steps",
+                settings.get(
+                    "quack_inner_steps",
+                    settings.get("ccka_inner_steps", 10),
+                ),
+            )
+        )
     if BACKEND == "torch":
         return TorchExperimentKTA(
             kernel_model=model,
@@ -274,7 +293,7 @@ def _make_aligner(
             method=method,
             centroids=centroids,
             clustering=initialization,
-            random_samples=int(settings.get("random_samples", centroids)),
+            random_samples=centroids,
             epochs=int(settings.get("epochs", 1)),
             learning_rate=learning_rate,
             centroid_lr=float(settings.get("centroid_lr", 0.01)),
@@ -289,14 +308,7 @@ def _make_aligner(
             inference_landmarks=_parse_inference_landmarks(
                 settings.get("inference_landmarks", 32)
             ),
-            inner_steps=int(
-                settings.get("quack_inner_steps", 10)
-                if method == "quackKTA"
-                else settings.get(
-                    "ccka_inner_steps",
-                    settings.get("quack_inner_steps", 10),
-                )
-            ),
+            inner_steps=inner_steps,
             update_kao=update_kao,
             update_co=update_co,
             seed=seed,
@@ -319,6 +331,7 @@ def _make_aligner(
         "inference_method": inference_method,
         "inference_neighbors": inference_neighbors,
         "epochs": int(settings.get("epochs", 1)),
+        "inner_steps": inner_steps,
         "learning_rate": learning_rate,
         "optimizer": settings.get("optimizer", "adam"),
         "seed": seed,
@@ -328,7 +341,7 @@ def _make_aligner(
     if method == "randomKTA":
         return RandomKTA(
             **common,
-            random_samples=int(settings.get("random_samples", centroids)),
+            random_samples=centroids,
         )
     if method == "quackKTA":
         return QuackKTA(
@@ -336,7 +349,6 @@ def _make_aligner(
             lambda_co=float(settings.get("lambda_co", 0.001)),
             lambda_kao=float(settings.get("lambda_kao", 0.001)),
             centroid_lr=float(settings.get("centroid_lr", 0.01)),
-            inner_steps=int(settings.get("quack_inner_steps", 10)),
         )
     if method == "ccka":
         return CentroidBasedKTA(
@@ -349,12 +361,7 @@ def _make_aligner(
             lambda_kao=float(settings.get("lambda_kao", 0.001)),
             co_margin=float(settings.get("co_margin", 0.1)),
             co_temperature=float(settings.get("co_temperature", 0.1)),
-            inner_steps=int(
-                settings.get(
-                    "ccka_inner_steps",
-                    settings.get("quack_inner_steps", 10),
-                )
-            ),
+
             update_kao=update_kao,
             update_co=update_co,
         )
@@ -491,7 +498,11 @@ def _experiment_specs(config: dict[str, Any]):
             initializations = experiment_settings.get(
                 "ccka_initializations", ["regular"]
             )
-            if 1 not in K_values and "regular" in initializations:
+            if (
+                experiment_settings.get("include_single_centroid_baseline", True)
+                and 1 not in K_values
+                and "regular" in initializations
+            ):
                 for landmarks in ccka_landmarks:
                     yield (
                         method, 1, "regular", "full", True, True, landmarks
@@ -510,7 +521,7 @@ def _experiment_specs(config: dict[str, Any]):
                         landmarks,
                     )
         else:
-            K_iter = K_values if method in {"randomKTA", "quackKTA"} else [0]
+            K_iter = K_values if method == "randomKTA" else [0]
             for K in K_iter:
                 yield (
                     method,

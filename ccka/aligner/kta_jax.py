@@ -128,6 +128,7 @@ class BaseKTA(ABC):
         inference_method: str = "svm",
         inference_neighbors: int = 1,
         epochs: int = 100,
+        inner_steps: int = 10,
         learning_rate: float = 0.01,
         optimizer: str = "adam",
         seed: int = 42,
@@ -168,6 +169,8 @@ class BaseKTA(ABC):
             )
         if inference_neighbors <= 0:
             raise ValueError("inference_neighbors must be positive")
+        if inner_steps <= 0:
+            raise ValueError("inner_steps must be > 0")
         supplied_splits = (
             validation_data is not None,
             validation_labels is not None,
@@ -209,6 +212,7 @@ class BaseKTA(ABC):
         self.inference_method = inference_method
         self.inference_neighbors = inference_neighbors
         self.epochs = epochs
+        self.inner_steps = inner_steps
         self.learning_rate = learning_rate
         self.optimizer_name = optimizer.lower()
 
@@ -546,13 +550,28 @@ class BaseKTA(ABC):
                 {
                     "test_accuracy": float(accuracy_score(y_test, y_pred_test)),
                     "f1_score": float(
-                        f1_score(y_test, y_pred_test, average="macro")
+                        f1_score(
+                            y_test,
+                            y_pred_test,
+                            average="macro",
+                            zero_division=0,
+                        )
                     ),
                     "precision_score": float(
-                        precision_score(y_test, y_pred_test, average="macro")
+                        precision_score(
+                            y_test,
+                            y_pred_test,
+                            average="macro",
+                            zero_division=0,
+                        )
                     ),
                     "recall_score": float(
-                        recall_score(y_test, y_pred_test, average="macro")
+                        recall_score(
+                            y_test,
+                            y_pred_test,
+                            average="macro",
+                            zero_division=0,
+                        )
                     ),
                 }
             )
@@ -669,7 +688,8 @@ class BaseKTA(ABC):
 
         start = time.perf_counter()
 
-        for epoch in range(self.epochs):
+        outer_epochs = (self.epochs + self.inner_steps - 1) // self.inner_steps
+        for epoch in range(outer_epochs):
             X_b, y_b = self._get_batch(epoch)
 
             if self.collect_diagnostics:
@@ -885,7 +905,14 @@ class CentroidBasedKTA(BaseKTA):
         inner_steps: int = 10,
         **kwargs: Any,
     ) -> None:
-        super().__init__(kernel_model, data, labels, learning_rate=learning_rate, **kwargs)
+        super().__init__(
+            kernel_model,
+            data,
+            labels,
+            learning_rate=learning_rate,
+            inner_steps=inner_steps,
+            **kwargs,
+        )
 
         if inner_steps <= 0:
             raise ValueError("inner_steps must be > 0")
@@ -1369,7 +1396,9 @@ class QuackKTA(BaseKTA):
         inner_steps: int = 10,
         **kwargs: Any,
     ) -> None:
-        super().__init__(kernel_model, data, labels, **kwargs)
+        super().__init__(
+            kernel_model, data, labels, inner_steps=inner_steps, **kwargs
+        )
 
         if inner_steps <= 0:
             raise ValueError("inner_steps must be > 0")
@@ -1574,25 +1603,11 @@ class QuackKTA(BaseKTA):
                     self.weights = self._kao_weight_update_quack(
                         main_centroid, self.xtrain, y_kao, l=l_kao
                     )
-                    result = self.svm_training(self.xtrain, self.ytrain)
-                    train_acc.append(result["train_accuracy"])
-                    validation_acc.append(result["validation_accuracy"])
-                    if result["validation_accuracy"] > best_validation_acc:
-                        best_validation_acc = result["validation_accuracy"]
-                        best_weights        = self.weights
-                        best_main_centroids = self.main_centroids
             else:
                 for _ in range(steps_this_epoch):
                     self.main_centroids = self._main_centroid_gradient_update_quack(
                         main_idx, self.xtrain, y_kao, l=l_co
                     )
-                    result = self.svm_training(self.xtrain, self.ytrain)
-                    train_acc.append(result["train_accuracy"])
-                    validation_acc.append(result["validation_accuracy"])
-                    if result["validation_accuracy"] > best_validation_acc:
-                        best_validation_acc = result["validation_accuracy"]
-                        best_weights        = self.weights
-                        best_main_centroids = self.main_centroids
 
             if self.collect_diagnostics:
                 alignment_hist.append(
@@ -1617,6 +1632,8 @@ class QuackKTA(BaseKTA):
             main_cent_hist.append(self.main_centroids)
 
             result = self.svm_training(self.xtrain, self.ytrain)
+            train_acc.append(result["train_accuracy"])
+            validation_acc.append(result["validation_accuracy"])
             svm_margin.append(result["margin"])
             if result["validation_accuracy"] > best_validation_acc:
                 best_validation_acc = result["validation_accuracy"]

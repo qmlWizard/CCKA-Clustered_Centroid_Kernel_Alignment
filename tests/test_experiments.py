@@ -422,7 +422,24 @@ def test_ccka_alignment_evaluates_only_centroid_to_subcentroid_pairs():
     assert model.circuit_executions - before == 2 * 2 * 2
 
 
-def test_ccka_runs_kao_and_co_for_each_inner_iteration():
+def test_experiment_specs_can_disable_implicit_single_centroid_baseline():
+    config = {
+        "training": {"centroids": [5, 10, 20], "inference_landmarks": 32},
+        "experiments": {
+            "methods": ["ccka"],
+            "ccka_initializations": ["regular"],
+            "include_single_centroid_baseline": False,
+            "ccka_ablations": {},
+        },
+    }
+
+    specs = list(_experiment_specs(config))
+
+    assert [spec[1] for spec in specs] == [5, 10, 20]
+    assert all(spec[3] == "full" for spec in specs)
+
+
+def test_ccka_treats_epochs_as_total_inner_updates():
     data = _splits()
     aligner = CentroidBasedKTA(
         _TinyKernel(),
@@ -451,13 +468,11 @@ def test_ccka_runs_kao_and_co_for_each_inner_iteration():
     aligner._co_main_update = co_update
     result = aligner.align()
 
-    assert update_order == [
-        "kao", "co", "kao", "co", "kao", "co", "kao", "co", "kao", "co"
-    ]
+    assert update_order == ["kao", "co"] * 5
     assert len(result["validation_accuracy_history"]) == 3
 
 
-def test_quack_epochs_count_total_inner_updates():
+def test_quack_treats_epochs_as_total_inner_updates():
     data = _splits()
     aligner = QuackKTA(
         _TinyKernel(),
@@ -486,7 +501,7 @@ def test_quack_epochs_count_total_inner_updates():
     result = aligner.align()
 
     assert update_order == ["kao", "kao", "co", "co", "kao"]
-    assert len(result["validation_accuracy_history"]) == 5
+    assert len(result["validation_accuracy_history"]) == 3
 
 
 def test_ccka_svm_kernel_matrices_use_nystrom_for_validation_and_test():
@@ -517,6 +532,24 @@ def test_ccka_svm_kernel_matrices_use_nystrom_for_validation_and_test():
     assert K_test.shape == (t, n)
     assert model.circuit_executions == n * m + m * m + v * m + t * m
     np.testing.assert_allclose(K_train, K_train.T, atol=1e-5)
+
+
+@pytest.mark.parametrize("method", ["fullKTA", "randomKTA"])
+def test_jax_global_methods_run_once_per_outer_epoch(method):
+    data = _splits()
+    aligner = _build_aligner(
+        method,
+        data,
+        {**_settings(), "epochs": 5, "inner_steps": 2},
+        seed=9,
+        centroids=2,
+    )
+
+    result = aligner.align()
+
+    assert aligner.epochs == 5
+    assert aligner.inner_steps == 2
+    assert len(result["validation_accuracy_history"]) == 3
 
 
 def test_svm_uses_validation_until_final_test_evaluation():
@@ -718,8 +751,10 @@ def test_torch_full_inference_kernel_uses_all_training_points():
     )
 
 
-@pytest.mark.parametrize("method", ["quackKTA", "ccka"])
-def test_torch_centroid_methods_count_total_inner_updates(method):
+@pytest.mark.parametrize(
+    "method", ["fullKTA", "randomKTA", "quackKTA", "ccka"]
+)
+def test_torch_methods_scale_outer_epochs_from_update_budget(method):
     torch = pytest.importorskip("torch")
     from ccka.aligner.torch_kta import TorchExperimentKTA
 
@@ -758,10 +793,8 @@ def test_torch_centroid_methods_count_total_inner_updates(method):
     result = aligner.align()
 
     if method == "ccka":
-        assert operations == [
-            "kao", "co", "kao", "co", "kao", "co", "kao", "co", "kao", "co"
-        ]
-    else:
+        assert operations == ["kao", "co"] * 5
+    elif method == "quackKTA":
         assert operations == ["kao", "kao", "co", "co", "kao"]
     assert len(result["validation_accuracy_history"]) == 3
 

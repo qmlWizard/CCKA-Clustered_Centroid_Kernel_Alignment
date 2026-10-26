@@ -1,6 +1,10 @@
 import pytest
 
-from experiments.noise import DEFAULT_NOISE_LEVELS, _validate_noise_levels
+from experiments.noise import (
+    DEFAULT_NOISE_LEVELS,
+    _parse_args,
+    _validate_noise_levels,
+)
 
 
 def test_default_noise_sweep_has_five_unique_levels():
@@ -11,6 +15,16 @@ def test_default_noise_sweep_has_five_unique_levels():
         0.1,
         0.2,
     )
+
+
+def test_noise_type_defaults_to_both():
+    assert _parse_args().noise_type == "both"
+
+
+@pytest.mark.parametrize("noise_type", ["coherent", "depolarizing"])
+def test_noise_type_can_be_selected(monkeypatch, noise_type):
+    monkeypatch.setattr("sys.argv", ["noise", "--noise-type", noise_type])
+    assert _parse_args().noise_type == noise_type
 
 
 @pytest.mark.parametrize(

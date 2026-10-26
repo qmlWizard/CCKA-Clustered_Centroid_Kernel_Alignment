@@ -16,15 +16,15 @@ from experiments.accuracy_vs_executions import ROOT, run_method
 from experiments.experiments import CONFIG_DIR, _prepare_data
 
 LOGGER = logging.getLogger("ccka.noise")
-DEFAULT_NOISE_LEVELS = (0.01, 0.03, 0.05, 0.1, 0.2)
+DEFAULT_NOISE_LEVELS = (0.01, 0.03, 0.05, 0.1)
 NOISE_TYPES = ("coherent", "depolarizing")
 METHODS = (("quackKTA", "not_applicable"), ("ccka", "kmeans"))
 
 
 def _validate_noise_levels(levels: list[float] | tuple[float, ...]) -> tuple[float, ...]:
     validated = tuple(float(level) for level in levels)
-    if len(validated) != 5:
-        raise ValueError("Exactly five noise levels are required.")
+    if len(validated) != 4:
+        raise ValueError("Exactly four noise levels are required.")
     if any(not 0.0 <= level <= 1.0 for level in validated):
         raise ValueError("Noise levels must be within [0, 1].")
     if len(set(validated)) != len(validated):
@@ -52,7 +52,12 @@ def _plot(path: Path, rows: list[dict[str, Any]]) -> None:
         "quackKTA": "QUACK",
         "ccka": "CCKA (K-means)",
     }
-    for noise_type in NOISE_TYPES:
+    noise_types = tuple(
+        noise_type
+        for noise_type in NOISE_TYPES
+        if any(row["noise_type"] == noise_type for row in rows)
+    )
+    for noise_type in noise_types:
         for method, _ in METHODS:
             values = sorted(
                 (
@@ -74,7 +79,12 @@ def _plot(path: Path, rows: list[dict[str, Any]]) -> None:
             )
     ax.set_xlabel("Noise level")
     ax.set_ylabel("Best validation accuracy (%)")
-    ax.set_title("Checkerboard accuracy under coherent and depolarizing noise")
+    noise_label = (
+        "coherent and depolarizing"
+        if len(noise_types) == len(NOISE_TYPES)
+        else noise_types[0]
+    )
+    ax.set_title(f"Checkerboard accuracy under {noise_label} noise")
     ax.set_ylim(0, 100)
     ax.grid(True, alpha=0.3)
     ax.legend()
@@ -87,8 +97,8 @@ def _plot(path: Path, rows: list[dict[str, Any]]) -> None:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Compare CCKA and QUACK accuracy across coherent and "
-            "depolarizing noise levels on checkerboard."
+            "Compare CCKA and QUACK accuracy across selected noise levels "
+            "on checkerboard."
         )
     )
     parser.add_argument(
@@ -96,6 +106,12 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=CONFIG_DIR / "default.yaml",
         help="YAML file supplying the training settings.",
+    )
+    parser.add_argument(
+        "--noise-type",
+        choices=("both", *NOISE_TYPES),
+        default="both",
+        help="Noise type to run (default: both).",
     )
     parser.add_argument(
         "--noise-levels",
@@ -162,7 +178,10 @@ def main() -> None:
 
     data = _prepare_data("checkerboard", args.seed, settings)
     rows = []
-    for noise_type in NOISE_TYPES:
+    noise_types = (
+        NOISE_TYPES if args.noise_type == "both" else (args.noise_type,)
+    )
+    for noise_type in noise_types:
         for noise_level in noise_levels:
             for method, initialization in METHODS:
                 LOGGER.info(

@@ -6,7 +6,6 @@ training:
   min_n_qubits: 5
   reps: 1
   centroids: [2]
-  random_samples: 2
   inference_landmarks: 2
   inference_method: kernel_distance
   inference_neighbors: 1

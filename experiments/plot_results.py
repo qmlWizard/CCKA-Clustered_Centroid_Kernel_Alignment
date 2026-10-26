@@ -202,19 +202,30 @@ def _plot_epoch_accuracy(results: pd.DataFrame, output: Path) -> int:
         )
     ]
     plots = 0
-    for (method, centroid_count), method_rows in rows.groupby(
-        ["method", "centroids_per_class"], dropna=False
-    ):
-        datasets = sorted(method_rows["dataset"].unique())
-        if not datasets:
-            continue
+    styles = {
+        "fullKTA": ("#4c9bd6", "--"),
+        "randomKTA": ("#83ad45", "--"),
+        "quackKTA": ("#29947f", "--"),
+        "ccka": ("#e95d36", "-"),
+    }
+    method_names = {
+        "fullKTA": "FullKTA",
+        "randomKTA": "RandomKTA",
+        "quackKTA": "QuackKTA",
+        "ccka": "CCKA (ours)",
+    }
+    for dataset in sorted(rows["dataset"].dropna().unique()):
+        dataset_rows = rows[rows["dataset"] == dataset]
         fig, axis = plt.subplots(figsize=(11, 7))
-        for dataset in datasets:
-            dataset_rows = method_rows[method_rows["dataset"] == dataset]
+        for (method, centroid_count), curve_rows in dataset_rows.groupby(
+            ["method", "centroids_per_class"], dropna=False, sort=True
+        ):
             epoch_values: dict[int, list[float]] = {}
-            for history in dataset_rows["history"]:
+            for history in curve_rows["history"]:
                 for epoch, value in enumerate(history, start=1):
                     epoch_values.setdefault(epoch, []).append(value)
+            if not epoch_values:
+                continue
             epochs = np.asarray(sorted(epoch_values))
             means = np.asarray(
                 [np.mean(epoch_values[epoch]) for epoch in epochs]
@@ -225,25 +236,36 @@ def _plot_epoch_accuracy(results: pd.DataFrame, output: Path) -> int:
             maxima = np.asarray(
                 [np.max(epoch_values[epoch]) for epoch in epochs]
             )
-            line = axis.plot(epochs, means, label=dataset)[0]
+            method_label = method_names.get(
+                method, str(curve_rows["method_label"].iloc[0])
+            )
+            label = (
+                method_label
+                if method != "ccka" or pd.isna(centroid_count)
+                else f"{method_label}, K={int(centroid_count)}"
+            )
+            color, line_style = styles[method]
+            line = axis.plot(
+                epochs,
+                means,
+                color=color,
+                linestyle=line_style,
+                linewidth=1.8,
+                label=label,
+            )[0]
             axis.fill_between(
                 epochs, minima, maxima, color=line.get_color(), alpha=0.12
             )
-        suffix = (
-            "no-k"
-            if pd.isna(centroid_count)
-            else f"k-{int(centroid_count)}"
-        )
         axis.set(
-            title=f"Validation accuracy by epoch: {method}, {suffix}",
+            title=dataset.replace("_", " "),
             xlabel="Epoch",
-            ylabel="Validation accuracy",
+            ylabel="Validation Accuracy",
             ylim=(0, 1),
         )
         axis.grid(alpha=0.25)
-        axis.legend(title="Dataset", bbox_to_anchor=(1.02, 1), loc="upper left")
+        axis.legend()
         fig.tight_layout()
-        _save(fig, output / f"accuracy-epochs-{_slug(method)}-{suffix}.png")
+        _save(fig, output / f"accuracy-epochs-{_slug(dataset)}.png")
         plots += 1
     return plots
 
