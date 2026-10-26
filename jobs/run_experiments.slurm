@@ -1,57 +1,59 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #SBATCH --job-name=ccka-experiments
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
+#SBATCH --partition=terai
+#SBATCH --nodes=25
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=48
 #SBATCH --mem=64G
-#SBATCH --time=7-00:00:00
-#SBATCH --output=slurm-%x-%j.out
-#SBATCH --error=slurm-%x-%j.err
+#SBATCH --time=24:00:00
+#SBATCH --output=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.out
+#SBATCH --error=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.err
 
-set -euo pipefail
+# ============================================================
+# Environment
+# ============================================================
 
-# Add the cluster's partition/account directives above if your site requires them.
-PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_ROOT"
+source ~/.bashrc
 
-if [[ -f .venv/bin/activate ]]; then
-    source .venv/bin/activate
-fi
+. /home/apps/spack/share/spack/setup-env.sh
 
-PYTHON_BIN="${PYTHON_BIN:-python}"
-CONFIG="${CONFIG:-experiments/configs/default.yaml}"
-OUTPUT_DIR="${OUTPUT_DIR:-results/slurm-${SLURM_JOB_ID:-manual}}"
+spack load /oxmullt
+spack load /gaily2jw
+spack load /2wdhn7r
 
-if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-    echo "Python executable not found: $PYTHON_BIN" >&2
-    echo "Set PYTHON_BIN or activate the experiment environment before submitting." >&2
-    exit 1
-fi
+# ============================================================
+# OpenBLAS
+# ============================================================
 
-if [[ ! -f "$CONFIG" ]]; then
-    echo "Experiment config not found: $CONFIG" >&2
-    exit 1
-fi
+export OPENBLAS_ROOT=$(spack location -i /geypa2)
+export LD_LIBRARY_PATH=$OPENBLAS_ROOT/lib:$LD_LIBRARY_PATH
 
-export OMP_NUM_THREADS=1
-export OPENBLAS_NUM_THREADS=1
-export MKL_NUM_THREADS=1
-export MPLBACKEND=Agg
+export MPI_LIB=/home/apps/spack/opt/spack/linux-cascadelake/openmpi-4.1.8-gaily2jwc3klcubp55unnlgiaglqu7mf/lib
+export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH
 
-mkdir -p "$OUTPUT_DIR"
+conda activate py310
+export RAY_AUTH_MODE=disabled
+ulimit -n 65535
 
-echo "Project: $PROJECT_ROOT"
-echo "Config: $CONFIG"
-echo "Output: $OUTPUT_DIR"
-echo "CPUs: ${SLURM_CPUS_PER_TASK:-unknown}"
+# ============================================================
+# Get allocated nodes
+# ============================================================
 
-"$PYTHON_BIN" main.py \
-    --config "$CONFIG" \
-    --address local \
-    --output-dir "$OUTPUT_DIR"
+nodes=($(scontrol show hostnames "$SLURM_JOB_NODELIST"))
 
-"$PYTHON_BIN" experiments/plot_results.py \
-    --input "$OUTPUT_DIR" \
-    --output "$OUTPUT_DIR/plots"
+echo "=========================================="
+echo "SLURM JOB ID      : $SLURM_JOB_ID"
+echo "SLURM JOB NAME    : $SLURM_JOB_NAME"
+echo "NUMBER OF NODES   : $SLURM_JOB_NUM_NODES"
+echo "CPUS PER NODE     : $SLURM_CPUS_PER_TASK"
+echo "=========================================="
 
-echo "Experiment run and plotting completed: $OUTPUT_DIR"
+# ============================================================
+# Get allocated nodes
+# ============================================================
+
+python -m main.py --config configs/default.yaml
+
+echo "=========================================="
+echo "Execution Complete!!!"
+echo "=========================================="

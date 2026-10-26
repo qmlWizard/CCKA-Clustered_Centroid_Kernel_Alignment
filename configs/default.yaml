@@ -1,20 +1,20 @@
-datasets: [corners]
+datasets: [checkerboard, corners, donuts, adult, one_vs_nonone, zero_vs_nonzero, pfault]
 
 training:
-  epochs: 100
+  epochs: 1000
   min_n_qubits: 5
   reps: 4
-  centroids: [2, 4, 8, 10]
+  centroids: [2, 4, 8, 10, 12]
   random_samples: 8
   # CCKA Nyström landmark count for evaluation; use "all" for exact kernels.
   inference_landmarks: 32
-  inference_method: kernel_distance
+  inference_method: svm
   inference_neighbors: 1
   quackKTA_inference_method: svm
-  ccka_inference_method: kernel_distance
+  ccka_inference_method: svm
   validation_fraction: 0.2
   test_fraction: 0.5
-  feature_range: [0.0, 1.0]
+  feature_range: [-3.142, 3,142]
   collect_diagnostics: false
   learning_rate: 0.05
   centroid_lr: 0.01
@@ -25,16 +25,16 @@ training:
   co_temperature: 0.1
   svm_c: 1.0
 
-seeds: [0, 1, 2]
+seeds: [0, 1, 2, 3, 4]
 
 noise:
-  types: [none]
-  levels: [0.01, 0.05]
-  shots: [256, 1024]
+  types: [none, coherent, depolarising]
+  levels: [0.01, 0.02, 0.05, 0.07, 0.1]
+  shots: [256, 1024, 2048, 4096]
 
 experiments:
   methods: [fullKTA, randomKTA, quackKTA, ccka]
-  ccka_initializations: [regular]
+  ccka_initializations: [regular, kmeans]
   ccka_inference_landmarks: [8, 16, 32, all]
   ccka_ablations:
     main_only:

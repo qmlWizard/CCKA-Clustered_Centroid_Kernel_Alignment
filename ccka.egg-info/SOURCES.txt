@@ -18,5 +18,11 @@ ccka/models/hardware_runner.py
 ccka/models/kernel.py
 ccka/models/torch_kernel.py
 experiments/__init__.py
+experiments/accuracy_vs_executions.py
 experiments/experiments.py
+experiments/noise.py
+experiments/plot_results.py
 experiments/test_experiments.py
+experiments/test_main.py
+experiments/test_noise.py
+experiments/test_plot_results.py
