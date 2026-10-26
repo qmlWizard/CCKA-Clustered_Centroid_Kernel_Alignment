@@ -7,17 +7,17 @@ from experiments.noise import (
 )
 
 
-def test_default_noise_sweep_has_five_unique_levels():
+def test_default_noise_sweep_has_four_unique_levels():
     assert _validate_noise_levels(DEFAULT_NOISE_LEVELS) == (
         0.01,
         0.03,
         0.05,
         0.1,
-        0.2,
     )
 
 
-def test_noise_type_defaults_to_both():
+def test_noise_type_defaults_to_both(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["noise"])
     assert _parse_args().noise_type == "both"
 
 
@@ -30,10 +30,10 @@ def test_noise_type_can_be_selected(monkeypatch, noise_type):
 @pytest.mark.parametrize(
     "levels",
     [
-        (0.01, 0.02, 0.03, 0.04),
-        (0.01, 0.02, 0.03, 0.04, 0.05, 0.06),
-        (0.01, 0.02, 0.03, 0.04, 1.01),
-        (0.01, 0.02, 0.03, 0.04, 0.04),
+        (0.01, 0.02, 0.03),
+        (0.01, 0.02, 0.03, 0.04, 0.05),
+        (0.01, 0.02, 0.03, 1.01),
+        (0.01, 0.02, 0.03, 0.03),
     ],
 )
 def test_noise_sweep_rejects_invalid_levels(levels):

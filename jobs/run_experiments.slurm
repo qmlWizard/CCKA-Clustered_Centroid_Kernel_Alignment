@@ -52,7 +52,7 @@ echo "=========================================="
 # Get allocated nodes
 # ============================================================
 
-python -m main.py --config configs/default.yaml
+python main.py --config configs/default.yaml
 
 echo "=========================================="
 echo "Execution Complete!!!"

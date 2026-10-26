@@ -152,7 +152,7 @@ This work was developed as part of the master's thesis at **Deggendorf Institute
 Run the configured sweep across a Ray cluster with:
 
 ```bash
-python main.py --config experiments/configs/default.yaml
+python main.py --config configs/default.yaml
 ```
 
 The default address is `auto`, so start a Ray head and connect worker nodes

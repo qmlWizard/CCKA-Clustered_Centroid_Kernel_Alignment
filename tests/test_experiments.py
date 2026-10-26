@@ -830,7 +830,7 @@ def test_method_and_initialization_smoke(method, initialization):
 
 
 def test_smoke_configs_cover_both_datasets_and_noise_modes():
-    config_path = __import__("pathlib").Path(__file__).parent / "configs" / "smoke.yaml"
+    config_path = __import__("pathlib").Path(__file__).parent.parent / "configs" / "smoke.yaml"
     import yaml
 
     config = yaml.safe_load(config_path.read_text())

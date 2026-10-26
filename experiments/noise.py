@@ -115,11 +115,11 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--noise-levels",
-        nargs=5,
+        nargs=4,
         type=float,
         default=DEFAULT_NOISE_LEVELS,
         metavar="P",
-        help="Five noise levels in [0, 1].",
+        help="Four noise levels in [0, 1].",
     )
     parser.add_argument("--shots", type=int, default=None)
     parser.add_argument("--max-iterations", type=int, default=100)

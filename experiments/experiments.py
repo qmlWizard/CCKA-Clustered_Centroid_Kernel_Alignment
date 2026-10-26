@@ -51,7 +51,7 @@ else:
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
-CONFIG_DIR = Path(__file__).resolve().parent / "configs"
+CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 
 DATASETS = {
     "adult": DATA_DIR / "adult.npy",
