@@ -49,10 +49,30 @@ echo "CPUS PER NODE     : $SLURM_CPUS_PER_TASK"
 echo "=========================================="
 
 # ============================================================
+# Start Ray head
+# ============================================================
+
+# Determine the IP address from the allocated head node.
+HEAD_IP=$(srun \
+    --nodes=1 \
+    --ntasks=1 \
+    --nodelist="$HEAD_NODE" \
+    hostname -I | awk '{print $1}')
+
+if [[ -z "$HEAD_IP" ]]; then
+    echo "ERROR: Could not determine the Ray head-node IP."
+    exit 1
+fi
+
+RAY_PORT=6379
+RAY_ADDRESS="${HEAD_IP}:${RAY_PORT}"
+
+# ============================================================
 # Get allocated nodes
 # ============================================================
 
-python main.py --config configs/default.yaml
+python main.py --config configs/default.yaml --address="$RAY_ADDRESS"
+
 
 echo "=========================================="
 echo "Execution Complete!!!"
