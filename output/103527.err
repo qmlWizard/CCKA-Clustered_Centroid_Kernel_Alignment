@@ -1,0 +1,20 @@
+[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
+[1;31m==>[0m Error: Unknown namespace: builtin
+[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
+[1;31m==>[0m Error: Unknown namespace: builtin
+[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
+[1;31m==>[0m Error: Unknown namespace: builtin
+Traceback (most recent call last):
+  File "/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/main.py", line 179, in <module>
+    main()
+  File "/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/main.py", line 166, in main
+    ray.init(address=args.address, ignore_reinit_error=True)
+  File "/home/cdacB/digvijaysinha.cdacb/.conda/envs/py310/lib/python3.10/site-packages/ray/_private/client_mode_hook.py", line 134, in wrapper
+    return func(*args, **kwargs)
+  File "/home/cdacB/digvijaysinha.cdacb/.conda/envs/py310/lib/python3.10/site-packages/ray/_private/worker.py", line 1833, in init
+    bootstrap_address = services.canonicalize_bootstrap_address(address, _temp_dir)
+  File "/home/cdacB/digvijaysinha.cdacb/.conda/envs/py310/lib/python3.10/site-packages/ray/_private/services.py", line 706, in canonicalize_bootstrap_address
+    addr = get_ray_address_from_environment(addr, temp_dir)
+  File "/home/cdacB/digvijaysinha.cdacb/.conda/envs/py310/lib/python3.10/site-packages/ray/_private/services.py", line 458, in get_ray_address_from_environment
+    raise ConnectionError(
+ConnectionError: Could not find any running Ray instance. Please specify the one to connect to by setting `--address` flag or `RAY_ADDRESS` environment variable.

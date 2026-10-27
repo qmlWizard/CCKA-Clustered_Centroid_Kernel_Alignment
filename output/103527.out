@@ -1,0 +1,29 @@
+==========================================
+SLURM_CLUSTER_NAME = rudra20pf-hpc
+SLURM_ARRAY_JOB_ID = 
+SLURM_ARRAY_TASK_ID = 
+SLURM_ARRAY_TASK_COUNT = 
+SLURM_ARRAY_TASK_MAX = 
+SLURM_ARRAY_TASK_MIN = 
+SLURM_JOB_ACCOUNT = cdacb
+SLURM_JOB_ID = 103527
+SLURM_JOB_NAME = ccka-experiments
+SLURM_JOB_NODELIST = cbcn[0169-0172,0244-0245,0320,0588-0591,2019-2028,2215],cbhm[0094-0096]
+SLURM_JOB_USER = digvijaysinha.cdacb
+SLURM_JOB_UID = 80064
+SLURM_JOB_PARTITION = terai
+SLURM_TASK_PID = 3795037
+SLURM_SUBMIT_DIR = /home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment
+SLURM_CPUS_ON_NODE = 24
+SLURM_NTASKS = 25
+SLURM_TASK_PID = 3795037
+==========================================
+==========================================
+SLURM JOB ID      : 103527
+SLURM JOB NAME    : ccka-experiments
+NUMBER OF NODES   : 25
+CPUS PER NODE     : 24
+==========================================
+==========================================
+Execution Complete!!!
+==========================================
