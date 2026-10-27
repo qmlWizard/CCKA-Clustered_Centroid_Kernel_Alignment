@@ -1,0 +1,32 @@
+# Section 1/9/11: accuracy-only benchmark, all methods x all ansatze x all
+# binary datasets. No ablations (ablation_datasets is empty).
+base: base.yaml
+
+datasets:
+  - checkerboard
+  - corners
+  - moons
+  - circles
+  - rings
+  - xor_grid
+  - spirals
+  - double_cake
+  - gmm_modes_2
+  - rare_mode
+  - breast_cancer_wisconsin
+  - banknote_authentication
+  - pima_diabetes
+  - adult
+  - pfault
+
+ansatze:
+  - crz_ring
+  - hardware_efficient
+  - iqp
+  - zz_feature_map
+  - strongly_entangling
+  - separable
+
+experiments:
+  ablation_datasets: []
+

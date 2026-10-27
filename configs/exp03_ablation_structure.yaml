@@ -1,0 +1,23 @@
+# Section 4: structural ablations. corners + checkerboard ONLY.
+base: base.yaml
+
+datasets: [corners, checkerboard]
+
+training:
+  centroids: [4]
+
+experiments:
+  methods: [fullKTA, randomKTA, quackKTA, ccka]
+  ccka_initializations: [regular, random, kmeans]
+  ccka_ablations:
+    main_only: {centroids: 1, update_kao: false, update_co: true}
+    sub_only: {centroids: 1, update_kao: true, update_co: false}
+    no_kao: {update_kao: false, update_co: true}
+    no_co: {update_kao: true, update_co: false}
+    fixed_sub_centroids:
+      settings: {sub_centroid_lr: 0.0}
+    fixed_main_centroids:
+      settings: {centroid_lr: 0.0}
+    no_box_penalty_no_reg:
+      settings: {lambda_co: 0.0, lambda_kao: 0.0}
+

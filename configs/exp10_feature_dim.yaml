@@ -1,0 +1,18 @@
+# Section 6: number of PCA components / qubits (2, 4, 6, 8) for Adult and MNIST-like data.
+base: base.yaml
+
+datasets: [adult, breast_cancer_wisconsin, zero_vs_nonzero]
+
+training_grid:
+  n_qubits: [2, 4, 6, 8]
+
+training:
+  epochs: 60
+  max_samples: 300
+
+seeds: [0, 1, 2, 3, 4]
+
+experiments:
+  methods: [fullKTA, quackKTA, ccka]
+  ablation_datasets: []
+

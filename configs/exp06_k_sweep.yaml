@@ -1,0 +1,14 @@
+# Section 5: K sweep on datasets whose claims depend on representative points.
+base: base.yaml
+
+datasets: [corners, checkerboard, xor_grid, rings, gmm_modes_1, gmm_modes_2, gmm_modes_4, rare_mode]
+
+training:
+  centroids: [1, 2, 4, 6, 8, 10, 16, 32]
+
+ansatze: [crz_ring, hardware_efficient]
+
+experiments:
+  methods: [quackKTA, ccka]
+  ablation_datasets: []
+

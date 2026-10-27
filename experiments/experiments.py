@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import itertools
+import functools
 import json
 import logging
 import time
@@ -17,6 +18,9 @@ from sklearn.preprocessing import MinMaxScaler
 
 from ccka.backend import BACKEND
 from ccka.circuits.angleEmbeddingKernel import quackEmbeddingCircuit
+from ccka.circuits.ansatz import DEFAULT_ANSATZ, ansatz_names
+from experiments.datasets import GENERATED_DATASETS, generate_dataset
+from experiments.multiclass import MulticlassAligner, normalise_strategy
 
 if BACKEND == "jax":
     import jax.numpy as jnp
@@ -68,8 +72,7 @@ DATASETS = {
     "pima_diabetes": DATA_DIR / "pima_diabetes.npy",
     "qsar_biodegradation": DATA_DIR / "qsar_biodegradation.npy",
     "zero_vs_nonzero": DATA_DIR / "zero_vs_nonzero.npy",
-    "double_cake": None,
-    "moons": None,
+    **{name: None for name in GENERATED_DATASETS},
 }
 
 METHOD_LABELS = {
@@ -80,6 +83,30 @@ METHOD_LABELS = {
 }
 
 LOGGER = logging.getLogger("ccka.experiments")
+
+
+def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def load_config(path: Path) -> dict[str, Any]:
+    """Load a YAML config; an optional ``base:`` key names a parent config
+    (relative to the config directory) that is deep-merged underneath."""
+    path = Path(path)
+    config = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    base = config.pop("base", None)
+    if base is None:
+        return config
+    parent = Path(base)
+    if not parent.is_absolute():
+        parent = path.parent / parent
+    return _merge(load_config(parent), config)
 
 
 def _parse_inference_landmarks(value: int | str) -> int | str:
@@ -98,21 +125,6 @@ def _parse_inference_landmarks(value: int | str) -> int | str:
     return landmarks
 
 
-def _generate_dataset(name: str, seed: int, n_samples: int) -> tuple[np.ndarray, np.ndarray]:
-    rng = np.random.default_rng(seed)
-    if name == "moons":
-        from sklearn.datasets import make_moons
-
-        return make_moons(n_samples=n_samples, noise=0.12, random_state=seed)
-    if name == "double_cake":
-        angles = rng.uniform(0.0, 2.0 * np.pi, n_samples)
-        labels = rng.integers(0, 2, n_samples)
-        radii = np.where(labels == 0, 0.35, 0.9) + rng.normal(0, 0.06, n_samples)
-        X = np.column_stack((radii * np.cos(angles), radii * np.sin(angles)))
-        return X, labels
-    raise ValueError(f"No generator is defined for dataset {name!r}.")
-
-
 def _read_dataset(
     name: str, seed: int, max_samples: int | None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -120,7 +132,7 @@ def _read_dataset(
         raise ValueError(f"Unknown dataset {name!r}. Choose from {sorted(DATASETS)}.")
     path = DATASETS[name]
     if path is None:
-        X, y = _generate_dataset(name, seed, max_samples or 300)
+        X, y = generate_dataset(name, seed, max_samples or 300)
         return train_test_split(
             X, y, test_size=0.2, random_state=seed, stratify=y
         )
@@ -151,6 +163,37 @@ def _read_dataset(
     return X_train, X_test, y_train, y_test
 
 
+def _imbalance(
+    X: np.ndarray, y: np.ndarray, minority_fraction: float, seed: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """Subsample the smaller class so it makes up ``minority_fraction`` of the data."""
+    classes, counts = np.unique(y, return_counts=True)
+    if len(classes) != 2:
+        raise ValueError("class_imbalance is only defined for binary datasets.")
+    if not 0.0 < minority_fraction <= 0.5:
+        raise ValueError("class_imbalance must be in (0, 0.5].")
+    minority = classes[np.argmin(counts)]
+    majority_count = int(counts.max())
+    keep = int(round(majority_count * minority_fraction / (1 - minority_fraction)))
+    keep = max(2, min(keep, int(counts.min())))
+    rng = np.random.default_rng(seed)
+    minority_index = rng.choice(np.flatnonzero(y == minority), keep, replace=False)
+    selected = np.sort(np.concatenate((np.flatnonzero(y != minority), minority_index)))
+    return X[selected], y[selected]
+
+
+def _flip_labels(y: np.ndarray, fraction: float, seed: int) -> np.ndarray:
+    if not 0.0 <= fraction < 1.0:
+        raise ValueError("label_noise must be in [0, 1).")
+    rng = np.random.default_rng(seed + 10_007)
+    classes = np.unique(y)
+    flipped = np.array(y, copy=True)
+    for index in rng.choice(len(y), int(round(fraction * len(y))), replace=False):
+        others = classes[classes != y[index]]
+        flipped[index] = rng.choice(others)
+    return flipped
+
+
 def _prepare_data(
     name: str,
     seed: int,
@@ -161,6 +204,9 @@ def _prepare_data(
     )
     X_all = np.concatenate((source_train, source_test), axis=0)
     y_all = np.concatenate((source_y_train, source_y_test), axis=0)
+    imbalance = settings.get("class_imbalance")
+    if imbalance is not None:
+        X_all, y_all = _imbalance(X_all, y_all, float(imbalance), seed)
     test_fraction = float(settings.get("test_fraction", 0.5))
     validation_fraction = float(settings.get("validation_fraction", 0.2))
     if not 0.0 < test_fraction < 1.0:
@@ -188,11 +234,27 @@ def _prepare_data(
             stratify=y_train_validation,
         )
 
-    n_qubits = max(
-        5,
-        int(settings.get("min_n_qubits", 5)),
-        X_train.shape[1],
-    )
+    n_train = settings.get("n_train")
+    if n_train is not None and int(n_train) < len(X_train):
+        X_train, _, y_train, _ = train_test_split(
+            X_train,
+            y_train,
+            train_size=int(n_train),
+            random_state=seed,
+            stratify=y_train,
+        )
+    label_noise = float(settings.get("label_noise", 0.0))
+    if label_noise > 0.0:
+        y_train = _flip_labels(y_train, label_noise, seed)
+
+    if settings.get("n_qubits") is not None:
+        n_qubits = int(settings["n_qubits"])
+    else:
+        n_qubits = max(
+            5,
+            int(settings.get("min_n_qubits", 5)),
+            X_train.shape[1],
+        )
     if X_train.shape[1] > n_qubits:
         n_components = min(n_qubits, X_train.shape[1], len(X_train))
         pca = PCA(n_components=n_components, random_state=seed)
@@ -368,6 +430,58 @@ def _make_aligner(
     raise ValueError(f"Unknown method {method!r}.")
 
 
+def _scaled_init(base_init, scale: float, seed: int = 0, **kwargs):
+    # scale=0 gives all-zero weights; small scales give near-identity circuits.
+    return base_init(seed=seed, minval=-np.pi * scale, maxval=np.pi * scale)
+
+
+def _build_model(
+    settings: dict[str, Any],
+    num_qubits: int,
+    noise: dict[str, Any],
+    shots: int,
+    seed: int,
+    ansatz: str,
+):
+    noisy = noise["type"] != "none"
+    circuit = quackEmbeddingCircuit(
+        num_qubits=num_qubits,
+        reps=int(settings.get("reps", 2)),
+        reupload=True,
+        noisy=noisy,
+        noise_type=noise["type"],
+        noise_level=float(noise["level"]),
+        seed=seed,
+        ansatz=ansatz,
+    )
+    init_scale = float(settings.get("init_scale", 1.0))
+    if init_scale != 1.0:
+        circuit.init_weights = functools.partial(
+            _scaled_init, circuit.init_weights, init_scale
+        )
+    if BACKEND == "jax":
+        return KernelModel(
+            circuit=circuit,
+            device_name="default.mixed" if noisy else "default.qubit",
+            interface="jax",
+            diff_method="parameter-shift" if noisy else "backprop",
+            noisy=noisy,
+            noise_type=noise["type"] != "none",
+            shots=shots if noisy else None,
+        )
+    return TorchKernelModel(
+        circuit=circuit,
+        device_name="default.mixed" if noisy else "default.qubit",
+        diff_method="parameter-shift" if noisy else "backprop",
+        noisy=noisy,
+        shots=shots if noisy else None,
+    )
+
+
+def _jsonable(value: Any) -> Any:
+    return json.dumps(value) if isinstance(value, (list, tuple, dict)) else value
+
+
 def _run_one(
     dataset_name: str,
     method_name: str,
@@ -382,55 +496,81 @@ def _run_one(
     ablation: str = "none",
     update_kao: bool = True,
     update_co: bool = True,
+    ansatz: str = DEFAULT_ANSATZ,
+    extra_columns: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     noisy = noise["type"] != "none"
-    circuit = quackEmbeddingCircuit(
-        num_qubits=data[0].shape[1],
-        reps=int(settings.get("reps", 2)),
-        reupload=True,
-        noisy=noisy,
-        noise_type=noise["type"],
-        noise_level=float(noise["level"]),
-        seed=seed,
-    )
-    if BACKEND == "jax":
-        model = KernelModel(
-            circuit=circuit,
-            device_name="default.mixed" if noisy else "default.qubit",
-            interface="jax",
-            diff_method="parameter-shift" if noisy else "backprop",
-            noisy=noisy,
-            noise_type=noise["type"] != "none",
-            shots=shots if noisy else None,
+    n_classes = int(len(np.unique(data[3])))
+    strategy = None
+    if n_classes > 2:
+        if BACKEND != "jax":
+            raise NotImplementedError(
+                "Multiclass training requires the JAX backend."
+            )
+        strategy = normalise_strategy(settings.get("multiclass_strategy", "ovr"))
+        settings = {
+            **settings,
+            "inference_method": "svm",
+            f"{method_name}_inference_method": "svm",
+        }
+
+    def build(sub_data: tuple[np.ndarray, ...]):
+        model = _build_model(
+            settings, sub_data[0].shape[1], noise, shots, seed, ansatz
         )
+        aligner = _make_aligner(
+            method_name,
+            model,
+            sub_data,
+            settings,
+            seed,
+            centroids=centroids,
+            initialization=initialization,
+            update_kao=update_kao,
+            update_co=update_co,
+        )
+        return aligner, model
+
+    if strategy is None:
+        aligner, _ = build(data)
     else:
-        model = TorchKernelModel(
-            circuit=circuit,
-            device_name="default.mixed" if noisy else "default.qubit",
-            diff_method="parameter-shift" if noisy else "backprop",
-            noisy=noisy,
-            shots=shots if noisy else None,
+        aligner = MulticlassAligner(
+            build,
+            data,
+            strategy=strategy,
+            svm_c=float(settings.get("svm_c", 1.0)),
+            seed=seed,
         )
-    aligner = _make_aligner(
-        method_name,
-        model,
-        data,
-        settings,
-        seed,
-        centroids=centroids,
-        initialization=initialization,
-        update_kao=update_kao,
-        update_co=update_co,
-    )
     started = time.perf_counter()
     history = aligner.align()
     final_metrics = history["final_svm_metrics"]
-    return {
+    reps = int(settings.get("reps", 2))
+    row = {
         "dataset": dataset_name,
         "method": method_name,
         "method_label": METHOD_LABELS[method_name],
         "backend": BACKEND,
+        "ansatz": ansatz,
+        "reps": reps,
         "n_qubits": int(data[0].shape[1]),
+        "n_params": 3 * reps * int(data[0].shape[1]),
+        "n_classes": n_classes,
+        "multiclass_strategy": strategy,
+        "n_train": int(len(data[0])),
+        "n_test": int(len(data[2])),
+        "class_imbalance": settings.get("class_imbalance"),
+        "label_noise": float(settings.get("label_noise", 0.0)),
+        "optimizer": settings.get("optimizer", "adam"),
+        "learning_rate": float(
+            settings.get(
+                f"{method_name}_learning_rate",
+                settings.get("learning_rate", 0.05),
+            )
+        ),
+        "centroid_lr": float(settings.get("centroid_lr", 0.01)),
+        "sub_centroid_lr": float(settings.get("sub_centroid_lr", 0.01)),
+        "lambda_kao": float(settings.get("lambda_kao", 0.001)),
+        "lambda_co": float(settings.get("lambda_co", 0.001)),
         "ablation": ablation,
         "initialization": initialization,
         "centroids_per_class": centroids if method_name == "ccka" else None,
@@ -463,9 +603,12 @@ def _run_one(
         "circuit_executions": int(history["circuit_executions"]),
         "wall_time_seconds": time.perf_counter() - started,
     }
+    for name, value in (extra_columns or {}).items():
+        row.setdefault(name, _jsonable(value))
+    return row
 
 
-def _experiment_specs(config: dict[str, Any]):
+def _experiment_specs(config: dict[str, Any], *, include_ablations: bool = True):
     settings = config["training"]
     experiment_settings = config["experiments"]
     K_values = [int(value) for value in settings.get("centroids", [4])]
@@ -493,6 +636,7 @@ def _experiment_specs(config: dict[str, Any]):
                             "full",
                             True,
                             True,
+                            {},
                             landmarks,
                         )
             initializations = experiment_settings.get(
@@ -505,11 +649,13 @@ def _experiment_specs(config: dict[str, Any]):
             ):
                 for landmarks in ccka_landmarks:
                     yield (
-                        method, 1, "regular", "full", True, True, landmarks
+                        method, 1, "regular", "full", True, True, {}, landmarks
                     )
-            for name, variant in config["experiments"].get(
-                "ccka_ablations", {}
-            ).items():
+            for name, variant in (
+                config["experiments"].get("ccka_ablations", {}).items()
+                if include_ablations
+                else ()
+            ):
                 for landmarks in ccka_landmarks:
                     yield (
                         method,
@@ -518,6 +664,7 @@ def _experiment_specs(config: dict[str, Any]):
                         name,
                         bool(variant.get("update_kao", True)),
                         bool(variant.get("update_co", True)),
+                        dict(variant.get("settings", {})),
                         landmarks,
                     )
         else:
@@ -530,10 +677,25 @@ def _experiment_specs(config: dict[str, Any]):
                     "none",
                     True,
                     True,
+                    {},
                     _parse_inference_landmarks(
                         settings.get("inference_landmarks", 32)
                     ),
                 )
+
+
+# Ablations are only meaningful (and only affordable) on these two datasets.
+ABLATION_DATASETS = ("checkerboard", "corners")
+
+
+def _grid_combinations(grid: dict[str, list[Any]] | None) -> list[dict[str, Any]]:
+    if not grid:
+        return [{}]
+    keys = list(grid)
+    return [
+        dict(zip(keys, values))
+        for values in itertools.product(*(grid[key] for key in keys))
+    ]
 
 
 def iter_experiment_jobs(config: dict[str, Any], *, smoke: bool = False):
@@ -550,51 +712,79 @@ def iter_experiment_jobs(config: dict[str, Any], *, smoke: bool = False):
     if smoke:
         training.update(config.get("smoke_overrides", {}))
         dataset_names = list(config.get("smoke_datasets", ["checkerboard", "corners"]))
+    ablation_datasets = set(
+        config["experiments"].get("ablation_datasets", ABLATION_DATASETS)
+    )
+    ansatze = list(config.get("ansatze", [DEFAULT_ANSATZ]))
+    unknown_ansatze = sorted(set(ansatze) - set(ansatz_names()))
+    if unknown_ansatze:
+        raise ValueError(f"Unknown configured ansatze: {unknown_ansatze}")
     noise_settings = config["noise"]
-    noises = [
-        {"type": kind, "level": 0.0 if kind == "none" else float(level)}
-        for kind, level in itertools.product(
-            noise_settings.get("types", ["none"]),
-            noise_settings.get("levels", [0.01]),
-        )
-    ]
+    noises = []
+    for kind, level in itertools.product(
+        noise_settings.get("types", ["none"]),
+        noise_settings.get("levels", [0.01]),
+    ):
+        level = 0.0 if kind in {"none", "shots_only"} else float(level)
+        noise = {"type": kind, "level": level}
+        if noise not in noises:
+            noises.append(noise)
     seeds = [int(seed) for seed in config.get("seeds", [0])]
     shot_counts = [int(value) for value in noise_settings.get("shots", [1024])]
+    grid = _grid_combinations(config.get("training_grid"))
     for dataset_name in dataset_names:
-        for seed in seeds:
-            data = _prepare_data(dataset_name, seed, training)
-            for noise in noises:
-                current_shots = shot_counts if noise["type"] != "none" else [0]
-                for shots in current_shots:
-                    for (
-                        method,
-                        K,
-                        initialization,
-                        ablation,
-                        update_kao,
-                        update_co,
-                        inference_landmarks,
-                    ) in _experiment_specs(config):
-                        job_settings = dict(training)
-                        if method == "ccka":
-                            job_settings["inference_landmarks"] = (
-                                inference_landmarks
-                            )
-                        yield {
-                            "dataset": dataset_name,
-                            "method": method,
-                            "settings": job_settings,
-                            "seed": seed,
-                            "noise": noise,
-                            "shots": shots,
-                            "centroids": K,
-                            "initialization": initialization,
-                            "ablation": ablation,
-                            "update_kao": update_kao,
-                            "update_co": update_co,
-                            "inference_landmarks": inference_landmarks,
-                            "data": data,
-                        }
+        for overrides in grid:
+            grid_training = {**training, **overrides}
+            for seed in seeds:
+                data = _prepare_data(dataset_name, seed, grid_training)
+                for ansatz in ansatze:
+                    for noise in noises:
+                        current_shots = (
+                            shot_counts if noise["type"] != "none" else [0]
+                        )
+                        for shots in current_shots:
+                            for (
+                                method,
+                                K,
+                                initialization,
+                                ablation,
+                                update_kao,
+                                update_co,
+                                variant_settings,
+                                inference_landmarks,
+                            ) in _experiment_specs(
+                                config,
+                                include_ablations=dataset_name
+                                in ablation_datasets,
+                            ):
+                                job_settings = {
+                                    **grid_training,
+                                    **variant_settings,
+                                }
+                                if method == "ccka":
+                                    job_settings["inference_landmarks"] = (
+                                        inference_landmarks
+                                    )
+                                yield {
+                                    "dataset": dataset_name,
+                                    "method": method,
+                                    "settings": job_settings,
+                                    "seed": seed,
+                                    "noise": noise,
+                                    "shots": shots,
+                                    "centroids": K,
+                                    "initialization": initialization,
+                                    "ablation": ablation,
+                                    "update_kao": update_kao,
+                                    "update_co": update_co,
+                                    "inference_landmarks": inference_landmarks,
+                                    "ansatz": ansatz,
+                                    "extra_columns": {
+                                        **overrides,
+                                        **variant_settings,
+                                    },
+                                    "data": data,
+                                }
 
 
 def run_experiment_job(job: dict[str, Any], data=None) -> dict[str, Any]:
@@ -614,6 +804,8 @@ def run_experiment_job(job: dict[str, Any], data=None) -> dict[str, Any]:
             ablation=job["ablation"],
             update_kao=job["update_kao"],
             update_co=job["update_co"],
+            ansatz=job.get("ansatz", DEFAULT_ANSATZ),
+            extra_columns=job.get("extra_columns"),
         )
     except Exception:
         LOGGER.exception(
@@ -677,7 +869,7 @@ def main() -> None:
         level=getattr(logging, args.log_level.upper()),
         format="%(asctime)s %(levelname)s %(message)s",
     )
-    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+    config = load_config(args.config)
     run(config, smoke=args.smoke)
 
 

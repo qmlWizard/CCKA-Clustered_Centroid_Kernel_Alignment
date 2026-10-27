@@ -1,0 +1,19 @@
+# Multiclass (C > 2) with selectable reduction: one-vs-all (ovr) / one-vs-one (ovo).
+base: base.yaml
+
+datasets: [multiclass_modes, three_rings, iris, wine, digits_c3, digits_c5]
+
+training:
+  n_qubits: 6
+  epochs: 100
+  max_samples: 300
+
+training_grid:
+  multiclass_strategy: [ovr, ovo]
+
+seeds: [0, 1, 2, 3, 4]
+
+experiments:
+  methods: [fullKTA, randomKTA, quackKTA, ccka]
+  ablation_datasets: []
+

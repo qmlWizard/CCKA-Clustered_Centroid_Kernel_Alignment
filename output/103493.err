@@ -1,8 +1,0 @@
-fatal: unable to access 'https://github.com/spack/spack-packages.git/': Could not resolve host: github.com
-[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': Failed to clone repository builtin
-[1;31m==>[0m Error: Unknown namespace: builtin
-[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
-[1;31m==>[0m Error: Unknown namespace: builtin
-[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
-[1;31m==>[0m Error: Unknown namespace: builtin
-/home/cdacB/digvijaysinha.cdacb/.conda/envs/py310/bin/python: Error while finding module specification for 'main.py' (ModuleNotFoundError: __path__ attribute not found on 'main' while trying to find 'main.py'). Try using 'main' instead of 'main.py' as the module name.

@@ -1,0 +1,24 @@
+# Section 8: noise robustness. Density-matrix simulation is slow, so this is
+# deliberately small (few samples/epochs/seeds, 3 qubits).
+base: base.yaml
+
+datasets: [corners, checkerboard]
+
+training:
+  epochs: 20
+  reps: 2
+  n_qubits: 3
+  max_samples: 60
+  centroids: [2]
+
+seeds: [0, 1, 2]
+
+noise:
+  types: [none, depolarizing, amplitude_damping, phase_damping, coherent, shots_only]
+  levels: [0, 0.001, 0.005, 0.01, 0.02, 0.05, 0.1]
+  shots: [1024]
+
+experiments:
+  methods: [fullKTA, randomKTA, quackKTA, ccka]
+  ablation_datasets: []
+

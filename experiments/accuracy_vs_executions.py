@@ -15,6 +15,7 @@ import yaml
 
 from ccka.backend import BACKEND
 from ccka.circuits.angleEmbeddingKernel import quackEmbeddingCircuit
+from ccka.circuits.ansatz import DEFAULT_ANSATZ, ansatz_names
 from experiments.experiments import (
     CONFIG_DIR,
     METHOD_LABELS,
@@ -22,6 +23,7 @@ from experiments.experiments import (
     _make_aligner,
     _parse_inference_landmarks,
     _prepare_data,
+    load_config,
 )
 
 if BACKEND == "jax":
@@ -158,6 +160,7 @@ def _build_aligner(
         noise_type=noise_type,
         noise_level=noise_level,
         seed=seed,
+        ansatz=settings.get("ansatz", DEFAULT_ANSATZ),
     )
     if BACKEND == "jax":
         model = KernelModel(
@@ -667,6 +670,12 @@ def _parse_args() -> argparse.Namespace:
             "defaults to training.epochs in the config."
         ),
     )
+    parser.add_argument(
+        "--ansatz",
+        choices=tuple(ansatz_names()),
+        default=DEFAULT_ANSATZ,
+        help="Kernel circuit ansatz.",
+    )
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument(
         "--inference-landmarks",
@@ -767,8 +776,9 @@ def main() -> None:
     if not 0.0 < args.target_accuracy <= 1.0:
         raise ValueError("--target-accuracy must be in (0, 1].")
 
-    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+    config = load_config(args.config)
     settings = dict(config["training"])
+    settings["ansatz"] = args.ansatz
     inference_landmarks = _parse_inference_landmarks(
         args.inference_landmarks
         if args.inference_landmarks is not None

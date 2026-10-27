@@ -40,6 +40,27 @@ IDENTITY_COLUMNS = [
     "shots",
     "seed",
 ]
+OPTIONAL_IDENTITY_COLUMNS = [
+    "ansatz",
+    "reps",
+    "n_qubits",
+    "n_train",
+    "class_imbalance",
+    "label_noise",
+    "optimizer",
+    "learning_rate",
+    "centroid_lr",
+    "sub_centroid_lr",
+    "lambda_kao",
+    "lambda_co",
+    "inference_landmarks",
+    "multiclass_strategy",
+    "n_classes",
+    "init_scale",
+    "ccka_inner_steps",
+    "quack_inner_steps",
+    "svm_c",
+]
 
 
 def _slug(value: object) -> str:
@@ -92,9 +113,11 @@ def load_results(source: Path) -> pd.DataFrame:
     results["initialization"] = results["initialization"].fillna(
         "not_applicable"
     )
-    results = results.drop_duplicates(
-        subset=IDENTITY_COLUMNS + ["test_accuracy", "circuit_executions"]
-    )
+    optional = [c for c in OPTIONAL_IDENTITY_COLUMNS if c in results.columns]
+    key = IDENTITY_COLUMNS + optional + ["test_accuracy", "circuit_executions"]
+    # NaN-safe dedup: stringify so empty optional cells compare equal.
+    keyed = results[key].astype(str)
+    results = results[~keyed.duplicated()]
     return results
 
 

@@ -1,0 +1,12 @@
+# Section 6: label-noise sweep (claim: centroid objectives average out noisy labels).
+base: base.yaml
+
+datasets: [overlapping_blobs, moons, corners, checkerboard]
+
+training_grid:
+  label_noise: [0.0, 0.05, 0.1, 0.2]
+
+experiments:
+  methods: [fullKTA, quackKTA, ccka]
+  ablation_datasets: []
+

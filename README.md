@@ -156,7 +156,69 @@ python main.py --config configs/default.yaml
 ```
 
 The default address is `auto`, so start a Ray head and connect worker nodes
-before running. Use `--address local` for a single-machine Ray run. Results are
-written per trial and combined into a summary under `results/<run-name>/`.
+before running it directly. The Slurm script in `jobs/run_experiments.slurm`
+starts a Ray head on the first allocated node and connects the remaining nodes
+before launching the runner. Use `--address local` for a single-machine Ray
+run. Results are written per trial and combined into a summary under
+`results/<run-name>/`.
 The runner uses JAX/Optax when available and falls back to PyTorch otherwise;
 install a backend with `pip install .[jax]` or `pip install .[torch]`.
+
+## Experiment suite
+
+**Run everything in parallel on one Ray cluster:** `sbatch jobs/run_all.slurm`
+(or `bash jobs/submit_all.sh --nodes=40`). It starts Ray across all allocated
+nodes and runs `ray_suite.py`, which schedules every job of every
+`configs/exp*.yaml` plus the kernel, ansatz, budget and scalability analyses in
+a single pool, then builds the stats tables and plots into
+`results/suite-<jobid>/`. `SUITE_ARGS="--only exp06_k_sweep kernel"` selects a
+subset; the last `TIMING_NODES` (default 1) nodes are reserved for scalability
+timings. Check locally first with `python ray_suite.py --address local --smoke`.
+
+Configs live in `configs/` (`base.yaml` plus `exp01…exp15`, each inheriting with
+`base: base.yaml`). Submit everything with `bash jobs/submit_all.sh`, or one
+experiment with
+`sbatch --nodes=8 --export=ALL,CONFIG=configs/exp06_k_sweep.yaml jobs/run_experiments.slurm`
+(output: `results/<config-name>/`). Single-node analyses:
+`sbatch --export=ALL,ANALYSIS=<budget|scalability|kernel|ansatz|stats|plots> jobs/run_analysis.slurm`.
+
+| Plan section | Config / script | Plots |
+|---|---|---|
+| 0, 1, 11 main benchmark, 10 seeds, val-based checkpoint selection | `exp01_main_benchmark`, `experiments/stats_report.py` | grouped bars per ansatz, ansatz×method / ansatz×dataset heatmaps, Pareto, critical-difference, summary tables with Wilcoxon p-values (bold only if significant) |
+| 1 multiclass (C>2) | `exp02_multiclass` (`training.multiclass_strategy: ovr\|ovo`) | strategy bars |
+| 2 accuracy vs circuit budget | `experiments/accuracy_vs_executions.py` (job `ANALYSIS=budget`) | accuracy vs evaluations, cost-to-target |
+| 3 scalability, Nyström | `experiments/scalability.py` | evals/epoch and time vs N (log-log), time vs qubits/layers, stacked pipeline cost, accuracy vs landmarks |
+| 4 ablations (**corners, checkerboard only**) | `exp03` structure/clustering/fixed centroids, `exp04` λ_KAO×λ_CO, `exp05` MCLR×CCLR×LR | Δ-accuracy bars, learning curves, heatmaps |
+| 5 K sweep, multimodality | `exp06_k_sweep` | accuracy vs K (+cost axis), by modes, optimal K vs modes |
+| 6 data regimes | `exp07` N_train, `exp08` label noise, `exp09` imbalance, `exp10` PCA dim | curves per dataset |
+| 7 kernel analysis (**corners, checkerboard only**) | `experiments/kernel_analysis.py` | kernel heatmaps, eigenspectra, violins, CKA, KTA vs accuracy, effective rank, decision boundaries |
+| 8 noise | `exp11_noise` (depolarising, amplitude/phase damping, coherent, shots-only), `exp12_shots` | accuracy vs level, noise×method heatmap, accuracy vs shots |
+| 9 ansätze | `exp13_ansatz_depth`, `experiments/ansatz_analysis.py` | accuracy vs depth/params, gradient variance, expressibility, Meyer-Wallach, rank stability (Kendall τ) |
+| 10 optimiser / init | `exp14_optimizer_init` (Adam/SGD, init scale 0/0.1/1, epochs) | init sensitivity, epochs-to-plateau |
+
+**Ansätze** (`ansatze:` in a config, `--ansatz` in scripts): `crz_ring`
+(default, identical to the original circuit), `hardware_efficient`, `iqp`,
+`zz_feature_map`, `strongly_entangling`, `separable` (no-entanglement control).
+
+**Scope rule:** ablations run only on `corners` and `checkerboard`
+(`experiments.ablation_datasets`); all other datasets only appear in accuracy
+experiments, and kernel analysis rejects other datasets.
+
+**Synthetic datasets and the CCKA behaviour each one tests**
+(`experiments/datasets.py::SYNTHETIC_CLAIMS`, evaluated by `stats_report.py` →
+`claims_report.md`): `rings` (equal class means; main centroid uninformative),
+`xor_grid` (accuracy rises with K until each cell has a representative),
+`gmm_modes_1/2/4` (gap to QUACK grows with modes per class; 1 mode is the
+control), `rare_mode` (sub-centroids cover a rare mode; macro-F1),
+`spirals` (accuracy per circuit budget), `moons` (low-data generalisation),
+`overlapping_blobs` (label-noise robustness), `circles`/`double_cake`
+(sanity), `multiclass_modes`/`three_rings` (C>2, OvO vs OvR).
+
+**Not implemented (need new algorithm or hardware work):** bisecting k-means /
+k-medoids, joint KAO+CO updates and KAO:CO ratios, centred-TA / cross-entropy
+losses, one-hot/pairwise targets, sub↔sub terms, box penalty, >2 hierarchy
+levels, COBYLA/SPSA/L-BFGS, train-noisy/test-clean evaluation, real hardware /
+fake backends, AUC, Fashion-MNIST, centroid-trajectory PCA/t-SNE, per-epoch
+effective rank, per-method gradient variance. Multiclass is JAX-backend only;
+the Qiskit hardware circuit supports only `crz_ring`. FullKTA at N=10⁴ needs
+~10⁸ circuits per epoch, so `scalability.py` caps it with `--max-full-n`.

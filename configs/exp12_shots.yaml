@@ -1,0 +1,23 @@
+# Section 8: finite-shot sweep (shot noise only, no channel).
+base: base.yaml
+
+datasets: [corners, checkerboard]
+
+training:
+  epochs: 20
+  reps: 2
+  n_qubits: 3
+  max_samples: 60
+  centroids: [2]
+
+seeds: [0, 1, 2]
+
+noise:
+  types: [shots_only]
+  levels: [0]
+  shots: [100, 500, 1000, 10000]
+
+experiments:
+  methods: [fullKTA, quackKTA, ccka]
+  ablation_datasets: []
+

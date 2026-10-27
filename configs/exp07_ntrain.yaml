@@ -1,0 +1,15 @@
+# Section 6: accuracy vs N_train (claim: CCKA generalises better in the low-data regime).
+base: base.yaml
+
+datasets: [moons, corners, checkerboard, overlapping_blobs]
+
+training_grid:
+  n_train: [8, 16, 32, 64, 128, 256]
+
+training:
+  max_samples: 800
+
+experiments:
+  methods: [fullKTA, randomKTA, quackKTA, ccka]
+  ablation_datasets: []
+

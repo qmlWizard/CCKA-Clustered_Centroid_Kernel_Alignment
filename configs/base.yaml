@@ -1,0 +1,50 @@
+# Shared defaults. Experiment configs inherit with `base: base.yaml` and only
+# override what they change (dicts are deep-merged, lists are replaced).
+datasets: [checkerboard, corners]
+
+training:
+  epochs: 100
+  min_n_qubits: 5
+  reps: 4
+  centroids: [4]
+  inference_landmarks: 32
+  inference_method: svm
+  inference_neighbors: 1
+  quackKTA_inference_method: svm
+  ccka_inference_method: svm
+  # Checkpoints are selected on the validation split; test is evaluated once.
+  validation_fraction: 0.3
+  test_fraction: 0.5
+  feature_range: [0.0, 3.14159]
+  collect_diagnostics: false
+  learning_rate: 0.1
+  centroid_lr: 0.01
+  sub_centroid_lr: 0.01
+  lambda_kao: 0.01
+  lambda_co: 0.01
+  co_margin: 0.1
+  co_temperature: 0.1
+  svm_c: 1.0
+  optimizer: adam
+  multiclass_strategy: ovr
+  max_samples: 400
+
+# 10 seeds everywhere so every table/plot can report mean +- std and run
+# paired significance tests.
+seeds: [0, 1, 2, 3, 4]
+
+ansatze: [crz_ring]
+
+noise:
+  types: [none]
+  levels: [0]
+  shots: [1024]
+
+experiments:
+  methods: [fullKTA, randomKTA, quackKTA, ccka]
+  ccka_initializations: [regular]
+  ccka_inference_landmarks: [32]
+  # Ablations only ever run on these two datasets.
+  ablation_datasets: [checkerboard, corners]
+  ccka_ablations: {}
+

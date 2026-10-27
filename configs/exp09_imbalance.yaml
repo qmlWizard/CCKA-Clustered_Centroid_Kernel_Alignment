@@ -1,0 +1,12 @@
+# Section 6: class-imbalance sweep (minority fraction 50/30/10 %). Reports macro F1 too.
+base: base.yaml
+
+datasets: [rare_mode, moons, corners]
+
+training_grid:
+  class_imbalance: [0.5, 0.3, 0.1]
+
+experiments:
+  methods: [fullKTA, quackKTA, ccka]
+  ablation_datasets: []
+

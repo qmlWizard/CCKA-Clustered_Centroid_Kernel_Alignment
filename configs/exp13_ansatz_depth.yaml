@@ -1,0 +1,16 @@
+# Section 9: ansatz x depth x method grid (accuracy, parameter count, executions).
+base: base.yaml
+
+datasets: [corners, checkerboard]
+
+ansatze: [crz_ring, hardware_efficient, iqp, zz_feature_map, strongly_entangling, separable]
+
+training_grid:
+  reps: [1, 2, 4, 6, 8, 10]
+
+seeds: [0, 1, 2, 3, 4]
+
+experiments:
+  methods: [ccka]
+  ablation_datasets: []
+

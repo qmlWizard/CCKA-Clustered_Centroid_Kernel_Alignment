@@ -1,6 +1,8 @@
 import pennylane as qml
 import numpy as np
 
+from ccka.circuits.ansatz import DEFAULT_ANSATZ, get_ansatz, invert_op
+
 try:
     import jax
     import jax.numpy as jnp
@@ -21,7 +23,10 @@ class quackEmbeddingCircuit:
             reupload    : whether to re-upload features each rep
             noisy       : if True, apply depolarising noise after every gate
                         on BOTH the forward (x1) and manual-adjoint (x2) passes
-            noise_level : depolarising / coherent error probability p ∈ [0, 1]
+            noise_level : channel / coherent error strength p ∈ [0, 1]
+            noise_type  : 'depolarising', 'amplitude_damping', 'phase_damping',
+                        'coherent', or 'shots_only' (finite shots, no channel)
+            ansatz      : gate layout, see ``ccka.circuits.ansatz.ANSATZE``
 
         Device requirement
         ------------------
@@ -29,7 +34,25 @@ class quackEmbeddingCircuit:
         noisy=True   →  default.mixed  (density-matrix)
     """
 
-    def __init__(self, num_qubits, reps=1, reupload=True, noisy=False, noise_type= 'depolarising', noise_level=0.0, seed=0):
+    _CHANNELS = {
+        'depolarising': qml.DepolarizingChannel,
+        'depolarizing': qml.DepolarizingChannel,
+        'amplitude_damping': qml.AmplitudeDamping,
+        'phase_damping': qml.PhaseDamping,
+    }
+    _GATES = {
+        'H': qml.Hadamard,
+        'RZ': qml.RZ,
+        'RY': qml.RY,
+        'CRZ': qml.CRZ,
+        'RZZ': qml.IsingZZ,
+        'CNOT': qml.CNOT,
+        'CZ': qml.CZ,
+    }
+
+    def __init__(self, num_qubits, reps=1, reupload=True, noisy=False, noise_type= 'depolarising', noise_level=0.0, seed=0, ansatz=DEFAULT_ANSATZ):
+        self._feature_map_ops, self._ansatz_ops, self.entangling = get_ansatz(ansatz)
+        self.ansatz_name = ansatz
         self.num_qubits  = num_qubits
         self.reps        = reps
         self.reupload    = reupload
@@ -39,53 +62,37 @@ class quackEmbeddingCircuit:
         self.wires       = list(range(num_qubits))
         self.seed        = seed
 
-    def _depolarise(self, wire, apply_noise):
-        if self.noisy and apply_noise and self.noise_type in {
-            'depolarising',
-            'depolarizing',
-        }:
-            qml.DepolarizingChannel(self.noise_level, wires=wire)
+    def _channel(self, wire, apply_noise):
+        channel = self._CHANNELS.get(self.noise_type)
+        if self.noisy and apply_noise and channel is not None:
+            channel(self.noise_level, wires=wire)
+
+    def _apply_ops(self, ops, apply_noise):
+        for gate, angles, wires in ops:
+            self._GATES[gate](*angles, wires=[self.wires[w] for w in wires])
+            for wire in wires:
+                self._channel(self.wires[wire], apply_noise)
+
+    def _apply_ops_dagger(self, ops, apply_noise):
+        self._apply_ops([invert_op(op) for op in reversed(ops)], apply_noise)
 
     def feature_map(self, x, scale, apply_noise=False):
         scale = qml.math.asarray(scale)   # ← backend-agnostic
-        for i, wire in enumerate(self.wires):
-            qml.Hadamard(wires=wire)
-            self._depolarise(wire, apply_noise)
-            qml.RZ(scale[i] * x[i], wires=wire)
-            self._depolarise(wire, apply_noise)
+        self._apply_ops(self._feature_map_ops(x, scale, self.num_qubits), apply_noise)
 
     def _feature_map_dagger(self, x, scale, apply_noise=False):
         scale = qml.math.asarray(scale)
-        for i in reversed(range(self.num_qubits)):
-            wire = self.wires[i]
-            qml.RZ(-scale[i] * x[i], wires=wire)
-            self._depolarise(wire, apply_noise)
-            qml.Hadamard(wires=wire)
-            self._depolarise(wire, apply_noise)
+        self._apply_ops_dagger(self._feature_map_ops(x, scale, self.num_qubits), apply_noise)
 
-    def ansatz(self, var, rot, apply_noise=False):
-        var = qml.math.asarray(var)
-        for i, wire in enumerate(self.wires):
-            qml.RY(var[i], wires=wire)
-            self._depolarise(wire, apply_noise)
-        for i in range(self.num_qubits):
-            target = self.wires[(i + 1) % self.num_qubits]
-            qml.CRZ(rot[i], wires=[self.wires[i], target])
-            self._depolarise(self.wires[i], apply_noise)
-            self._depolarise(target, apply_noise)
-
-    def _ansatz_dagger(self, var, rot, apply_noise=False):
+    def ansatz(self, var, rot, apply_noise=False, rep=0):
         var = qml.math.asarray(var)
         rot = qml.math.asarray(rot)
-        for i in reversed(range(self.num_qubits)):
-            target = self.wires[(i + 1) % self.num_qubits]
-            qml.CRZ(-rot[i], wires=[self.wires[i], target])
-            self._depolarise(self.wires[i], apply_noise)
-            self._depolarise(target, apply_noise)
-        for i in reversed(range(self.num_qubits)):
-            wire = self.wires[i]
-            qml.RY(-var[i], wires=wire)
-            self._depolarise(wire, apply_noise)
+        self._apply_ops(self._ansatz_ops(var, rot, self.num_qubits, rep), apply_noise)
+
+    def _ansatz_dagger(self, var, rot, apply_noise=False, rep=0):
+        var = qml.math.asarray(var)
+        rot = qml.math.asarray(rot)
+        self._apply_ops_dagger(self._ansatz_ops(var, rot, self.num_qubits, rep), apply_noise)
 
     def _build_circuit(self, x, weights, apply_noise=False):
         idx = 0
@@ -95,7 +102,7 @@ class quackEmbeddingCircuit:
             rot   = weights[idx: idx + self.num_qubits]; idx += self.num_qubits
             if rep == 0 or self.reupload:
                 self.feature_map(x, scale, apply_noise)
-            self.ansatz(var, rot, apply_noise)
+            self.ansatz(var, rot, apply_noise, rep)
 
     def _build_circuit_dagger(self, x, weights, apply_noise=False):
         params, idx = [], 0
@@ -106,7 +113,7 @@ class quackEmbeddingCircuit:
             params.append((scale, var, rot))
         for rep in reversed(range(self.reps)):
             scale, var, rot = params[rep]
-            self._ansatz_dagger(var, rot, apply_noise)
+            self._ansatz_dagger(var, rot, apply_noise, rep)
             if rep == 0 or self.reupload:
                 self._feature_map_dagger(x, scale, apply_noise)
 

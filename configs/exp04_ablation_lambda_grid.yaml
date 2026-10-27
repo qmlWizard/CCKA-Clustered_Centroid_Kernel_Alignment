@@ -1,0 +1,15 @@
+# Section 4: (lambda_KAO x lambda_CO) heatmap. corners + checkerboard ONLY.
+base: base.yaml
+
+datasets: [corners, checkerboard]
+
+training_grid:
+  lambda_kao: [0.0, 0.001, 0.01, 0.1]
+  lambda_co: [0.0, 0.001, 0.01, 0.1]
+
+seeds: [0, 1, 2, 3, 4]
+
+experiments:
+  methods: [ccka]
+  ablation_datasets: []
+

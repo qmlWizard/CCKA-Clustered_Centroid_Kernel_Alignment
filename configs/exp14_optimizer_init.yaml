@@ -1,0 +1,18 @@
+# Section 10: optimiser (adam vs sgd), weight-initialisation scale
+# (0 = zeros, 0.1 = small angle, 1 = uniform in [-pi, pi]) and epoch budget.
+# COBYLA/SPSA/L-BFGS are not implemented (see README).
+base: base.yaml
+
+datasets: [corners, checkerboard]
+
+training_grid:
+  optimizer: [adam, sgd]
+  init_scale: [0.0, 0.1, 1.0]
+  epochs: [25, 50, 100, 200]
+
+seeds: [0, 1, 2, 3, 4]
+
+experiments:
+  methods: [fullKTA, randomKTA, quackKTA, ccka]
+  ablation_datasets: []
+

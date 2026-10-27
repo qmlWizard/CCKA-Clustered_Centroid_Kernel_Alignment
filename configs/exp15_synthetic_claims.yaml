@@ -1,0 +1,10 @@
+# Method comparison on every synthetic dataset. Each dataset's expected CCKA
+# behaviour is documented in experiments/datasets.py::SYNTHETIC_CLAIMS and
+# evaluated by experiments/stats_report.py (claims_report.md).
+base: base.yaml
+
+datasets: [moons, circles, double_cake, rings, xor_grid, spirals, gmm_modes_1, gmm_modes_2, gmm_modes_4, rare_mode, overlapping_blobs]
+
+experiments:
+  ablation_datasets: []
+

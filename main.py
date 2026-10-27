@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
+import json
 import logging
 import re
 from datetime import datetime
@@ -15,6 +17,7 @@ from experiments.experiments import (
     CONFIG_DIR,
     ROOT,
     iter_experiment_jobs,
+    load_config,
     run_experiment_job,
 )
 
@@ -26,14 +29,26 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     if not rows:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames: list[str] = []
+    for row in rows:
+        fieldnames += [key for key in row if key not in fieldnames]
     with path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(stream, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
 
 
 def _slug(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+
+_OUTCOME_PREFIXES = (
+    "test_",
+    "validation",
+    "best_validation",
+    "circuit_executions",
+    "wall_time",
+)
 
 
 def _experiment_filename(row: dict[str, Any]) -> str:
@@ -48,7 +63,15 @@ def _experiment_filename(row: dict[str, Any]) -> str:
         row["initialization"],
         row["ablation"],
     ]
-    return _slug("_".join(map(str, fields))) + ".csv"
+    identity = {
+        key: value
+        for key, value in row.items()
+        if not key.startswith(_OUTCOME_PREFIXES)
+    }
+    digest = hashlib.sha1(
+        json.dumps(identity, sort_keys=True, default=str).encode()
+    ).hexdigest()[:8]
+    return _slug("_".join(map(str, fields))) + f"_{digest}.csv"
 
 def run_distributed(config: dict[str, Any], *, output_dir: Path, smoke: bool = False,) -> list[dict[str, Any]]:
     jobs = list(iter_experiment_jobs(config, smoke=smoke))
@@ -57,7 +80,9 @@ def run_distributed(config: dict[str, Any], *, output_dir: Path, smoke: bool = F
         return []
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    data_refs: dict[tuple[str, int], Any] = {}
+    # Data differs per (dataset, seed, grid point), so key on the prepared
+    # object itself; jobs sharing one preparation share the same object.
+    data_refs: dict[int, Any] = {}
     remote_runner = ray.remote(run_experiment_job)
 
     alive_nodes = [node for node in ray.nodes() if node.get("Alive", False)]
@@ -80,7 +105,7 @@ def run_distributed(config: dict[str, Any], *, output_dir: Path, smoke: bool = F
         LOGGER.info("Ray runtime has %d nodes; scheduling experiments in parallel.", len(alive_nodes))
 
     def submit(job: dict[str, Any]) -> Any:
-        key = (job["dataset"], job["seed"])
+        key = id(job["data"])
         if key not in data_refs:
             data_refs[key] = ray.put(job["data"])
         job_without_data = {name: value for name, value in job.items() if name != "data"}
@@ -157,7 +182,7 @@ def main() -> None:
         level=getattr(logging, args.log_level.upper()),
         format="%(asctime)s %(levelname)s %(message)s",
     )
-    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+    config = load_config(args.config)
     run_name = (
         f"{args.config.stem}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     )
