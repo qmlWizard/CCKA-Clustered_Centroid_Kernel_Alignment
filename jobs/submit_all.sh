@@ -1,8 +1,8 @@
 #!/bin/bash
-# Submit the whole suite as ONE Ray job (all experiments + analyses in parallel).
+# Submit the default configured experiment as one Python-managed Ray job.
 # Usage: bash jobs/submit_all.sh [extra sbatch args]
 #   e.g. bash jobs/submit_all.sh --nodes=40
-# The older per-config path is still available:
+# Select another configuration with:
 #   sbatch --export=ALL,CONFIG=configs/exp06_k_sweep.yaml jobs/run_experiments.slurm
 set -euo pipefail
 cd "$(dirname "$0")/.."

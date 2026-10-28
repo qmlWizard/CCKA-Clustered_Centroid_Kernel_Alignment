@@ -155,25 +155,22 @@ Run the configured sweep across a Ray cluster with:
 python main.py --config configs/default.yaml
 ```
 
-The default address is `auto`, so start a Ray head and connect worker nodes
-before running it directly. The Slurm script in `jobs/run_experiments.slurm`
-starts a Ray head on the first allocated node and connects the remaining nodes
-before launching the runner. Use `--address local` for a single-machine Ray
-run. Results are written per trial and combined into a summary under
+The default address is `auto`; when running under Slurm, the Python
+distributor starts a persistent Ray head on the first allocated node and
+connects the remaining allocated nodes itself. Without Slurm or an existing
+`RAY_ADDRESS`, it starts a local single-node Ray runtime. Use
+`--address local` for an explicit single-machine Ray run.
+Results are written per trial and combined into a summary under
 `results/<run-name>/`.
 The runner uses JAX/Optax when available and falls back to PyTorch otherwise;
 install a backend with `pip install .[jax]` or `pip install .[torch]`.
 
 ## Experiment suite
 
-**Run everything in parallel on one Ray cluster:** `sbatch jobs/run_all.slurm`
-(or `bash jobs/submit_all.sh --nodes=40`). It starts Ray across all allocated
-nodes and runs `ray_suite.py`, which schedules every job of every
-`configs/exp*.yaml` plus the kernel, ansatz, budget and scalability analyses in
-a single pool, then builds the stats tables and plots into
-`results/suite-<jobid>/`. `SUITE_ARGS="--only exp06_k_sweep kernel"` selects a
-subset; the last `TIMING_NODES` (default 1) nodes are reserved for scalability
-timings. Check locally first with `python ray_suite.py --address local --smoke`.
+Run an individual configuration with
+`sbatch --export=ALL,CONFIG=configs/exp06_k_sweep.yaml jobs/run_all.slurm`.
+The distributor uses every available Ray node and falls back to one local
+node when no cluster is available.
 
 Configs live in `configs/` (`base.yaml` plus `exp01…exp15`, each inheriting with
 `base: base.yaml`). Submit everything with `bash jobs/submit_all.sh`, or one

@@ -13,6 +13,7 @@ from typing import Any
 import ray
 import yaml
 
+from distribute import RayAgent
 from experiments.experiments import (
     CONFIG_DIR,
     ROOT,
@@ -188,8 +189,9 @@ def main() -> None:
     )
     output_dir = args.output_dir or ROOT / "results" / run_name
 
-    ray.init(address=args.address, ignore_reinit_error=True)
+    agent = RayAgent()
     try:
+        agent.initialise(address=args.address)
         rows = run_distributed(
             config,
             output_dir=output_dir,
@@ -197,7 +199,7 @@ def main() -> None:
         )
         LOGGER.info("Saved %d experiment results under %s", len(rows), output_dir)
     finally:
-        ray.shutdown()
+        agent.stop()
 
 
 if __name__ == "__main__":

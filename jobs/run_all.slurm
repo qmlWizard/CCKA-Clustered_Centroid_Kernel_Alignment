@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=ccka-suite
+#SBATCH --job-name=ccka-experiment
 #SBATCH --partition=himadri
 #SBATCH --nodes=513
 #SBATCH --ntasks-per-node=1
@@ -8,19 +8,12 @@
 #SBATCH --output=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.out
 #SBATCH --error=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.err
 
-# Runs the WHOLE experiment suite (all configs/exp*.yaml plus the kernel,
-# ansatz, budget and scalability analyses) as one Ray pool over every node.
+# Runs one configured experiment using the Python distributor. The distributor
+# starts Ray across the allocation, or falls back to one local Ray node.
 #
 #   sbatch jobs/run_all.slurm
 #   sbatch --nodes=40 jobs/run_all.slurm
-#   sbatch --export=ALL,SUITE_ARGS="--only exp06_k_sweep kernel" jobs/run_all.slurm
-#   sbatch --export=ALL,TIMING_NODES=2 jobs/run_all.slurm
-#
-# TIMING_NODES (default 1): the last N nodes are started with the custom Ray
-# resource "timing" and run ONLY the scalability measurements, so timings are
-# not disturbed by other work. They take no part in the other experiments.
-# Set TIMING_NODES=0 to disable (scalability then runs alone at the end).
-# Results go to results/suite-<jobid>/ (override with OUTPUT_ROOT).
+#   sbatch --export=ALL,CONFIG=configs/exp06_k_sweep.yaml jobs/run_all.slurm
 
 # ============================================================
 # Environment
@@ -74,14 +67,15 @@ echo "HEAD NODE         : $HEAD_NODE"
 echo "=========================================="
 
 # ============================================================
-# Run suite with Python-managed Ray initialization
+# Run with Python-managed Ray initialization
 # ============================================================
 
-python ray_suite.py --address auto --output-root "$OUTPUT_ROOT" ${SUITE_ARGS:-}
+CONFIG="${CONFIG:-configs/default.yaml}"
+OUTPUT_DIR="${OUTPUT_DIR:-results/$(basename "$CONFIG" .yaml)}"
+python main.py --config "$CONFIG" --address auto --output-dir "$OUTPUT_DIR"
 STATUS=$?
 
 echo "=========================================="
-echo "Suite finished (exit $STATUS)"
+echo "Experiment finished (exit $STATUS)"
 echo "=========================================="
 exit $STATUS
-
