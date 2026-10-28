@@ -1,0 +1,29 @@
+==========================================
+SLURM_CLUSTER_NAME = rudra20pf-hpc
+SLURM_ARRAY_JOB_ID = 
+SLURM_ARRAY_TASK_ID = 
+SLURM_ARRAY_TASK_COUNT = 
+SLURM_ARRAY_TASK_MAX = 
+SLURM_ARRAY_TASK_MIN = 
+SLURM_JOB_ACCOUNT = cdacb
+SLURM_JOB_ID = 105289
+SLURM_JOB_NAME = ccka-suite
+SLURM_JOB_NODELIST = cbcn[0071-0118,0201-0242,0245,0330-0376,0425-0442,0494-0556,0559-0579,0647-0665,0769-0792,0943-0964,0969-0996,1097-1134,1184-1203,1480-1496,1633-1656,1677-1695,1768-1789,1845-1864,2113-2132]
+SLURM_JOB_USER = digvijaysinha.cdacb
+SLURM_JOB_UID = 80064
+SLURM_JOB_PARTITION = himadri
+SLURM_TASK_PID = 1196889
+SLURM_SUBMIT_DIR = /home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment
+SLURM_CPUS_ON_NODE = 48
+SLURM_NTASKS = 513
+SLURM_TASK_PID = 1196889
+==========================================
+==========================================
+SLURM JOB ID      : 105289
+NUMBER OF NODES   : 513 (timing nodes: 1)
+CPUS PER NODE     : 48
+OUTPUT            : results/suite-105289
+==========================================
+==========================================
+Suite finished (exit 1)
+==========================================

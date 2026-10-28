@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=ccka-suite
-#SBATCH --partition=himachal
-#SBATCH --nodes=258
+#SBATCH --partition=himadri
+#SBATCH --nodes=513
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=48
-#SBATCH --time=12:00:00
+#SBATCH --time=06:00:00
 #SBATCH --output=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.out
 #SBATCH --error=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.err
 
@@ -46,23 +46,31 @@ export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH
 
 conda activate py310
 export RAY_AUTH_MODE=disabled
+export RAY_raylet_start_wait_time_s=120
+export RAY_BACKEND_LOG_LEVEL=debug
+
+echo "Host: $(hostname)"
+which python
+python -c "import ray; print('Ray:', ray.__version__)"
+python -c "import grpc; print('gRPC:', grpc.__version__)"
+
+
 ulimit -n 65535
 
 # ============================================================
-# Export SLURM info for Ray cluster initialization
+# Get allocated nodes
 # ============================================================
 
-export PYTHONPATH="$PWD:${PYTHONPATH:-}"
-export OUTPUT_ROOT="${OUTPUT_ROOT:-results/suite-$SLURM_JOB_ID}"
-export RAY_PORT=6379
-export RAY_CPUS="${SLURM_CPUS_ON_NODE:-${SLURM_CPUS_PER_TASK:-1}}"
-export TIMING_NODES="${TIMING_NODES:-1}"
+nodes=($(scontrol show hostnames "$SLURM_JOB_NODELIST"))
+
+HEAD_NODE=${nodes[0]}
 
 echo "=========================================="
 echo "SLURM JOB ID      : $SLURM_JOB_ID"
-echo "NUMBER OF NODES   : $SLURM_JOB_NUM_NODES (timing nodes: $TIMING_NODES)"
+echo "SLURM JOB NAME    : $SLURM_JOB_NAME"
+echo "NUMBER OF NODES   : $SLURM_JOB_NUM_NODES"
 echo "CPUS PER NODE     : $SLURM_CPUS_PER_TASK"
-echo "OUTPUT            : $OUTPUT_ROOT"
+echo "HEAD NODE         : $HEAD_NODE"
 echo "=========================================="
 
 # ============================================================
