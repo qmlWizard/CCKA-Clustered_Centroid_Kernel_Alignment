@@ -1,0 +1,139 @@
+==========================================
+SLURM_CLUSTER_NAME = rudra20pf-hpc
+SLURM_ARRAY_JOB_ID = 
+SLURM_ARRAY_TASK_ID = 
+SLURM_ARRAY_TASK_COUNT = 
+SLURM_ARRAY_TASK_MAX = 
+SLURM_ARRAY_TASK_MIN = 
+SLURM_JOB_ACCOUNT = cdacb
+SLURM_JOB_ID = 105173
+SLURM_JOB_NAME = ccka-suite
+SLURM_JOB_NODELIST = cbcn[0071-0118,0209-0242,0330-0376,0494-0556,0969-0996,1097-1134]
+SLURM_JOB_USER = digvijaysinha.cdacb
+SLURM_JOB_UID = 80064
+SLURM_JOB_PARTITION = himachal
+SLURM_TASK_PID = 1137606
+SLURM_SUBMIT_DIR = /home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment
+SLURM_CPUS_ON_NODE = 48
+SLURM_NTASKS = 258
+SLURM_TASK_PID = 1137606
+==========================================
+==========================================
+SLURM JOB ID      : 105173
+NUMBER OF NODES   : 258 (timing nodes: 1)
+CPUS PER NODE     : 48
+==========================================
+2026-10-28 04:21:17,759	INFO usage_lib.py:448 -- Usage stats collection is disabled.
+2026-10-28 04:21:17,812	INFO scripts.py:1043 -- Local node IP: 172.40.1.71
+2026-10-28 04:21:36,025	SUCC scripts.py:1084 -- --------------------
+2026-10-28 04:21:36,025	SUCC scripts.py:1085 -- Ray runtime started.
+2026-10-28 04:21:36,025	SUCC scripts.py:1086 -- --------------------
+2026-10-28 04:21:36,025	INFO scripts.py:1088 -- Next steps
+2026-10-28 04:21:36,025	INFO cli_output_helpers.py:16 -- Note: The following commands are intended for use on
+2026-10-28 04:21:36,025	INFO cli_output_helpers.py:17 -- the head node or within the cluster network.
+2026-10-28 04:21:36,025	INFO scripts.py:1092 -- To add another node to this Ray cluster, run
+2026-10-28 04:21:36,025	INFO scripts.py:1095 --   ray start --address='172.40.1.71:6379'
+2026-10-28 04:21:36,025	INFO scripts.py:1106 -- To connect to this Ray cluster:
+2026-10-28 04:21:36,025	INFO scripts.py:1108 -- import ray
+2026-10-28 04:21:36,025	INFO scripts.py:1109 -- ray.init(_node_ip_address='172.40.1.71')
+2026-10-28 04:21:36,025	INFO scripts.py:1142 -- To terminate the Ray runtime, run
+2026-10-28 04:21:36,025	INFO scripts.py:1143 --   ray stop
+2026-10-28 04:21:36,025	INFO scripts.py:1146 -- To view the status of the cluster, use
+2026-10-28 04:21:36,025	INFO scripts.py:1147 --   ray status
+2026-10-28 04:21:41,622	INFO scripts.py:1234 -- Local node IP: 172.40.2.94
+2026-10-28 04:21:41,593	INFO scripts.py:1234 -- Local node IP: 172.40.1.113
+2026-10-28 04:21:41,785	INFO scripts.py:1234 -- Local node IP: 172.40.1.218
+2026-10-28 04:21:41,788	INFO scripts.py:1234 -- Local node IP: 172.40.3.19
+2026-10-28 04:21:41,824	INFO scripts.py:1234 -- Local node IP: 172.40.1.228
+2026-10-28 04:21:41,824	INFO scripts.py:1234 -- Local node IP: 172.40.1.213
+2026-10-28 04:21:41,844	INFO scripts.py:1234 -- Local node IP: 172.40.1.85
+2026-10-28 04:21:41,903	INFO scripts.py:1234 -- Local node IP: 172.40.1.241
+2026-10-28 04:21:41,896	INFO scripts.py:1234 -- Local node IP: 172.40.1.217
+2026-10-28 04:21:41,891	INFO scripts.py:1234 -- Local node IP: 172.40.1.209
+2026-10-28 04:21:41,805	INFO scripts.py:1234 -- Local node IP: 172.40.1.86
+2026-10-28 04:21:41,898	INFO scripts.py:1234 -- Local node IP: 172.40.1.221
+2026-10-28 04:21:41,899	INFO scripts.py:1234 -- Local node IP: 172.40.1.210
+2026-10-28 04:21:41,910	INFO scripts.py:1234 -- Local node IP: 172.40.2.102
+2026-10-28 04:21:41,919	INFO scripts.py:1234 -- Local node IP: 172.40.2.78
+2026-10-28 04:21:41,918	INFO scripts.py:1234 -- Local node IP: 172.40.1.73
+2026-10-28 04:21:41,935	INFO scripts.py:1234 -- Local node IP: 172.40.1.211
+2026-10-28 04:21:41,932	INFO scripts.py:1234 -- Local node IP: 172.40.1.235
+2026-10-28 04:21:41,943	INFO scripts.py:1234 -- Local node IP: 172.40.2.84
+2026-10-28 04:21:41,951	INFO scripts.py:1234 -- Local node IP: 172.40.1.242
+2026-10-28 04:21:41,948	INFO scripts.py:1234 -- Local node IP: 172.40.2.240
+2026-10-28 04:21:41,966	INFO scripts.py:1234 -- Local node IP: 172.40.1.109
+2026-10-28 04:21:42,051	INFO scripts.py:1234 -- Local node IP: 172.40.1.78
+2026-10-28 04:21:42,093	INFO scripts.py:1234 -- Local node IP: 172.40.1.72
+2026-10-28 04:21:42,109	INFO scripts.py:1234 -- Local node IP: 172.40.1.230
+2026-10-28 04:21:42,113	INFO scripts.py:1234 -- Local node IP: 172.40.2.77
+2026-10-28 04:21:42,120	INFO scripts.py:1234 -- Local node IP: 172.40.1.96
+2026-10-28 04:21:42,118	INFO scripts.py:1234 -- Local node IP: 172.40.1.111
+2026-10-28 04:21:42,120	INFO scripts.py:1234 -- Local node IP: 172.40.2.101
+2026-10-28 04:21:42,132	INFO scripts.py:1234 -- Local node IP: 172.40.1.101
+2026-10-28 04:21:42,132	INFO scripts.py:1234 -- Local node IP: 172.40.2.119
+2026-10-28 04:21:42,119	INFO scripts.py:1234 -- Local node IP: 172.40.1.216
+2026-10-28 04:21:42,174	INFO scripts.py:1234 -- Local node IP: 172.40.1.114
+2026-10-28 04:21:42,174	INFO scripts.py:1234 -- Local node IP: 172.40.2.83
+2026-10-28 04:21:42,191	INFO scripts.py:1234 -- Local node IP: 172.40.2.85
+2026-10-28 04:21:42,178	INFO scripts.py:1234 -- Local node IP: 172.40.2.251
+2026-10-28 04:21:42,202	INFO scripts.py:1234 -- Local node IP: 172.40.1.83
+2026-10-28 04:21:42,228	INFO scripts.py:1234 -- Local node IP: 172.40.3.10
+2026-10-28 04:21:42,231	INFO scripts.py:1234 -- Local node IP: 172.40.1.224
+2026-10-28 04:21:42,285	INFO scripts.py:1234 -- Local node IP: 172.40.1.89
+2026-10-28 04:21:42,285	INFO scripts.py:1234 -- Local node IP: 172.40.1.240
+2026-10-28 04:21:42,294	INFO scripts.py:1234 -- Local node IP: 172.40.1.84
+2026-10-28 04:21:42,318	INFO scripts.py:1234 -- Local node IP: 172.40.1.220
+2026-10-28 04:21:42,288	INFO scripts.py:1234 -- Local node IP: 172.40.2.113
+2026-10-28 04:21:42,310	INFO scripts.py:1234 -- Local node IP: 172.40.1.117
+2026-10-28 04:21:42,311	INFO scripts.py:1234 -- Local node IP: 172.40.1.225
+2026-10-28 04:21:42,337	INFO scripts.py:1234 -- Local node IP: 172.40.5.97
+2026-10-28 04:21:42,341	INFO scripts.py:1234 -- Local node IP: 172.40.2.79
+2026-10-28 04:21:42,344	INFO scripts.py:1234 -- Local node IP: 172.40.3.27
+2026-10-28 04:21:42,329	INFO scripts.py:1234 -- Local node IP: 172.40.5.85
+2026-10-28 04:21:42,362	INFO scripts.py:1234 -- Local node IP: 172.40.4.222
+2026-10-28 04:21:42,358	INFO scripts.py:1234 -- Local node IP: 172.40.2.80
+2026-10-28 04:21:42,355	INFO scripts.py:1234 -- Local node IP: 172.40.3.25
+2026-10-28 04:21:42,370	INFO scripts.py:1234 -- Local node IP: 172.40.5.93
+2026-10-28 04:21:42,373	INFO scripts.py:1234 -- Local node IP: 172.40.2.82
+2026-10-28 04:21:42,359	INFO scripts.py:1234 -- Local node IP: 172.40.1.105
+2026-10-28 04:21:42,386	INFO scripts.py:1234 -- Local node IP: 172.40.2.100
+2026-10-28 04:21:42,385	INFO scripts.py:1234 -- Local node IP: 172.40.1.93
+2026-10-28 04:21:42,379	INFO scripts.py:1234 -- Local node IP: 172.40.1.222
+2026-10-28 04:21:42,376	INFO scripts.py:1234 -- Local node IP: 172.40.2.76
+2026-10-28 04:21:42,389	INFO scripts.py:1234 -- Local node IP: 172.40.2.91
+2026-10-28 04:21:42,418	INFO scripts.py:1234 -- Local node IP: 172.40.2.87
+2026-10-28 04:21:42,424	INFO scripts.py:1234 -- Local node IP: 172.40.1.227
+2026-10-28 04:21:42,419	INFO scripts.py:1234 -- Local node IP: 172.40.1.229
+2026-10-28 04:21:42,433	INFO scripts.py:1234 -- Local node IP: 172.40.2.110
+2026-10-28 04:21:42,431	INFO scripts.py:1234 -- Local node IP: 172.40.1.87
+2026-10-28 04:21:42,432	INFO scripts.py:1234 -- Local node IP: 172.40.2.242
+2026-10-28 04:21:42,438	INFO scripts.py:1234 -- Local node IP: 172.40.2.92
+2026-10-28 04:21:42,418	INFO scripts.py:1234 -- Local node IP: 172.40.3.35
+2026-10-28 04:21:42,435	INFO scripts.py:1234 -- Local node IP: 172.40.1.81
+2026-10-28 04:21:42,446	INFO scripts.py:1234 -- Local node IP: 172.40.1.95
+2026-10-28 04:21:42,449	INFO scripts.py:1234 -- Local node IP: 172.40.3.15
+2026-10-28 04:21:42,449	INFO scripts.py:1234 -- Local node IP: 172.40.5.115
+2026-10-28 04:21:42,471	INFO scripts.py:1234 -- Local node IP: 172.40.1.234
+2026-10-28 04:21:42,466	INFO scripts.py:1234 -- Local node IP: 172.40.2.96
+2026-10-28 04:21:42,466	INFO scripts.py:1234 -- Local node IP: 172.40.3.22
+2026-10-28 04:21:42,450	INFO scripts.py:1234 -- Local node IP: 172.40.1.233
+2026-10-28 04:21:42,472	INFO scripts.py:1234 -- Local node IP: 172.40.5.98
+2026-10-28 04:21:42,476	INFO scripts.py:1234 -- Local node IP: 172.40.5.116
+2026-10-28 04:21:42,485	INFO scripts.py:1234 -- Local node IP: 172.40.3.9
+2026-10-28 04:21:42,491	INFO scripts.py:1234 -- Local node IP: 172.40.3.45
+2026-10-28 04:21:42,495	INFO scripts.py:1234 -- Local node IP: 172.40.1.77
+2026-10-28 04:21:42,497	INFO scripts.py:1234 -- Local node IP: 172.40.2.112
+2026-10-28 04:21:42,495	INFO scripts.py:1234 -- Local node IP: 172.40.2.86
+2026-10-28 04:21:42,492	INFO scripts.py:1234 -- Local node IP: 172.40.1.215
+2026-10-28 04:21:42,497	INFO scripts.py:1234 -- Local node IP: 172.40.2.118
+2026-10-28 04:21:42,504	INFO scripts.py:1234 -- Local node IP: 172.40.2.106
+2026-10-28 04:21:42,497	INFO scripts.py:1234 -- Local node IP: 172.40.1.239
+2026-10-28 04:21:42,508	INFO scripts.py:1234 -- Local node IP: 172.40.5.109
+2026-10-28 04:21:42,502	INFO scripts.py:1234 -- Local node IP: 172.40.5.92
+2026-10-28 04:21:42,507	INFO scripts.py:1234 -- Local node IP: 172.40.4.207
+2026-10-28 04:21:42,527	INFO scripts.py:1234 -- Local node IP: 172.40.3.5
+2026-10-28 04:21:42,514	INFO scripts.py:1234 -- Local node IP: 172.40.1.116
+2026-10-28 04:21:42,522	INFO scripts.py:1234 -- Local node IP: 172.40.1.107
+2026-10-28 04:21:42,514	INFO scripts.py:1234 -- Local node IP: 172.40.3.33
+2026-10-28 04:21:42,521	INFO scripts.py:1234 -- Local node IP: 172.40.3.6
+ERROR: compute workers failed

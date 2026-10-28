@@ -30,6 +30,7 @@ from typing import Any
 
 import ray
 
+from ray_cluster import init_ray_cluster, cleanup_ray
 from experiments import ansatz_analysis, kernel_analysis, scalability
 from experiments.ansatz_analysis import analyse_unit
 from experiments.experiments import (
@@ -140,144 +141,149 @@ def run(args: Namespace) -> int:
     if unknown:
         raise SystemExit(f"Unknown names: {sorted(unknown)}")
 
-    ray.init(address=args.address, ignore_reinit_error=True)
-    resources = ray.cluster_resources()
-    LOGGER.info("Cluster: %s CPUs on %d nodes", resources.get("CPU", 0),
-                len([n for n in ray.nodes() if n.get("Alive")]))
-    env = {"env_vars": SINGLE_THREAD_ENV}
+    try:
+        init_ray_cluster(address=args.address, wait_for_all_nodes=(args.address == "auto"))
+        resources = ray.cluster_resources()
+        LOGGER.info("Cluster: %s CPUs on %d nodes", resources.get("CPU", 0),
+                    len([n for n in ray.nodes() if n.get("Alive")]))
+        env = {"env_vars": SINGLE_THREAD_ENV}
 
-    exp_runner = ray.remote(_safe(run_experiment_job)).options(
-        num_cpus=1, runtime_env=env)
-    pending, totals = _submit_experiments(exp_names, configs, args, exp_runner)
-    owner = dict(pending)  # ref -> experiment name
-    kind: dict[Any, tuple] = {r: ("exp", n) for r, n in owner.items()}
+        exp_runner = ray.remote(_safe(run_experiment_job)).options(
+            num_cpus=1, runtime_env=env)
+        pending, totals = _submit_experiments(exp_names, configs, args, exp_runner)
+        owner = dict(pending)  # ref -> experiment name
+        kind: dict[Any, tuple] = {r: ("exp", n) for r, n in owner.items()}
 
-    smoke = args.smoke
-    seeds = args.seeds or ([0] if smoke else [0, 1, 2, 3, 4])
-    light_task = lambda fn: ray.remote(_safe(fn)).options(num_cpus=1, runtime_env=env)
-    kernel_rows_expected = 0
-    if "kernel" in analyses:
-        settings = dict(load_config(root / "configs" / "base.yaml")["training"])
-        settings["max_samples"] = 40 if smoke else 200
-        if smoke:
-            settings.update(epochs=1, reps=1, inference_landmarks=4)
-        ansatze = ["crz_ring"] if smoke else list(
-            kernel_analysis_ansatze())
-        remote = light_task(kernel_analysis.analyse_task)
-        for dataset in ("corners", "checkerboard"):
-            for ansatz in ansatze:
-                for seed in seeds:
-                    ref = remote.remote(
-                        dataset, ansatz, seed, settings, 4,
-                        str(out_root / "kernel_analysis"), seed == seeds[0])
-                    kind[ref] = ("kernel", f"{dataset}/{ansatz}/{seed}")
-                    kernel_rows_expected += 1
-    if "ansatz" in analyses:
-        remote = light_task(analyse_unit)
-        from ccka.circuits.ansatz import ansatz_names
-        qubits, depths = ([3], [1, 2]) if smoke else ([3, 5, 8, 10], [1, 2, 4, 6, 8, 10])
-        for ansatz in (["crz_ring"] if smoke else ansatz_names()):
-            for n in qubits:
-                for reps in depths:
-                    ref = remote.remote(ansatz, n, reps, 10 if smoke else 100, 8, 0)
-                    kind[ref] = ("ansatz", f"{ansatz}/{n}/{reps}")
-    if "budget" in analyses:
-        remote = light_task(_budget_task)
-        for dataset in ("corners", "checkerboard", "spirals"):
-            for seed in (seeds if smoke else range(10)):
-                out = out_root / "budget" / f"{dataset}_seed{seed}"
-                out.parent.mkdir(parents=True, exist_ok=True)
-                ref = remote.remote(dataset, seed, str(out), 4, 2 if smoke else None)
-                kind[ref] = ("budget", f"{dataset}/{seed}")
+        smoke = args.smoke
+        seeds = args.seeds or ([0] if smoke else [0, 1, 2, 3, 4])
+        light_task = lambda fn: ray.remote(_safe(fn)).options(num_cpus=1, runtime_env=env)
+        kernel_rows_expected = 0
+        if "kernel" in analyses:
+            settings = dict(load_config(root / "configs" / "base.yaml")["training"])
+            settings["max_samples"] = 40 if smoke else 200
+            if smoke:
+                settings.update(epochs=1, reps=1, inference_landmarks=4)
+            ansatze = ["crz_ring"] if smoke else list(
+                kernel_analysis_ansatze())
+            remote = light_task(kernel_analysis.analyse_task)
+            for dataset in ("corners", "checkerboard"):
+                for ansatz in ansatze:
+                    for seed in seeds:
+                        ref = remote.remote(
+                            dataset, ansatz, seed, settings, 4,
+                            str(out_root / "kernel_analysis"), seed == seeds[0])
+                        kind[ref] = ("kernel", f"{dataset}/{ansatz}/{seed}")
+                        kernel_rows_expected += 1
+        if "ansatz" in analyses:
+            remote = light_task(analyse_unit)
+            from ccka.circuits.ansatz import ansatz_names
+            qubits, depths = ([3], [1, 2]) if smoke else ([3, 5, 8, 10], [1, 2, 4, 6, 8, 10])
+            for ansatz in (["crz_ring"] if smoke else ansatz_names()):
+                for n in qubits:
+                    for reps in depths:
+                        ref = remote.remote(ansatz, n, reps, 10 if smoke else 100, 8, 0)
+                        kind[ref] = ("ansatz", f"{ansatz}/{n}/{reps}")
+        if "budget" in analyses:
+            remote = light_task(_budget_task)
+            for dataset in ("corners", "checkerboard", "spirals"):
+                for seed in (seeds if smoke else range(10)):
+                    out = out_root / "budget" / f"{dataset}_seed{seed}"
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    ref = remote.remote(dataset, seed, str(out), 4, 2 if smoke else None)
+                    kind[ref] = ("budget", f"{dataset}/{seed}")
 
-    scal_args = None
-    scal_tasks: list[dict[str, Any]] = []
-    if "scalability" in analyses:
-        scal_args = scalability_args(smoke, seeds)
-        scal_tasks = scalability.build_tasks(scal_args)
-    has_timing = resources.get("timing", 0) > 0
-    scal_remote = ray.remote(_safe(scalability.run_task))
-    if has_timing:
-        scal_remote = scal_remote.options(num_cpus=0, resources={"timing": 1})
-        for task in scal_tasks:
-            kind[scal_remote.remote(task)] = ("scal", task["sweep"])
-        scal_tasks = []
+        scal_args = None
+        scal_tasks: list[dict[str, Any]] = []
+        if "scalability" in analyses:
+            scal_args = scalability_args(smoke, seeds)
+            scal_tasks = scalability.build_tasks(scal_args)
+        has_timing = resources.get("timing", 0) > 0
+        scal_remote = ray.remote(_safe(scalability.run_task))
+        if has_timing:
+            scal_remote = scal_remote.options(num_cpus=0, resources={"timing": 1})
+            for task in scal_tasks:
+                kind[scal_remote.remote(task)] = ("scal", task["sweep"])
+            scal_tasks = []
 
-    results: dict[str, list] = {}
-    done_by_exp: dict[str, int] = {n: 0 for n in exp_names}
-    failures: list[str] = []
-    exp_rows: dict[str, list[dict[str, Any]]] = {n: [] for n in exp_names}
+        results: dict[str, list] = {}
+        done_by_exp: dict[str, int] = {n: 0 for n in exp_names}
+        failures: list[str] = []
+        exp_rows: dict[str, list[dict[str, Any]]] = {n: [] for n in exp_names}
 
-    def flush_scal(rows):
-        if rows:
-            scalability._write(out_root / "scalability" / "scalability.csv", rows)
+        def flush_scal(rows):
+            if rows:
+                scalability._write(out_root / "scalability" / "scalability.csv", rows)
 
-    def drain(refs):
-        refs = list(refs)
-        while refs:
-            ready, refs = ray.wait(refs, num_returns=1)
-            ref = ready[0]
-            tag, name = kind[ref]
-            result = ray.get(ref)
-            if not result["ok"]:
-                failures.append(f"{tag}:{name}\n{result['error']}")
-                LOGGER.error("FAILED %s:%s\n%s", tag, name, result["error"])
-                continue
-            value = result["value"]
-            if tag == "exp":
-                row = value
-                exp_rows[name].append(row)
-                folder = out_root / name
-                _write_csv(folder / _experiment_filename(row), [row])
-                done_by_exp[name] += 1
-                if done_by_exp[name] % 25 == 0 or done_by_exp[name] == totals[name]:
-                    _write_csv(folder / "summary.csv", exp_rows[name])
-                    LOGGER.info("%s: %d/%d", name, done_by_exp[name], totals[name])
-            elif tag == "scal":
-                results.setdefault("scal", []).append(value)
-                if len(results["scal"]) % 10 == 0:
-                    flush_scal(results["scal"])
-            else:
-                results.setdefault(tag, []).append(value)
+        def drain(refs):
+            refs = list(refs)
+            while refs:
+                ready, refs = ray.wait(refs, num_returns=1)
+                ref = ready[0]
+                tag, name = kind[ref]
+                result = ray.get(ref)
+                if not result["ok"]:
+                    failures.append(f"{tag}:{name}\n{result['error']}")
+                    LOGGER.error("FAILED %s:%s\n%s", tag, name, result["error"])
+                    continue
+                value = result["value"]
+                if tag == "exp":
+                    row = value
+                    exp_rows[name].append(row)
+                    folder = out_root / name
+                    _write_csv(folder / _experiment_filename(row), [row])
+                    done_by_exp[name] += 1
+                    if done_by_exp[name] % 25 == 0 or done_by_exp[name] == totals[name]:
+                        _write_csv(folder / "summary.csv", exp_rows[name])
+                        LOGGER.info("%s: %d/%d", name, done_by_exp[name], totals[name])
+                elif tag == "scal":
+                    results.setdefault("scal", []).append(value)
+                    if len(results["scal"]) % 10 == 0:
+                        flush_scal(results["scal"])
+                else:
+                    results.setdefault(tag, []).append(value)
 
-    drain(kind)
+        drain(kind)
 
-    if scal_tasks:  # no dedicated timing nodes: run alone with every CPU
-        node_cpus = int(max(n["Resources"].get("CPU", 1) for n in ray.nodes() if n.get("Alive")))
-        LOGGER.info("Running scalability alone, %d CPUs per task", node_cpus)
-        alone = ray.remote(_safe(scalability.run_task)).options(num_cpus=node_cpus)
-        refs = []
-        for task in scal_tasks:
-            ref = alone.remote(task)
-            kind[ref] = ("scal", task["sweep"])
-            refs.append(ref)
-        drain(refs)
+        if scal_tasks:  # no dedicated timing nodes: run alone with every CPU
+            node_cpus = int(max(n["Resources"].get("CPU", 1) for n in ray.nodes() if n.get("Alive")))
+            LOGGER.info("Running scalability alone, %d CPUs per task", node_cpus)
+            alone = ray.remote(_safe(scalability.run_task)).options(num_cpus=node_cpus)
+            refs = []
+            for task in scal_tasks:
+                ref = alone.remote(task)
+                kind[ref] = ("scal", task["sweep"])
+                refs.append(ref)
+            drain(refs)
 
-    if results.get("scal"):
-        flush_scal(results["scal"])
-        scalability.plot(results["scal"], out_root / "scalability")
-    if results.get("kernel"):
-        rows = [row for rows in results["kernel"] for row in rows]
-        kernel_analysis.write_outputs(rows, out_root / "kernel_analysis")
-    if results.get("ansatz"):
-        import csv
-        folder = out_root / "ansatz_analysis"
-        folder.mkdir(parents=True, exist_ok=True)
-        rows = results["ansatz"]
-        with (folder / "ansatz_metrics.csv").open("w", newline="", encoding="utf-8") as h:
-            writer = csv.DictWriter(h, fieldnames=list(rows[0]))
-            writer.writeheader()
-            writer.writerows(rows)
-        ansatz_analysis.plot(rows, folder, out_root / "exp13_ansatz_depth" / "summary.csv")
+        if results.get("scal"):
+            flush_scal(results["scal"])
+            scalability.plot(results["scal"], out_root / "scalability")
+        if results.get("kernel"):
+            rows = [row for rows in results["kernel"] for row in rows]
+            kernel_analysis.write_outputs(rows, out_root / "kernel_analysis")
+        if results.get("ansatz"):
+            import csv
+            folder = out_root / "ansatz_analysis"
+            folder.mkdir(parents=True, exist_ok=True)
+            rows = results["ansatz"]
+            with (folder / "ansatz_metrics.csv").open("w", newline="", encoding="utf-8") as h:
+                writer = csv.DictWriter(h, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows(rows)
+            ansatz_analysis.plot(rows, folder, out_root / "exp13_ansatz_depth" / "summary.csv")
 
-    if not args.no_report:
-        _report(out_root, exp_names, args)
+        if not args.no_report:
+            _report(out_root, exp_names, args)
 
-    if failures:
-        (out_root / "failures.log").write_text("\n\n".join(failures), encoding="utf-8")
-        LOGGER.error("%d task(s) failed; see %s", len(failures), out_root / "failures.log")
-    ray.shutdown()
-    return 1 if failures else 0
+        if failures:
+            (out_root / "failures.log").write_text("\n\n".join(failures), encoding="utf-8")
+            LOGGER.error("%d task(s) failed; see %s", len(failures), out_root / "failures.log")
+        return 1 if failures else 0
+    finally:
+        try:
+            ray.shutdown()
+        finally:
+            cleanup_ray()
 
 
 def kernel_analysis_ansatze():

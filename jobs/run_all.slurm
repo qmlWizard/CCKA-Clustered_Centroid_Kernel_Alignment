@@ -1,11 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=ccka-suite
-#SBATCH --partition=terai
-#SBATCH --nodes=25
+#SBATCH --partition=himachal
+#SBATCH --nodes=258
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=48
-#SBATCH --mem=64G
-#SBATCH --time=48:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.out
 #SBATCH --error=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.err
 
@@ -50,90 +49,31 @@ export RAY_AUTH_MODE=disabled
 ulimit -n 65535
 
 # ============================================================
-# Get allocated nodes
+# Export SLURM info for Ray cluster initialization
 # ============================================================
 
-nodes=($(scontrol show hostnames "$SLURM_JOB_NODELIST"))
-HEAD_NODE="${nodes[0]}"
-TIMING_NODES="${TIMING_NODES:-1}"
-if (( TIMING_NODES >= ${#nodes[@]} )); then
-    TIMING_NODES=0
-fi
+export PYTHONPATH="$PWD:${PYTHONPATH:-}"
+export OUTPUT_ROOT="${OUTPUT_ROOT:-results/suite-$SLURM_JOB_ID}"
+export RAY_PORT=6379
+export RAY_CPUS="${SLURM_CPUS_ON_NODE:-${SLURM_CPUS_PER_TASK:-1}}"
+export TIMING_NODES="${TIMING_NODES:-1}"
 
 echo "=========================================="
 echo "SLURM JOB ID      : $SLURM_JOB_ID"
 echo "NUMBER OF NODES   : $SLURM_JOB_NUM_NODES (timing nodes: $TIMING_NODES)"
 echo "CPUS PER NODE     : $SLURM_CPUS_PER_TASK"
+echo "OUTPUT            : $OUTPUT_ROOT"
 echo "=========================================="
 
-HEAD_IP=$(srun --nodes=1 --ntasks=1 --nodelist="$HEAD_NODE" hostname -I | awk '{print $1}')
-if [[ -z "$HEAD_IP" ]]; then
-    echo "ERROR: Could not determine the Ray head-node IP."
-    exit 1
-fi
-
-RAY_PORT=6379
-RAY_ADDRESS="${HEAD_IP}:${RAY_PORT}"
-RAY_CPUS="${SLURM_CPUS_ON_NODE:-${SLURM_CPUS_PER_TASK:-1}}"
-
-cleanup() {
-    srun --overlap --nodes="${#nodes[@]}" --ntasks="${#nodes[@]}" --ntasks-per-node=1 \
-        ray stop --force >/dev/null 2>&1 || true
-}
-trap cleanup EXIT
-
-# The head only coordinates and runs ordinary tasks like every other node.
-if ! srun --nodes=1 --ntasks=1 --nodelist="$HEAD_NODE" \
-    ray start --head --node-ip-address="$HEAD_IP" --port="$RAY_PORT" \
-    --num-cpus="$RAY_CPUS" --disable-usage-stats; then
-    echo "ERROR: Could not start the Ray head on $HEAD_NODE."
-    exit 1
-fi
-
-split=$(( ${#nodes[@]} - TIMING_NODES ))
-compute_workers=("${nodes[@]:1:$((split - 1))}")
-timing_workers=("${nodes[@]:$split}")
-
-start_workers() {  # $1 = cpus advertised to Ray, $2 = extra ray args, rest = nodes
-    local cpus="$1" extra="$2"; shift 2
-    (( $# > 0 )) || return 0
-    local list
-    list=$(IFS=,; echo "$*")
-    srun --nodes="$#" --ntasks="$#" --ntasks-per-node=1 --nodelist="$list" \
-        ray start --address="$RAY_ADDRESS" --num-cpus="$cpus" \
-        --disable-usage-stats $extra
-}
-
-start_workers "$RAY_CPUS" "" "${compute_workers[@]}" || { echo "ERROR: compute workers failed"; exit 1; }
-# 0 schedulable CPUs: only tasks asking for the "timing" resource land here,
-# and each gets the whole (otherwise idle) node.
-start_workers 0 "--resources={\"timing\":1}" "${timing_workers[@]}" || { echo "ERROR: timing workers failed"; exit 1; }
-
-# Wait until every node has joined.
-for _ in $(seq 1 60); do
-    joined=$(python - <<'PY'
-import ray
-ray.init(address="auto", logging_level="ERROR")
-print(sum(1 for n in ray.nodes() if n["Alive"]))
-PY
-)
-    (( joined >= ${#nodes[@]} )) && break
-    sleep 5
-done
-echo "Ray nodes joined: ${joined:-0}/${#nodes[@]}"
-
 # ============================================================
-# Run everything
+# Run suite with Python-managed Ray initialization
 # ============================================================
 
-export PYTHONPATH="$PWD:${PYTHONPATH:-}"
-OUTPUT_ROOT="${OUTPUT_ROOT:-results/suite-$SLURM_JOB_ID}"
-echo "Output: $OUTPUT_ROOT"
-
-python ray_suite.py --address "$RAY_ADDRESS" --output-root "$OUTPUT_ROOT" ${SUITE_ARGS:-}
+python ray_suite.py --address auto --output-root "$OUTPUT_ROOT" ${SUITE_ARGS:-}
 STATUS=$?
 
 echo "=========================================="
 echo "Suite finished (exit $STATUS)"
 echo "=========================================="
 exit $STATUS
+
