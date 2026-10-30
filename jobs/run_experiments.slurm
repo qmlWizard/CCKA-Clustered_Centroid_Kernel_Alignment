@@ -1,20 +1,17 @@
 #!/bin/bash
-#SBATCH --job-name=ccka-experiments
-#SBATCH --partition=terai
-#SBATCH --nodes=25
+#SBATCH --job-name=ccka-experiment
+#SBATCH --partition=gpu-large
+#SBATCH --nodes=26
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=48
-#SBATCH --mem=64G
-#SBATCH --time=24:00:00
+#SBATCH --gres=gpu:2
+#SBATCH --time=12:00:00
 #SBATCH --output=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.out
 #SBATCH --error=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.err
 
 # ============================================================
 # Environment
 # ============================================================
-
-source ~/.bashrc
-
 . /home/apps/spack/share/spack/setup-env.sh
 
 spack load /oxmullt
@@ -58,8 +55,7 @@ RUN_NAME="$(basename "$CONFIG" .yaml)"
 OUTPUT_DIR="${OUTPUT_DIR:-results/$RUN_NAME}"
 echo "CONFIG: $CONFIG -> $OUTPUT_DIR"
 
-python -c "import ray; print('Ray:', ray.__version__)"
-python -c "import grpc; print('gRPC:', grpc.__version__)"
+
 python main.py --config "$CONFIG" --address auto --output-dir "$OUTPUT_DIR"
 STATUS=$?
 

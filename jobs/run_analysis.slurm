@@ -1,10 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=ccka-analysis
-#SBATCH --partition=terai
+#SBATCH --partition=debug
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
-#SBATCH --mem=64G
 #SBATCH --time=24:00:00
 #SBATCH --output=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.out
 #SBATCH --error=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.err
@@ -51,7 +50,7 @@ case "$ANALYSIS" in
             for seed in 0 1 2 3 4 5 6 7 8 9; do
                 python -m experiments.accuracy_vs_executions \
                     --config configs/base.yaml --dataset "$dataset" --seed "$seed" \
-                    --methods fullKTA quackKTA ccka --centroids 4 \
+                    --methods fullKTA randomKTA quackKTA ccka --centroids 4 \
                     --target-accuracy 0.9 --run-full-iterations \
                     --output-prefix "results/budget/${dataset}_seed${seed}"
             done

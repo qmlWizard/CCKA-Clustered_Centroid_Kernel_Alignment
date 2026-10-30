@@ -5,7 +5,7 @@ datasets: [checkerboard, corners]
 training:
   epochs: 100
   min_n_qubits: 5
-  reps: 4
+  reps: 6
   centroids: [4]
   inference_landmarks: 32
   inference_method: svm
@@ -15,13 +15,13 @@ training:
   # Checkpoints are selected on the validation split; test is evaluated once.
   validation_fraction: 0.3
   test_fraction: 0.5
-  feature_range: [0.0, 3.14159]
+  feature_range: [-3.14159, 3.14159]
   collect_diagnostics: false
   learning_rate: 0.1
   centroid_lr: 0.01
   sub_centroid_lr: 0.01
-  lambda_kao: 0.01
-  lambda_co: 0.01
+  lambda_kao: 0.001
+  lambda_co: 0.001
   co_margin: 0.1
   co_temperature: 0.1
   svm_c: 1.0

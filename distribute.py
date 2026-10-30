@@ -55,10 +55,24 @@ class RayAgent:
             shutil.which(command) for command in ("srun", "scontrol")
         )
 
-    def initialise(self, *, address: str = "auto", expected_nodes: Optional[int] = None):
+    def initialise(
+        self,
+        *,
+        address: str = "auto",
+        expected_nodes: Optional[int] = None,
+    ):
+        if address == "local":
+            self.local_mode = True
+            expected_nodes = expected_nodes or 1
+            self._connect_local()
+            return self._runtime_summary(expected_nodes)
+
         configured_address = (
-            os.environ.get("RAY_ADDRESS") if address == "auto" else address
+            os.environ.get("RAY_ADDRESS")
+            if address == "auto"
+            else address
         )
+
         if configured_address and configured_address != "auto":
             self.ray_address = configured_address
         elif self.slurm_available():
@@ -75,21 +89,21 @@ class RayAgent:
 
     def _create_slurm_cluster(self) -> None:
         nodelist = os.environ["SLURM_JOB_NODELIST"]
+
         self.nodes = subprocess.check_output(
-            ["scontrol", "show", "hostnames", nodelist], text=True
+            ["scontrol", "show", "hostnames", nodelist],
+            text=True,
         ).split()
+
         if not self.nodes:
             raise RuntimeError("SLURM_JOB_NODELIST did not contain any nodes.")
 
         head_node = self.nodes[0]
+        node_count = len(self.nodes)
+
+        # This is a short-lived Slurm step. It finishes before the main
+        # multi-node Ray launch begins.
         head_ip = subprocess.check_output(
-            ["srun", "-N1", "-n1", "-w", head_node, "hostname", "-I"],
-            text=True,
-        ).split()[0]
-        self.ray_address = f"{head_ip}:{self.port}"
-        os.environ["RAY_ADDRESS"] = self.ray_address
-        LOGGER.info("Starting Ray head on %s at %s", head_node, self.ray_address)
-        self._start_process(
             [
                 "srun",
                 "--overlap",
@@ -97,36 +111,80 @@ class RayAgent:
                 "-n1",
                 "-w",
                 head_node,
-                "ray",
-                "start",
-                "--head",
-                f"--node-ip-address={head_ip}",
-                f"--port={self.port}",
-                f"--num-cpus={self.num_cpus_per_node}",
-                "--disable-usage-stats",
-                "--block",
+                "hostname",
+                "-I",
             ],
-            "Ray head",
+            text=True,
+        ).split()[0]
+
+        self.ray_address = f"{head_ip}:{self.port}"
+        os.environ["RAY_ADDRESS"] = self.ray_address
+
+        LOGGER.info(
+            "Starting Ray cluster: head=%s address=%s nodes=%d CPUs/node=%d",
+            head_node,
+            self.ray_address,
+            node_count,
+            self.num_cpus_per_node,
         )
 
-        for node in self.nodes[1:]:
-            self._start_process(
-                [
-                    "srun",
-                    "--overlap",
-                    "-N1",
-                    "-n1",
-                    "-w",
-                    node,
-                    "ray",
-                    "start",
-                    f"--address={self.ray_address}",
-                    f"--num-cpus={self.num_cpus_per_node}",
-                    "--disable-usage-stats",
-                    "--block",
-                ],
-                f"Ray worker on {node}",
-            )
+        # Each task receives a unique SLURM_PROCID:
+        #   0       -> Ray head
+        #   1..N-1  -> Ray workers
+        #
+        # Workers retry while the head starts. Once Ray starts successfully,
+        # --block keeps the process alive.
+        worker_script = r"""
+    set -eu
+
+    if [ "${SLURM_PROCID}" = "0" ]; then
+        exec ray start \
+            --head \
+            --node-ip-address="${RAY_HEAD_IP}" \
+            --port="${RAY_PORT}" \
+            --num-cpus="${RAY_CPUS}" \
+            --disable-usage-stats \
+            --block
+    else
+        attempt=1
+        while [ "$attempt" -le 30 ]; do
+            if ray start \
+                --address="${RAY_ADDRESS}" \
+                --num-cpus="${RAY_CPUS}" \
+                --disable-usage-stats \
+                --block; then
+                exit 0
+            fi
+
+            echo "Ray worker startup attempt ${attempt} failed on $(hostname)" >&2
+            attempt=$((attempt + 1))
+            sleep 2
+        done
+
+        echo "Ray worker failed after 30 attempts on $(hostname)" >&2
+        exit 1
+    fi
+    """
+
+        env = os.environ.copy()
+        env["RAY_HEAD_IP"] = head_ip
+        env["RAY_PORT"] = str(self.port)
+        env["RAY_CPUS"] = str(self.num_cpus_per_node)
+        env["RAY_ADDRESS"] = self.ray_address
+
+        command = [
+            "srun",
+            "--overlap",
+            f"--nodes={node_count}",
+            f"--ntasks={node_count}",
+            "--ntasks-per-node=1",
+            "--kill-on-bad-exit=1",
+            "bash",
+            "-lc",
+            worker_script,
+        ]
+
+        self._start_process(command, "Ray cluster launch")
         self._owns_cluster = True
 
     def _start_process(self, command: list[str], label: str) -> None:
@@ -198,31 +256,50 @@ class RayAgent:
         )
         return total_cpus, alive_nodes
 
+
     def stop(self) -> None:
         if ray.is_initialized():
             ray.shutdown()
+
         if not self._owns_cluster and not self._processes:
             return
-        node_count = len(self.nodes)
-        try:
-            subprocess.run(
-                [
-                    "srun",
-                    "--overlap",
-                    f"--nodes={node_count}",
-                    f"--ntasks={node_count}",
-                    "--ntasks-per-node=1",
-                    "ray",
-                    "stop",
-                    "--force",
-                ],
-                capture_output=True,
-                timeout=60,
-                check=False,
-            )
-        finally:
-            for process in self._processes:
-                if process.poll() is None:
-                    process.terminate()
-            self._processes.clear()
-            self._owns_cluster = False
+
+        # Terminate the long-running srun process first.
+        # This releases the persistent job step before cleanup.
+        for process in self._processes:
+            if process.poll() is None:
+                process.terminate()
+
+        for process in self._processes:
+            if process.poll() is None:
+                try:
+                    process.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+
+        self._processes.clear()
+
+        # Ask Ray to stop any processes that survived the srun shutdown.
+        if self._owns_cluster and self.nodes:
+            try:
+                subprocess.run(
+                    [
+                        "srun",
+                        "--overlap",
+                        f"--nodes={len(self.nodes)}",
+                        f"--ntasks={len(self.nodes)}",
+                        "--ntasks-per-node=1",
+                        "ray",
+                        "stop",
+                        "--force",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    check=False,
+                )
+            except (subprocess.TimeoutExpired, OSError) as exc:
+                LOGGER.warning("Ray cleanup encountered an error: %s", exc)
+
+        self._owns_cluster = False
