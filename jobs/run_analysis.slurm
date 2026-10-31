@@ -10,7 +10,7 @@
 
 # Single-node analysis jobs (no Ray). Select with:
 #   sbatch --export=ALL,ANALYSIS=scalability jobs/run_analysis.slurm
-# ANALYSIS in: budget | scalability | kernel | ansatz | stats | plots
+# ANALYSIS in: budget | scalability | kernel | ansatz | stats | plots | boundaries
 
 # ============================================================
 # Environment
@@ -74,6 +74,11 @@ case "$ANALYSIS" in
         ;;
     plots)
         python -m ccka_experiments.suite_plots --results-dir results --output-dir results/plots
+        ;;
+    boundaries)
+        python main.py \
+            --config configs/exp16_decision_boundaries.yaml \
+            --output-dir results/decision_boundaries
         ;;
     *)
         echo "Unknown ANALYSIS=$ANALYSIS"

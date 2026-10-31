@@ -1,0 +1,24 @@
+base: base.yaml
+
+# Visual comparison of the learned global structure on the corners dataset.
+experiment_type: decision_boundaries
+datasets: [corners]
+seeds: [0, 1, 2]
+ansatze: [crz_ring]
+
+training:
+  epochs: 100
+  centroids: [4]
+  max_samples: 400
+  inference_method: svm
+  randomKTA_inference_method: svm
+  quackKTA_inference_method: svm
+  ccka_inference_method: svm
+
+experiments:
+  methods: [randomKTA, quackKTA, ccka]
+  ccka_initializations: [regular]
+  ccka_ablations: {}
+
+decision_boundaries:
+  grid_size: 180

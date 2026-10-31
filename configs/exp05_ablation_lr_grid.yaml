@@ -1,12 +1,12 @@
 # Section 4: (MCLR x CCLR) heatmap, plus LR sweep. corners + checkerboard ONLY.
 base: base.yaml
 
-datasets: [checkerboard]
+datasets: [checkerboard, corners]
 
 search_space:
   centroid_lr: [0.001, 0.01, 0.1]
   sub_centroid_lr: [0.001, 0.01, 0.1]
-  learning_rate: [0.01, 0.1]
+  learning_rate: [0.1]
 
 seeds: [0, 1, 2, 3, 4]
 

@@ -477,6 +477,13 @@ def main() -> None:
     )
     output_dir = args.output_dir or ROOT / "results" / run_name
 
+    if config.get("experiment_type") == "decision_boundaries":
+        from ccka_experiments.decision_boundaries import run_from_config
+
+        paths = run_from_config(config, output_dir=output_dir)
+        LOGGER.info("Saved %d decision-boundary figures under %s", len(paths), output_dir)
+        return
+
     agent = RayAgent()
     try:
         agent.initialise(address=args.address)

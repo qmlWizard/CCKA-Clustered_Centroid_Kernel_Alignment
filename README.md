@@ -191,6 +191,7 @@ experiment with
 | 7 kernel analysis (**corners, checkerboard only**) | `ccka_experiments/kernel_analysis.py` | kernel heatmaps, eigenspectra, violins, CKA, KTA vs accuracy, effective rank, decision boundaries |
 | 8 noise | `exp11_noise` (depolarising, amplitude/phase damping, coherent, shots-only), `exp12_shots` | accuracy vs level, noise×method heatmap, accuracy vs shots |
 | 9 ansätze | `exp13_ansatz_depth`, `ccka_experiments/ansatz_analysis.py` | accuracy vs depth/params, gradient variance, expressibility, Meyer-Wallach, rank stability (Kendall τ) |
+| 16 decision boundaries | `exp16_decision_boundaries` | three-panel RandomKTA/QUACK/CCKA comparison on `corners` |
 | 10 optimiser / init | `exp14_optimizer_init` (Adam/SGD, init scale 0/0.1/1, epochs) | init sensitivity, epochs-to-plateau |
 
 **Ansätze** (`ansatze:` in a config, `--ansatz` in scripts): `crz_ring`
