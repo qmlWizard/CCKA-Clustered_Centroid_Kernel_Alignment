@@ -1,6 +1,6 @@
 import pytest
 
-from experiments.noise import (
+from ccka_experiments.noise import (
     DEFAULT_NOISE_LEVELS,
     _parse_args,
     _validate_noise_levels,

@@ -3,7 +3,7 @@ base: base.yaml
 
 datasets: [corners, checkerboard]
 
-training_grid:
+search_space:
   lambda_kao: [0.0, 0.001, 0.01, 0.1]
   lambda_co: [0.0, 0.001, 0.01, 0.1]
 

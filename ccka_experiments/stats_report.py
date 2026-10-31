@@ -23,8 +23,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from experiments.datasets import SYNTHETIC_CLAIMS
-from experiments.plot_results import OPTIONAL_IDENTITY_COLUMNS, load_results
+from ccka_experiments.datasets import SYNTHETIC_CLAIMS
+from ccka_experiments.plot_results import OPTIONAL_IDENTITY_COLUMNS, load_results
 
 METHOD_ORDER = ["fullKTA", "randomKTA", "quackKTA", "ccka"]
 NEMENYI_Q05 = {2: 1.960, 3: 2.343, 4: 2.569, 5: 2.728, 6: 2.850}

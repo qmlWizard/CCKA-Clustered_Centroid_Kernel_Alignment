@@ -12,8 +12,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import yaml
 
-from experiments.accuracy_vs_executions import ROOT, run_method
-from experiments.experiments import CONFIG_DIR, _prepare_data
+from ccka_experiments.accuracy_vs_executions import ROOT, run_method
+from ccka_experiments.experiments import CONFIG_DIR, _prepare_data
 
 LOGGER = logging.getLogger("ccka.noise")
 DEFAULT_NOISE_LEVELS = (0.01, 0.03, 0.05, 0.1)
@@ -104,7 +104,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=Path,
-        default=CONFIG_DIR / "default.yaml",
+        default=CONFIG_DIR / "exp01_main_benchmark.yaml",
         help="YAML file supplying the training settings.",
     )
     parser.add_argument(

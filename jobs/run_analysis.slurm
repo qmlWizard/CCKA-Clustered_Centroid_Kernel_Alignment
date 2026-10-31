@@ -48,7 +48,7 @@ case "$ANALYSIS" in
         # (plus spirals, whose claim is about the budget). 10 seeds.
         for dataset in corners checkerboard spirals; do
             for seed in 0 1 2 3 4 5 6 7 8 9; do
-                python -m experiments.accuracy_vs_executions \
+                python -m ccka_experiments.accuracy_vs_executions \
                     --config configs/base.yaml --dataset "$dataset" --seed "$seed" \
                     --methods fullKTA randomKTA quackKTA ccka --centroids 4 \
                     --target-accuracy 0.9 --run-full-iterations \
@@ -57,23 +57,23 @@ case "$ANALYSIS" in
         done
         ;;
     scalability)
-        python -m experiments.scalability --output-dir results/scalability
+        python -m ccka_experiments.scalability --output-dir results/scalability
         ;;
     kernel)
-        python -m experiments.kernel_analysis --output-dir results/kernel_analysis
+        python -m ccka_experiments.kernel_analysis --output-dir results/kernel_analysis
         ;;
     ansatz)
-        python -m experiments.ansatz_analysis --output-dir results/ansatz_analysis \
+        python -m ccka_experiments.ansatz_analysis --output-dir results/ansatz_analysis \
             --accuracy-csv results/exp13_ansatz_depth/summary.csv
         ;;
     stats)
-        python -m experiments.stats_report results/exp01_main_benchmark \
+        python -m ccka_experiments.stats_report results/exp01_main_benchmark \
             --output-dir results/stats/main_benchmark
-        python -m experiments.stats_report results/exp15_synthetic_claims \
+        python -m ccka_experiments.stats_report results/exp15_synthetic_claims \
             --output-dir results/stats/synthetic_claims
         ;;
     plots)
-        python -m experiments.suite_plots --results-dir results --output-dir results/plots
+        python -m ccka_experiments.suite_plots --results-dir results --output-dir results/plots
         ;;
     *)
         echo "Unknown ANALYSIS=$ANALYSIS"

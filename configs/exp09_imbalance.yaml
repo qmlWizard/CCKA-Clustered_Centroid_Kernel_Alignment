@@ -3,7 +3,7 @@ base: base.yaml
 
 datasets: [rare_mode, moons, corners]
 
-training_grid:
+search_space:
   class_imbalance: [0.5, 0.3, 0.1]
 
 experiments:

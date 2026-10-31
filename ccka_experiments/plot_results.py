@@ -57,6 +57,7 @@ OPTIONAL_IDENTITY_COLUMNS = [
     "multiclass_strategy",
     "n_classes",
     "init_scale",
+    "random_samples",
     "ccka_inner_steps",
     "quack_inner_steps",
     "svm_c",

@@ -7,16 +7,16 @@ import pytest
 
 from ccka.circuits.angleEmbeddingKernel import quackEmbeddingCircuit
 from ccka.circuits.ansatz import ansatz_names
-from experiments import stats_report
-from experiments.datasets import GENERATORS, SYNTHETIC_CLAIMS, generate_dataset
-from experiments.experiments import (
+from ccka_experiments import stats_report
+from ccka_experiments.datasets import GENERATORS, SYNTHETIC_CLAIMS, generate_dataset
+from ccka_experiments.experiments import (
     ABLATION_DATASETS,
     DATASETS,
     iter_experiment_jobs,
     load_config,
 )
-from experiments.multiclass import normalise_strategy
-from experiments.plot_results import load_results
+from ccka_experiments.multiclass import normalise_strategy
+from ccka_experiments.plot_results import load_results
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -100,7 +100,7 @@ def test_stats_helpers():
     kernel = np.eye(4)
     y = np.array([1, 1, -1, -1])
     assert stats_report is not None
-    from experiments.kernel_analysis import effective_rank, kta, linear_cka
+    from ccka_experiments.kernel_analysis import effective_rank, kta, linear_cka
 
     assert effective_rank(kernel) == pytest.approx(4.0)
     assert -1 <= kta(np.outer(y, y).astype(float), y) <= 1

@@ -50,7 +50,7 @@ echo "=========================================="
 
 # Select the experiment with: sbatch --export=ALL,CONFIG=configs/exp06_k_sweep.yaml \
 #   --nodes=8 jobs/run_experiments.slurm
-CONFIG="${CONFIG:-configs/default.yaml}"
+CONFIG="${CONFIG:-configs/exp01_main_benchmark.yaml}"
 RUN_NAME="$(basename "$CONFIG" .yaml)"
 OUTPUT_DIR="${OUTPUT_DIR:-results/$RUN_NAME}"
 echo "CONFIG: $CONFIG -> $OUTPUT_DIR"

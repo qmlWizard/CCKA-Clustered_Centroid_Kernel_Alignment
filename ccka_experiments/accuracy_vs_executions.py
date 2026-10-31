@@ -16,7 +16,7 @@ import yaml
 from ccka.backend import BACKEND
 from ccka.circuits.angleEmbeddingKernel import quackEmbeddingCircuit
 from ccka.circuits.ansatz import DEFAULT_ANSATZ, ansatz_names
-from experiments.experiments import (
+from ccka_experiments.experiments import (
     CONFIG_DIR,
     METHOD_LABELS,
     ROOT,
@@ -655,7 +655,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=Path,
-        default=CONFIG_DIR / "default.yaml",
+        default=CONFIG_DIR / "exp01_main_benchmark.yaml",
         help="YAML file supplying training hyperparameters and seeds.",
     )
     parser.add_argument("--target-accuracy", type=float, default=0.9)

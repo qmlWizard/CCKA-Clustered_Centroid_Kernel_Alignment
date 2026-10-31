@@ -1,0 +1,17 @@
+base: base.yaml
+
+datasets: [checkerboard, corners]
+
+training:
+  max_samples: 40
+  quack_inner_steps: 1
+  collect_diagnostics: false
+  inference_method: kernel_distance
+  quackKTA_inference_method: svm
+  ccka_inference_method: kernel_distance
+  test_fraction: 0.5
+
+noise:
+  types: [none, depolarizing, coherent]
+  levels: [0.01]
+  shots: [8]

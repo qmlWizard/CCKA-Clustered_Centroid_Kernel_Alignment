@@ -9,6 +9,5 @@ training:
 ansatze: [crz_ring, hardware_efficient]
 
 experiments:
-  methods: [quackKTA, ccka]
+  methods: [randomKTA, quackKTA, ccka]
   ablation_datasets: []
-

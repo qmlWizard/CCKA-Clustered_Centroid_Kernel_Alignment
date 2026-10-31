@@ -152,7 +152,7 @@ This work was developed as part of the master's thesis at **Deggendorf Institute
 Run the configured sweep across a Ray cluster with:
 
 ```bash
-python main.py --config configs/default.yaml
+python main.py --config configs/exp01_main_benchmark.yaml
 ```
 
 The default address is `auto`; when running under Slurm, the Python
@@ -181,16 +181,16 @@ experiment with
 
 | Plan section | Config / script | Plots |
 |---|---|---|
-| 0, 1, 11 main benchmark, 10 seeds, val-based checkpoint selection | `exp01_main_benchmark`, `experiments/stats_report.py` | grouped bars per ansatz, ansatz×method / ansatz×dataset heatmaps, Pareto, critical-difference, summary tables with Wilcoxon p-values (bold only if significant) |
+| 0, 1, 11 main benchmark, 10 seeds, val-based checkpoint selection | `exp01_main_benchmark`, `ccka_experiments/stats_report.py` | grouped bars per ansatz, ansatz×method / ansatz×dataset heatmaps, Pareto, critical-difference, summary tables with Wilcoxon p-values (bold only if significant) |
 | 1 multiclass (C>2) | `exp02_multiclass` (`training.multiclass_strategy: ovr\|ovo`) | strategy bars |
-| 2 accuracy vs circuit budget | `experiments/accuracy_vs_executions.py` (job `ANALYSIS=budget`) | accuracy vs evaluations, cost-to-target |
-| 3 scalability, Nyström | `experiments/scalability.py` | evals/epoch and time vs N (log-log), time vs qubits/layers, stacked pipeline cost, accuracy vs landmarks |
+| 2 accuracy vs circuit budget | `ccka_experiments/accuracy_vs_executions.py` (job `ANALYSIS=budget`) | accuracy vs evaluations, cost-to-target |
+| 3 scalability, Nyström | `ccka_experiments/scalability.py` | evals/epoch and time vs N (log-log), time vs qubits/layers, stacked pipeline cost, accuracy vs landmarks |
 | 4 ablations (**corners, checkerboard only**) | `exp03` structure/clustering/fixed centroids, `exp04` λ_KAO×λ_CO, `exp05` MCLR×CCLR×LR | Δ-accuracy bars, learning curves, heatmaps |
-| 5 K sweep, multimodality | `exp06_k_sweep` | accuracy vs K (+cost axis), by modes, optimal K vs modes |
+| 5 K sweep, multimodality | `exp06_k_sweep` (CCKA, QUACK, and RandomKTA) | accuracy vs K (+cost axis), by modes, optimal K vs modes |
 | 6 data regimes | `exp07` N_train, `exp08` label noise, `exp09` imbalance, `exp10` PCA dim | curves per dataset |
-| 7 kernel analysis (**corners, checkerboard only**) | `experiments/kernel_analysis.py` | kernel heatmaps, eigenspectra, violins, CKA, KTA vs accuracy, effective rank, decision boundaries |
+| 7 kernel analysis (**corners, checkerboard only**) | `ccka_experiments/kernel_analysis.py` | kernel heatmaps, eigenspectra, violins, CKA, KTA vs accuracy, effective rank, decision boundaries |
 | 8 noise | `exp11_noise` (depolarising, amplitude/phase damping, coherent, shots-only), `exp12_shots` | accuracy vs level, noise×method heatmap, accuracy vs shots |
-| 9 ansätze | `exp13_ansatz_depth`, `experiments/ansatz_analysis.py` | accuracy vs depth/params, gradient variance, expressibility, Meyer-Wallach, rank stability (Kendall τ) |
+| 9 ansätze | `exp13_ansatz_depth`, `ccka_experiments/ansatz_analysis.py` | accuracy vs depth/params, gradient variance, expressibility, Meyer-Wallach, rank stability (Kendall τ) |
 | 10 optimiser / init | `exp14_optimizer_init` (Adam/SGD, init scale 0/0.1/1, epochs) | init sensitivity, epochs-to-plateau |
 
 **Ansätze** (`ansatze:` in a config, `--ansatz` in scripts): `crz_ring`
@@ -202,7 +202,7 @@ experiment with
 experiments, and kernel analysis rejects other datasets.
 
 **Synthetic datasets and the CCKA behaviour each one tests**
-(`experiments/datasets.py::SYNTHETIC_CLAIMS`, evaluated by `stats_report.py` →
+(`ccka_experiments/datasets.py::SYNTHETIC_CLAIMS`, evaluated by `stats_report.py` →
 `claims_report.md`): `rings` (equal class means; main centroid uninformative),
 `xor_grid` (accuracy rises with K until each cell has a representative),
 `gmm_modes_1/2/4` (gap to QUACK grows with modes per class; 1 mode is the

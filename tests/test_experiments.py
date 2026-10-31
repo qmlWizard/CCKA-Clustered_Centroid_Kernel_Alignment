@@ -16,7 +16,7 @@ from ccka.aligner.kta import (
 )
 from ccka.circuits.angleEmbeddingKernel import quackEmbeddingCircuit
 from ccka.models.kernel import KernelModel
-from experiments.experiments import (
+from ccka_experiments.experiments import (
     METHOD_LABELS,
     METHODS,
     _experiment_specs,
@@ -25,8 +25,8 @@ from experiments.experiments import (
     _read_dataset,
     _run_one,
 )
-from experiments.accuracy_vs_executions import _build_aligner, _run_specs
-from experiments import accuracy_vs_executions as execution_module
+from ccka_experiments.accuracy_vs_executions import _build_aligner, _run_specs
+from ccka_experiments import accuracy_vs_executions as execution_module
 
 
 class _TinyCircuit:
@@ -121,6 +121,14 @@ def test_inference_methods_can_be_selected_independently():
             method, data, settings, seed=0, centroids=2
         )
         assert aligner.inference_method == expected
+
+
+def test_random_kta_receives_k_as_random_sample_count():
+    aligner = _build_aligner(
+        "randomKTA", _splits(), _settings(), seed=0, centroids=6
+    )
+
+    assert aligner.random_samples == 6
 
 
 def test_ccka_learning_rate_can_override_global_rate():
@@ -437,6 +445,21 @@ def test_experiment_specs_can_disable_implicit_single_centroid_baseline():
 
     assert [spec[1] for spec in specs] == [5, 10, 20]
     assert all(spec[3] == "full" for spec in specs)
+
+
+def test_random_kta_uses_each_configured_k_as_random_sample_count():
+    config = {
+        "training": {"centroids": [1, 4, 8], "inference_landmarks": 32},
+        "experiments": {
+            "methods": ["randomKTA"],
+            "ccka_ablations": {},
+        },
+    }
+
+    specs = list(_experiment_specs(config))
+
+    assert [spec[1] for spec in specs] == [1, 4, 8]
+    assert all(spec[0] == "randomKTA" for spec in specs)
 
 
 def test_ccka_treats_epochs_as_total_inner_updates():
@@ -1050,7 +1073,7 @@ def test_experiment_result_serializes_per_epoch_validation_history(monkeypatch):
             }
 
     monkeypatch.setattr(
-        "experiments.experiments._make_aligner",
+        "ccka_experiments.experiments._make_aligner",
         lambda *args, **kwargs: _FakeAligner(),
     )
     result = _run_one(

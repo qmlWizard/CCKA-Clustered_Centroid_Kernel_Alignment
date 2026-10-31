@@ -18,7 +18,7 @@ import pennylane as qml
 
 from ccka.circuits.angleEmbeddingKernel import quackEmbeddingCircuit
 from ccka.circuits.ansatz import ansatz_names
-from experiments.experiments import ROOT
+from ccka_experiments.experiments import ROOT
 
 LOGGER = logging.getLogger(__name__)
 

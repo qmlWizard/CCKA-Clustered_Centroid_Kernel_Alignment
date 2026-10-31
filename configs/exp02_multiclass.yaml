@@ -8,7 +8,7 @@ training:
   epochs: 100
   max_samples: 300
 
-training_grid:
+search_space:
   multiclass_strategy: [ovr, ovo]
 
 seeds: [0, 1, 2, 3, 4]

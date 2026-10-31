@@ -3,7 +3,7 @@ base: base.yaml
 
 datasets: [adult, breast_cancer_wisconsin, zero_vs_nonzero]
 
-training_grid:
+search_space:
   n_qubits: [2, 4, 6, 8]
 
 training:

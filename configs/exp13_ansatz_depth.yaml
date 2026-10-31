@@ -5,7 +5,7 @@ datasets: [corners, checkerboard]
 
 ansatze: [crz_ring, hardware_efficient, iqp, zz_feature_map, strongly_entangling, separable]
 
-training_grid:
+search_space:
   reps: [1, 2, 4, 6, 8, 10]
 
 seeds: [0, 1, 2, 3, 4]

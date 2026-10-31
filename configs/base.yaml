@@ -2,6 +2,10 @@
 # override what they change (dicts are deep-merged, lists are replaced).
 datasets: [checkerboard, corners]
 
+# Exhaustive Ray grid entries. Scalar values and {type: grid|choice,
+# values: [...]} entries are supported by main.py.
+search_space: {}
+
 training:
   epochs: 100
   min_n_qubits: 5
@@ -47,4 +51,3 @@ experiments:
   # Ablations only ever run on these two datasets.
   ablation_datasets: [checkerboard, corners]
   ccka_ablations: {}
-

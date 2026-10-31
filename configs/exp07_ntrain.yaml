@@ -3,7 +3,7 @@ base: base.yaml
 
 datasets: [moons, corners, checkerboard, overlapping_blobs]
 
-training_grid:
+search_space:
   n_train: [8, 16, 32, 64, 128, 256]
 
 training:

@@ -17,7 +17,7 @@ from typing import Any
 import numpy as np
 from sklearn.svm import SVC
 
-from experiments.experiments import (
+from ccka_experiments.experiments import (
     ROOT,
     _build_model,
     _make_aligner,

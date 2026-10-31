@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: ccka
+Version: 0.1.0
+Summary: Clustered Centroid Kernel Alignment for Quantum and Classical Kernels
+Home-page: UNKNOWN
+License: UNKNOWN
+Platform: UNKNOWN
+Requires-Python: >=3.9,<3.12
+Provides-Extra: jax
+Provides-Extra: torch
+
+UNKNOWN
+

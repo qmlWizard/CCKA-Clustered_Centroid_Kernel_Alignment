@@ -1,6 +1,6 @@
 """Plot suite for the experiment configs in configs/exp*.yaml.
 
-    python -m experiments.suite_plots --results-dir results --output-dir results/plots
+    python -m ccka_experiments.suite_plots --results-dir results --output-dir results/plots
 
 Every experiment CSV that exists is plotted; missing ones are skipped. Curves
 show mean +- std over seeds. Hyper-parameters are never selected on test data.
@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from experiments.plot_results import load_results
+from ccka_experiments.plot_results import load_results
 
 METHODS = ["fullKTA", "randomKTA", "quackKTA", "ccka"]
 COLORS = dict(zip(METHODS, ["tab:blue", "tab:gray", "tab:orange", "tab:green"]))

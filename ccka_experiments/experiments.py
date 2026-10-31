@@ -19,8 +19,8 @@ from sklearn.preprocessing import MinMaxScaler
 from ccka.backend import BACKEND
 from ccka.circuits.angleEmbeddingKernel import quackEmbeddingCircuit
 from ccka.circuits.ansatz import DEFAULT_ANSATZ, ansatz_names
-from experiments.datasets import GENERATED_DATASETS, generate_dataset
-from experiments.multiclass import MulticlassAligner, normalise_strategy
+from ccka_experiments.datasets import GENERATED_DATASETS, generate_dataset
+from ccka_experiments.multiclass import MulticlassAligner, normalise_strategy
 
 if BACKEND == "jax":
     import jax.numpy as jnp
@@ -574,6 +574,7 @@ def _run_one(
         "ablation": ablation,
         "initialization": initialization,
         "centroids_per_class": centroids if method_name == "ccka" else None,
+        "random_samples": centroids if method_name == "randomKTA" else None,
         "inference_landmarks": _parse_inference_landmarks(
             settings.get("inference_landmarks", 32)
         ),
@@ -698,6 +699,32 @@ def _grid_combinations(grid: dict[str, list[Any]] | None) -> list[dict[str, Any]
     ]
 
 
+def _configured_search_grid(config: dict[str, Any]) -> dict[str, list[Any]]:
+    """Normalise legacy grids and pasted-runner-style search spaces.
+
+    CCKA jobs are exhaustive by default, so continuous Ray sampler entries are
+    intentionally rejected here rather than silently producing an incomplete
+    experiment.
+    """
+    grid = dict(config.get("training_grid") or {})
+    for key, spec in (config.get("search_space") or {}).items():
+        if isinstance(spec, list):
+            grid[key] = spec
+            continue
+        if isinstance(spec, dict):
+            kind = str(spec.get("type", "")).lower()
+            if kind in {"grid", "choice"}:
+                values = spec.get("values")
+                if not isinstance(values, list) or not values:
+                    raise ValueError(
+                        f"search_space[{key!r}] must define a non-empty values list."
+                    )
+                grid[key] = values
+                continue
+        grid[key] = [spec]
+    return grid
+
+
 def iter_experiment_jobs(config: dict[str, Any], *, smoke: bool = False):
     datasets = config["datasets"]
     if datasets == "all":
@@ -731,7 +758,7 @@ def iter_experiment_jobs(config: dict[str, Any], *, smoke: bool = False):
             noises.append(noise)
     seeds = [int(seed) for seed in config.get("seeds", [0])]
     shot_counts = [int(value) for value in noise_settings.get("shots", [1024])]
-    grid = _grid_combinations(config.get("training_grid"))
+    grid = _grid_combinations(_configured_search_grid(config))
     for dataset_name in dataset_names:
         for overrides in grid:
             grid_training = {**training, **overrides}
@@ -855,7 +882,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=CONFIG_DIR / "default.yaml",
+        default=CONFIG_DIR / "exp01_main_benchmark.yaml",
         help="YAML experiment configuration.",
     )
     parser.add_argument(

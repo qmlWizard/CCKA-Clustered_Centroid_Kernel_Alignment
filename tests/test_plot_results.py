@@ -3,8 +3,8 @@ import json
 
 import pandas as pd
 
-from experiments import plot_results
-from experiments.plot_results import make_plots
+from ccka_experiments import plot_results
+from ccka_experiments.plot_results import make_plots
 
 
 def test_epoch_accuracy_plot_uses_reference_method_styles_per_dataset(
