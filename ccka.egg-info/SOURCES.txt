@@ -22,6 +22,7 @@ ccka_experiments/__init__.py
 ccka_experiments/accuracy_vs_executions.py
 ccka_experiments/ansatz_analysis.py
 ccka_experiments/datasets.py
+ccka_experiments/decision_boundaries.py
 ccka_experiments/experiments.py
 ccka_experiments/kernel_analysis.py
 ccka_experiments/multiclass.py

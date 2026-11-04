@@ -1,14 +1,24 @@
 # Section 9: ansatz x depth x method grid (accuracy, parameter count, executions).
 base: base.yaml
+exp_name: exp01_main_benchmark
+
+ray:
+  address: auto            # auto | local | host:port   (CLI --address overrides)
+  working_dir: .           # only used when connecting to a remote address
+  num_cpus_per_trial: null # null = all CPUs if single node, else 1
+  num_gpus_per_trial: 1
+  max_retries: 0
+  max_in_flight: null      # null = submit everything
+  # expected_nodes, startup_timeout, port, num_cpus_per_node, local_num_cpus also accepted
 
 datasets: [corners, checkerboard]
 
 ansatze: [crz_ring, hardware_efficient, iqp, zz_feature_map, strongly_entangling, separable]
 
 search_space:
-  reps: [1, 2, 4, 6, 8, 10]
+  reps: [1, 2, 4, 6]
 
-seeds: [0, 1, 2, 3, 4]
+seeds: [0, 1, 2]
 
 experiments:
   methods: [ccka]
