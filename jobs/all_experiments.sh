@@ -8,11 +8,7 @@
 #SBATCH --output=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.out
 #SBATCH --error=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/error/%j.err
 
-set -uo pipefail
-
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-
-source ~/.bashrc
 
 . /home/apps/spack/share/spack/setup-env.sh
 
