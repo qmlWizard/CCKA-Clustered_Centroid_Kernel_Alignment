@@ -1,6 +1,6 @@
 # Section 9: ansatz x depth x method grid (accuracy, parameter count, executions).
 base: base.yaml
-exp_name: exp01_main_benchmark
+exp_name: exp13_ansatz_benchmark
 
 ray:
   address: auto            # auto | local | host:port   (CLI --address overrides)
@@ -16,11 +16,11 @@ datasets: [corners, checkerboard]
 ansatze: [crz_ring, hardware_efficient, iqp, zz_feature_map, strongly_entangling, separable]
 
 search_space:
-  reps: [1, 2, 4, 6]
+  reps: [1, 2, 4, 6, 8]
 
 seeds: [0, 1, 2]
 
 experiments:
-  methods: [ccka]
+  methods: [fullKTA, randomKTA, quackKTA, ccka]
   ablation_datasets: []
 

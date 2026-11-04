@@ -1,0 +1,32 @@
+==========================================
+SLURM_CLUSTER_NAME = rudra20pf-hpc
+SLURM_ARRAY_JOB_ID = 
+SLURM_ARRAY_TASK_ID = 
+SLURM_ARRAY_TASK_COUNT = 
+SLURM_ARRAY_TASK_MAX = 
+SLURM_ARRAY_TASK_MIN = 
+SLURM_JOB_ACCOUNT = cdacb
+SLURM_JOB_ID = 113469
+SLURM_JOB_NAME = compare_ansatz
+SLURM_JOB_NODELIST = cbcn[0065-0066,0118,0121,0129-0133,0410-0411,0417,0421-0422,0555-0556,0600-0602,0934-0935,0961,0973-0975,1016-1017,1033-1036,1263-1264,1319-1320,1322-1323,1475-1476,1483,1496,1505-1506,1521,1525,1547-1548,1564,1569-1574,1581-1582,1631,1635-1638,1658-1661,1666-1669,1697-1700,1713-1714,1738,1740,1761-1763,1802-1803,1805,1807,1813-1814,1877-1879,1886-1891,1893,1895,1897,1899,1901,1903,1905,1907,1969-1971,1982-1984,2019-2022,2046-2048,2056-2058,2063-2065,2078-2080,2257-2259]
+SLURM_JOB_USER = digvijaysinha.cdacb
+SLURM_JOB_UID = 80064
+SLURM_JOB_PARTITION = shiwalik
+SLURM_TASK_PID = 478539
+SLURM_SUBMIT_DIR = /home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment
+SLURM_CPUS_ON_NODE = 48
+SLURM_NTASKS = 128
+SLURM_TASK_PID = 478539
+==========================================
+==========================================
+SLURM JOB ID      : 113469
+SLURM JOB NAME    : compare_ansatz
+NUMBER OF NODES   : 128
+CPUS PER NODE     : 48
+==========================================
+==========================================
+Starting Ansatz Comparision benchmark
+==========================================
+exp13_ansatz_benchmark
+16:11:01 | WARNING | Could not use the existing Ray cluster (Could not find any running Ray instance. Please specify the one to connect to by setting `--address` flag or `RAY_ADDRESS` environment variable.); starting a local Ray runtime. Run `ray stop --force` to clear stale clusters.
+Ray resources: {'node:__internal_head__': 1.0, 'object_store_memory': 56713410969.0, 'CPU': 48.0, 'node:172.40.1.65': 1.0, 'memory': 132331292263.0} | nodes: 1

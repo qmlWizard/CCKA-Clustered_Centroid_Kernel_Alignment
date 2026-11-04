@@ -317,10 +317,12 @@ def main() -> None:
     parser.add_argument("--log-level", default="INFO")
     args = parser.parse_args()
 
+
     setup_logging(getattr(logging, args.log_level.upper()))
     config = load_config(args.config)
 
     exp_name = re.sub(r"[^\w\-.]", "_", str(config.get("exp_name", args.config.stem)))
+    print(exp_name)
     run_name = f"{exp_name}_{datetime.now():%Y%m%d_%H%M%S}"
     output_dir = args.output_dir or ROOT / "results" / run_name
 
