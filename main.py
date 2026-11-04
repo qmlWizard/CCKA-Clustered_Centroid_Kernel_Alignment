@@ -8,15 +8,12 @@ import logging
 import os
 import platform
 import re
-import shutil
-import subprocess
 import time
 import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import ray
 from tqdm import tqdm
 
 from ccka_experiments.experiments import (
@@ -28,7 +25,7 @@ from ccka_experiments.experiments import (
 )
 
 
-LOGGER = logging.getLogger("ccka.ray_runner")
+LOGGER = logging.getLogger("ccka.runner")
 
 
 # ============================================================
@@ -53,286 +50,6 @@ def setup_logging(level: int = logging.INFO) -> None:
     root = logging.getLogger()
     root.handlers[:] = [handler]
     root.setLevel(level)
-
-
-def _available_cpus() -> int:
-    try:
-        return len(os.sched_getaffinity(0))
-    except AttributeError:
-        return os.cpu_count() or 1
-
-
-# ============================================================
-# RAY RUNTIME (local / existing cluster / Slurm)
-# ============================================================
-
-class RayAgent:
-    """Own the Ray runtime for local, existing-cluster, or Slurm execution."""
-
-    def __init__(
-        self,
-        *,
-        num_cpus_per_node: Optional[int] = None,
-        port: int = 6379,
-        startup_timeout: float = 180,
-        local_num_cpus: Optional[int] = None,
-        runtime_env: Optional[dict[str, Any]] = None,
-    ) -> None:
-        self.num_cpus_per_node = num_cpus_per_node or int(
-            os.environ.get(
-                "RAY_CPUS",
-                os.environ.get(
-                    "SLURM_CPUS_ON_NODE",
-                    os.environ.get("SLURM_CPUS_PER_TASK", _available_cpus()),
-                ),
-            )
-        )
-        self.port = port
-        self.startup_timeout = startup_timeout
-        self.local_num_cpus = local_num_cpus
-        self.runtime_env = runtime_env
-        self.nodes: list[str] = []
-        self.ray_address: Optional[str] = None
-        self.local_mode = False
-        self._processes: list[subprocess.Popen[bytes]] = []
-        self._owns_cluster = False
-
-    @staticmethod
-    def slurm_available() -> bool:
-        return bool(os.environ.get("SLURM_JOB_NODELIST")) and all(
-            shutil.which(command) for command in ("srun", "scontrol")
-        )
-
-    def _slurm_node_count(self) -> int:
-        nodelist = os.environ["SLURM_JOB_NODELIST"]
-        return len(
-            subprocess.check_output(
-                ["scontrol", "show", "hostnames", nodelist], text=True
-            ).split()
-        )
-
-    def initialise(self, *, address: str = "auto", expected_nodes: Optional[int] = None):
-        if address == "local":
-            self.local_mode = True
-            expected_nodes = expected_nodes or 1
-            self._connect_local()
-            return self._runtime_summary(expected_nodes)
-
-        configured_address = os.environ.get("RAY_ADDRESS") if address == "auto" else address
-
-        if configured_address and configured_address != "auto":
-            self.ray_address = configured_address
-        elif self.slurm_available() and self._slurm_node_count() > 1:
-            self._create_slurm_cluster()
-            expected_nodes = expected_nodes or len(self.nodes)
-        else:
-            # Single node (or no Slurm): plain local Ray, no srun/ray start needed.
-            self.local_mode = True
-            expected_nodes = expected_nodes or 1
-            self._connect_local()
-            return self._runtime_summary(expected_nodes)
-
-        self._connect_existing(expected_nodes=expected_nodes)
-        return self._runtime_summary(expected_nodes)
-
-    def _create_slurm_cluster(self) -> None:
-        nodelist = os.environ["SLURM_JOB_NODELIST"]
-
-        self.nodes = subprocess.check_output(
-            ["scontrol", "show", "hostnames", nodelist], text=True
-        ).split()
-        if not self.nodes:
-            raise RuntimeError("SLURM_JOB_NODELIST did not contain any nodes.")
-
-        head_node = self.nodes[0]
-        node_count = len(self.nodes)
-
-        head_ip = subprocess.check_output(
-            ["srun", "--overlap", "-N1", "-n1", "-w", head_node, "hostname", "-I"],
-            text=True,
-        ).split()[0]
-
-        self.ray_address = f"{head_ip}:{self.port}"
-        os.environ["RAY_ADDRESS"] = self.ray_address
-
-        LOGGER.info(
-            "Starting Ray cluster: head=%s address=%s nodes=%d CPUs/node=%d",
-            head_node, self.ray_address, node_count, self.num_cpus_per_node,
-        )
-
-        # SLURM_PROCID 0 -> Ray head; 1..N-1 -> workers (retry while head starts).
-        worker_script = r"""
-    set -eu
-
-    if [ "${SLURM_PROCID}" = "0" ]; then
-        exec ray start \
-            --head \
-            --node-ip-address="${RAY_HEAD_IP}" \
-            --port="${RAY_PORT}" \
-            --num-cpus="${RAY_CPUS}" \
-            --disable-usage-stats \
-            --block
-    else
-        attempt=1
-        while [ "$attempt" -le 30 ]; do
-            if ray start \
-                --address="${RAY_ADDRESS}" \
-                --num-cpus="${RAY_CPUS}" \
-                --disable-usage-stats \
-                --block; then
-                exit 0
-            fi
-
-            echo "Ray worker startup attempt ${attempt} failed on $(hostname)" >&2
-            attempt=$((attempt + 1))
-            sleep 2
-        done
-
-        echo "Ray worker failed after 30 attempts on $(hostname)" >&2
-        exit 1
-    fi
-    """
-
-        env = os.environ.copy()
-        env["RAY_HEAD_IP"] = head_ip
-        env["RAY_PORT"] = str(self.port)
-        env["RAY_CPUS"] = str(self.num_cpus_per_node)
-        env["RAY_ADDRESS"] = self.ray_address
-        # Use the driver's own ray binary on every node (avoids login-shell PATH issues).
-        env["RAY_BIN"] = shutil.which("ray") or "ray"
-        worker_script = worker_script.replace("ray start", '"${RAY_BIN}" start')
-
-        command = [
-            "srun",
-            "--overlap",
-            f"--nodes={node_count}",
-            f"--ntasks={node_count}",
-            "--ntasks-per-node=1",
-            "--kill-on-bad-exit=1",
-            "bash",
-            "-c",  # was -lc: a login shell can reset PATH / conda env
-            worker_script,
-        ]
-        self._start_process(command, "Ray cluster launch", env=env)
-        self._owns_cluster = True
-
-    def _start_process(self, command: list[str], label: str, env=None) -> None:
-        log_path = Path(f"ray_cluster_{os.environ.get('SLURM_JOB_ID', 'local')}.log")
-        log = log_path.open("wb")
-        process = subprocess.Popen(
-            command, stdout=log, stderr=subprocess.STDOUT, env=env
-        )
-        self._processes.append(process)
-        time.sleep(3)
-        if process.poll() is not None:
-            raise RuntimeError(f"{label} failed to start; see {log_path}")
-        LOGGER.info("%s logging to %s", label, log_path)
-
-    def _connect_local(self) -> None:
-        num_cpus = self.local_num_cpus or self.num_cpus_per_node
-        LOGGER.info("Starting local Ray runtime with %d CPUs", num_cpus)
-        ray.init(
-            num_cpus=num_cpus,
-            ignore_reinit_error=True,
-            include_dashboard=False,
-            logging_level="WARNING",
-        )
-        self.ray_address = "local"
-
-    def _connect_existing(self, *, expected_nodes: Optional[int]) -> None:
-        if not self.ray_address:
-            raise RuntimeError("No Ray address is available.")
-        init_kwargs: dict[str, Any] = {
-            "address": self.ray_address,
-            "ignore_reinit_error": True,
-            "include_dashboard": False,
-            "logging_level": "WARNING",
-        }
-        if self.runtime_env:
-            init_kwargs["runtime_env"] = self.runtime_env
-
-        deadline = time.monotonic() + self.startup_timeout
-        last_error: Optional[Exception] = None
-        while time.monotonic() < deadline:
-            try:
-                ray.init(**init_kwargs)
-                break
-            except Exception as error:
-                last_error = error
-                time.sleep(2)
-        else:
-            raise RuntimeError(
-                f"Could not connect to Ray at {self.ray_address}: {last_error}"
-            ) from last_error
-
-        if expected_nodes:
-            while time.monotonic() < deadline:
-                alive = sum(1 for node in ray.nodes() if node.get("Alive"))
-                if alive >= expected_nodes:
-                    return
-                time.sleep(2)
-            LOGGER.warning(
-                "Only %d/%d Ray nodes joined before the startup timeout.",
-                sum(1 for node in ray.nodes() if node.get("Alive")),
-                expected_nodes,
-            )
-
-    def _runtime_summary(self, expected_nodes: Optional[int]):
-        alive_nodes = [node for node in ray.nodes() if node.get("Alive")]
-        total_cpus = int(ray.cluster_resources().get("CPU", 0))
-        if total_cpus <= 0:
-            raise RuntimeError("Connected to Ray, but Ray reports zero CPUs.")
-        LOGGER.info(
-            "Ray ready: address=%s nodes=%d CPUs=%d expected_nodes=%s",
-            self.ray_address, len(alive_nodes), total_cpus, expected_nodes,
-        )
-        return total_cpus, alive_nodes
-
-    def stop(self) -> None:
-        if ray.is_initialized():
-            ray.shutdown()
-
-        if not self._owns_cluster and not self._processes:
-            return
-
-        for process in self._processes:
-            if process.poll() is None:
-                process.terminate()
-        for process in self._processes:
-            if process.poll() is None:
-                try:
-                    process.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=5)
-        self._processes.clear()
-
-        if self._owns_cluster and self.nodes:
-            try:
-                subprocess.run(
-                    [
-                        "srun", "--overlap",
-                        f"--nodes={len(self.nodes)}",
-                        f"--ntasks={len(self.nodes)}",
-                        "--ntasks-per-node=1",
-                        "ray", "stop", "--force",
-                    ],
-                    capture_output=True, text=True, timeout=60, check=False,
-                )
-            except (subprocess.TimeoutExpired, OSError) as exc:
-                LOGGER.warning("Ray cleanup encountered an error: %s", exc)
-
-        self._owns_cluster = False
-
-
-def build_runtime_env(rcfg: dict[str, Any]) -> Optional[dict[str, Any]]:
-    wd = rcfg.get("working_dir")
-    if not wd:
-        return None
-    return {
-        "working_dir": str(Path(wd).resolve()),
-        "excludes": rcfg.get("excludes", ["results", ".git", "__pycache__", "docs"]),
-    }
 
 
 # ============================================================
@@ -435,11 +152,15 @@ def _job_worker(job: dict[str, Any], data: Any) -> dict[str, Any]:
     setup_logging()
     t0 = time.perf_counter()
     try:
+        # Match thread counts to the CPUs Ray assigned; defaults oversubscribe parallel workers.
+        import ray
+
         cpus = ray.get_runtime_context().get_assigned_resources().get("CPU")
         if cpus:
             os.environ["OMP_NUM_THREADS"] = str(max(1, int(cpus)))
             try:
                 import torch
+
                 torch.set_num_threads(max(1, int(cpus)))
             except ImportError:
                 pass
@@ -459,6 +180,7 @@ def run_distributed(
     output_dir: Path,
     rcfg: dict[str, Any],
     exp_name: str,
+    address: Optional[str] = None,
     smoke: bool = False,
 ) -> list[dict[str, Any]]:
     jobs = list(iter_experiment_jobs(config, smoke=smoke))
@@ -466,22 +188,44 @@ def run_distributed(
         LOGGER.warning("Configuration produced no experiment jobs.")
         return []
 
+    import ray
+
     output_dir.mkdir(parents=True, exist_ok=True)
     per_experiment_dir = output_dir / "experiments"
     csv_path = output_dir / f"{output_dir.name}.csv"
 
-    alive_nodes = [n for n in ray.nodes() if n.get("Alive", False)]
-    if not alive_nodes:
-        raise RuntimeError("Ray reports no alive nodes.")
-    total_cpus = ray.cluster_resources().get("CPU", 0.0)
-    print("Ray resources:", ray.cluster_resources(), "| nodes:", len(alive_nodes))
+    init_kwargs: dict[str, Any] = {"ignore_reinit_error": True}
+    if address == "local":
+        address = None
+    if address:
+        init_kwargs["address"] = address
+        wd = rcfg.get("working_dir")
+        # Shipping the working dir is only needed for explicit remote clusters;
+        # an auto-discovered cluster shares this filesystem.
+        if wd and address != "auto":
+            init_kwargs["runtime_env"] = {
+                "working_dir": str(Path(wd).resolve()),
+                "excludes": ["results", ".git", ".venv", "__pycache__", "docs"],
+            }
+    try:
+        ray.init(**init_kwargs)
+    except Exception as error:
+        if address != "auto":
+            raise
+        LOGGER.warning(
+            "Could not use the existing Ray cluster (%s); starting a local Ray runtime. "
+            "Run `ray stop --force` to clear stale clusters.", error,
+        )
+        ray.shutdown()
+        ray.init(ignore_reinit_error=True)
+    print("Ray resources:", ray.cluster_resources(),
+          "| nodes:", len([n for n in ray.nodes() if n["Alive"]]))
 
     # num_cpus_per_trial: null -> all CPUs on a single node, else 1.
     num_cpus = rcfg.get("num_cpus_per_trial")
     if num_cpus is None:
-        num_cpus = total_cpus if len(alive_nodes) == 1 else 1
-    if num_cpus <= 0:
-        raise RuntimeError("num_cpus_per_trial resolved to zero; cannot schedule jobs.")
+        alive = [n for n in ray.nodes() if n["Alive"]]
+        num_cpus = ray.cluster_resources().get("CPU", 1) if len(alive) == 1 else 1
 
     remote_job = ray.remote(
         num_cpus=num_cpus,
@@ -491,14 +235,6 @@ def run_distributed(
 
     # Each distinct prepared dataset goes into the object store once.
     data_refs: dict[int, Any] = {}
-
-    def submit(job: dict[str, Any]) -> Any:
-        key = id(job["data"])
-        if key not in data_refs:
-            data_refs[key] = ray.put(job["data"])
-        job_without_data = {k: v for k, v in job.items() if k != "data"}
-        return remote_job.remote(job_without_data, data_refs[key])
-
     queue = list(enumerate(jobs))
     max_in_flight = rcfg.get("max_in_flight") or len(queue)
     pending: list[Any] = []
@@ -509,9 +245,13 @@ def run_distributed(
 
     def submit_next() -> None:
         i, job = queue.pop(0)
-        ref = submit(job)
+        key = id(job["data"])
+        if key not in data_refs:
+            data_refs[key] = ray.put(job["data"])
+        job_cfg = {k: v for k, v in job.items() if k != "data"}
+        ref = remote_job.remote(job_cfg, data_refs[key])
         pending.append(ref)
-        meta[ref] = (i, {k: v for k, v in job.items() if k != "data"})
+        meta[ref] = (i, job_cfg)
 
     try:
         while queue and len(pending) < max_in_flight:
@@ -534,11 +274,6 @@ def run_distributed(
                 rows.sort(key=lambda r: r["trial_id"])
                 save_combined_csv(rows, csv_path)  # incremental
                 save_combined_csv([row], per_experiment_dir / _experiment_filename(result))
-                LOGGER.info(
-                    "Saved experiment %d/%d: %s / %s",
-                    len(rows), len(jobs),
-                    result.get("dataset"), result.get("method_label"),
-                )
             else:
                 failed.append({
                     "trial_id": f"{i:05d}",
@@ -555,6 +290,7 @@ def run_distributed(
         raise
     finally:
         pbar.close()
+        ray.shutdown()
 
     if failed:
         save_combined_csv(failed, output_dir / "failed.csv")
@@ -569,7 +305,7 @@ def run_distributed(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Distribute configured CCKA experiments across a Ray cluster."
+        description="Run configured CCKA experiments distributed with Ray."
     )
     parser.add_argument("--config", type=Path, default=CONFIG_DIR / "exp01_main_benchmark.yaml")
     parser.add_argument("--address", default=None,
@@ -600,24 +336,15 @@ def main() -> None:
         return
 
     rcfg = config.get("ray") or {}
-    address = args.address or rcfg.get("address") or "auto"
-
-    agent = RayAgent(
-        num_cpus_per_node=rcfg.get("num_cpus_per_node"),
-        port=rcfg.get("port", 6379),
-        startup_timeout=rcfg.get("startup_timeout", 180),
-        local_num_cpus=rcfg.get("local_num_cpus"),
-        # runtime_env only matters when attaching to a remote cluster by address
-        runtime_env=build_runtime_env(rcfg) if address not in ("auto", "local") else None,
+    rows = run_distributed(
+        config,
+        output_dir=output_dir,
+        rcfg=rcfg,
+        exp_name=exp_name,
+        address=args.address or rcfg.get("address"),
+        smoke=args.smoke,
     )
-    try:
-        agent.initialise(address=address, expected_nodes=rcfg.get("expected_nodes"))
-        rows = run_distributed(
-            config, output_dir=output_dir, rcfg=rcfg, exp_name=exp_name, smoke=args.smoke
-        )
-        LOGGER.info("Saved %d experiment results under %s", len(rows), output_dir)
-    finally:
-        agent.stop()
+    LOGGER.info("Saved %d experiment results under %s", len(rows), output_dir)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import main as ray_runner
+import main as runner
 
 
 def _jobs() -> list[dict[str, Any]]:
@@ -23,95 +23,67 @@ def _jobs() -> list[dict[str, Any]]:
     ]
 
 
-def _install_fake_ray(monkeypatch, *, nodes: list[dict[str, Any]], cpus: float):
-    events: list[tuple[Any, ...]] = []
+class _Ref:
+    def __init__(self, function, job, data):
+        self.function, self.job, self.data = function, job, data
 
-    class RemoteRunner:
-        def __init__(self, num_cpus: float | None = None) -> None:
-            self.num_cpus = num_cpus
 
-        def options(self, *, num_cpus: float) -> RemoteRunner:
-            events.append(("options", num_cpus))
-            return RemoteRunner(num_cpus)
+def _run(tmp_path, monkeypatch, rcfg, fail_seed=None):
+    import ray
 
-        def remote(self, job: dict[str, Any], data_ref: Any) -> tuple[Any, ...]:
-            events.append(("submit", job["seed"], self.num_cpus))
-            return job, data_ref
+    events: list[tuple[str, int]] = []
 
-    monkeypatch.setattr(ray_runner.ray, "nodes", lambda: nodes)
+    class Remote:
+        def __init__(self, function):
+            self.function = function
+
+        def remote(self, job, data_ref):
+            events.append(("submit", job["seed"]))
+            return _Ref(self.function, job, data_ref)
+
+    class Context:
+        def get_assigned_resources(self):
+            return {"CPU": 1.0}
+
+    monkeypatch.setattr(ray, "get_runtime_context", lambda: Context())
+    monkeypatch.setattr(ray, "init", lambda **kwargs: None)
+    monkeypatch.setattr(ray, "shutdown", lambda: None)
+    monkeypatch.setattr(ray, "cluster_resources", lambda: {"CPU": 4.0})
+    monkeypatch.setattr(ray, "nodes", lambda: [{"Alive": True}])
+    monkeypatch.setattr(ray, "put", lambda data: data)
+    monkeypatch.setattr(ray, "remote", lambda **kwargs: Remote)
+    monkeypatch.setattr(ray, "get", lambda ref: ref.function(ref.job, ref.data))
     monkeypatch.setattr(
-        ray_runner.ray, "cluster_resources", lambda: {"CPU": cpus}
+        ray, "wait", lambda refs, num_returns: (refs[:num_returns], refs[num_returns:])
     )
-    monkeypatch.setattr(ray_runner.ray, "remote", lambda function: RemoteRunner())
-    monkeypatch.setattr(ray_runner.ray, "put", lambda data: ("data-ref", data))
     monkeypatch.setattr(
-        ray_runner,
-        "iter_experiment_jobs",
-        lambda config, smoke=False: iter(_jobs()),
+        runner, "iter_experiment_jobs", lambda config, smoke=False: iter(_jobs())
     )
 
-    def run_job(job: dict[str, Any], data: Any) -> dict[str, Any]:
-        events.append(("run", job["seed"]))
-        return {
-            **job,
-            "backend": "jax",
-            "n_qubits": 5,
-            "method": "test",
-            "method_label": job["method_label"],
-        }
+    def run_job(job, data):
+        assert "data" not in job
+        if job["seed"] == fail_seed:
+            raise ValueError("boom")
+        return {**job, "backend": "jax", "n_qubits": 5, "method": "test"}
 
-    monkeypatch.setattr(ray_runner, "run_experiment_job", run_job)
-
-    def ray_get(reference: tuple[dict[str, Any], Any]) -> dict[str, Any]:
-        job, data = reference
-        events.append(("get", job["seed"]))
-        return run_job(job, data)
-
-    monkeypatch.setattr(ray_runner.ray, "get", ray_get)
-
-    def ray_wait(references: list[Any], *, num_returns: int):
-        events.append(("wait", len(references)))
-        return references[:num_returns], references[num_returns:]
-
-    monkeypatch.setattr(ray_runner.ray, "wait", ray_wait)
-    return events
-
-
-def test_single_node_runs_one_experiment_at_a_time_with_all_cpus(
-    monkeypatch, tmp_path
-):
-    events = _install_fake_ray(
-        monkeypatch, nodes=[{"Alive": True}], cpus=8.0
+    monkeypatch.setattr(runner, "run_experiment_job", run_job)
+    rows = runner.run_distributed(
+        {}, output_dir=tmp_path, rcfg=rcfg, exp_name="t", address="local"
     )
-
-    rows = ray_runner.run_distributed({}, output_dir=tmp_path)
-
-    assert len(rows) == 3
-    assert [event[0] for event in events].count("submit") == 3
-    assert [event[0] for event in events].count("options") == 3
-    for index in range(3):
-        assert events[index * 4 : index * 4 + 4] == [
-            ("options", 8.0),
-            ("submit", index, 8.0),
-            ("get", index),
-            ("run", index),
-        ]
-    assert (tmp_path / "summary.csv").is_file()
+    return rows, events
 
 
-def test_multiple_nodes_keep_parallel_scheduling(monkeypatch, tmp_path):
-    events = _install_fake_ray(
-        monkeypatch,
-        nodes=[{"Alive": True}, {"Alive": True}],
-        cpus=8.0,
-    )
+def test_runs_all_jobs(monkeypatch, tmp_path):
+    rows, events = _run(tmp_path, monkeypatch, {"max_in_flight": 2})
 
-    rows = ray_runner.run_distributed({}, output_dir=tmp_path)
+    assert [r["trial_id"] for r in rows] == ["00000", "00001", "00002"]
+    assert len(events) == 3
+    assert (tmp_path / f"{tmp_path.name}.csv").is_file()
+    assert len(list((tmp_path / "experiments").glob("*.csv"))) == 3
 
-    assert len(rows) == 3
-    assert [event[0] for event in events[:3]] == [
-        "submit",
-        "submit",
-        "submit",
-    ]
-    assert not any(event[0] == "options" for event in events)
+
+def test_failed_job_is_recorded_and_sweep_continues(monkeypatch, tmp_path):
+    rows, _ = _run(tmp_path, monkeypatch, {}, fail_seed=1)
+
+    assert len(rows) == 2
+    assert (tmp_path / "failed.csv").is_file()
