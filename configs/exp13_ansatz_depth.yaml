@@ -6,7 +6,7 @@ ray:
   address: auto            # auto | local | host:port   (CLI --address overrides)
   working_dir: .           # only used when connecting to a remote address
   num_cpus_per_trial: null # null = all CPUs if single node, else 1
-  num_gpus_per_trial: 1
+  num_gpus_per_trial: 0
   max_retries: 0
   max_in_flight: null      # null = submit everything
   # expected_nodes, startup_timeout, port, num_cpus_per_node, local_num_cpus also accepted
@@ -23,4 +23,3 @@ seeds: [0, 1, 2]
 experiments:
   methods: [fullKTA, randomKTA, quackKTA, ccka]
   ablation_datasets: []
-

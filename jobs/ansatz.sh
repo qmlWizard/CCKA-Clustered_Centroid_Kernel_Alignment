@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=compare_ansatz
 #SBATCH --partition=shiwalik
-#SBATCH --nodes=128
+#SBATCH --nodes=8
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=48
 #SBATCH --time=24:00:00

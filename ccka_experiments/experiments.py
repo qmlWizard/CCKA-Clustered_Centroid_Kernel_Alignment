@@ -308,6 +308,15 @@ def _make_aligner(
     update_co: bool = True,
 ) -> Any:
     X_train, X_validation, X_test, y_train, y_validation, y_test = data
+    # QUACK's K=0 experiment is the non-centroid baseline.  Keep the
+    # configured method name for reporting, but use the full KTA implementation
+    # so it cannot enter centroid initialization.
+    aligner_method = (
+        "fullKTA"
+        if method == "quackKTA"
+        and (centroids in (None, 0) or initialization == "not_applicable")
+        else method
+    )
     inference_method = settings.get(
         f"{method}_inference_method",
         settings.get("inference_method", "svm"),
@@ -352,7 +361,7 @@ def _make_aligner(
             validation_labels=y_validation,
             test_data=X_test,
             test_labels=y_test,
-            method=method,
+            method=aligner_method,
             centroids=centroids,
             clustering=initialization,
             random_samples=centroids,
@@ -398,21 +407,21 @@ def _make_aligner(
         "optimizer": settings.get("optimizer", "adam"),
         "seed": seed,
     }
-    if method == "fullKTA":
+    if aligner_method == "fullKTA":
         return FullKTA(**common)
-    if method == "randomKTA":
+    if aligner_method == "randomKTA":
         return RandomKTA(
             **common,
             random_samples=centroids,
         )
-    if method == "quackKTA":
+    if aligner_method == "quackKTA":
         return QuackKTA(
             **common,
             lambda_co=float(settings.get("lambda_co", 0.001)),
             lambda_kao=float(settings.get("lambda_kao", 0.001)),
             centroid_lr=float(settings.get("centroid_lr", 0.01)),
         )
-    if method == "ccka":
+    if aligner_method == "ccka":
         return CentroidBasedKTA(
             **common,
             centroids=centroids,
@@ -759,6 +768,26 @@ def iter_experiment_jobs(config: dict[str, Any], *, smoke: bool = False):
     seeds = [int(seed) for seed in config.get("seeds", [0])]
     shot_counts = [int(value) for value in noise_settings.get("shots", [1024])]
     grid = _grid_combinations(_configured_search_grid(config))
+    for (
+        method,
+        K,
+        initialization,
+        _ablation,
+        _update_kao,
+        _update_co,
+        _variant_settings,
+        _inference_landmarks,
+    ) in _experiment_specs(config, include_ablations=True):
+        if method == "ccka" and (K <= 0 or initialization == "not_applicable"):
+            raise ValueError(
+                "Invalid experiment configuration: ccka requires "
+                "centroids > 0 and a valid centroid initialization."
+            )
+        if method == "randomKTA" and K <= 0:
+            raise ValueError(
+                "Invalid experiment configuration: randomKTA requires "
+                "centroids/random_samples > 0."
+            )
     for dataset_name in dataset_names:
         for overrides in grid:
             grid_training = {**training, **overrides}

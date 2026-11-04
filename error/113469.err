@@ -1,9 +1,10 @@
-[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
-[1;31m==>[0m Error: Unknown namespace: builtin
-[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
-[1;31m==>[0m Error: Unknown namespace: builtin
-[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
-[1;31m==>[0m Error: Unknown namespace: builtin
-2026-11-04 16:11:02,276	WARNING authentication_token_setup.py:85 -- Token authentication is enabled for this Ray cluster. Set RAY_AUTH_MODE=disabled to opt out. For more information, see https://docs.ray.io/en/latest/ray-security/token-auth.html
-2026-11-04 16:11:21,242	INFO worker.py:2033 -- Started a local Ray instance.
-exp13_ansatz_benchmark:   0%|          | 0/900 [00:00<?, ?job/s][2026-11-04T16:58:38.947] error: *** JOB 113469 ON cbcn0065 CANCELLED AT 2026-11-04T16:58:38 DUE to SIGNAL Terminated ***
+    [1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
+    [1;31m==>[0m Error: Unknown namespace: builtin
+    [1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
+    [1;31m==>[0m Error: Unknown namespace: builtin
+    [1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
+    [1;31m==>[0m Error: Unknown namespace: builtin
+    2026-11-04 16:11:02,276	WARNING authentication_token_setup.py:85 -- Token authentication is enabled for this Ray cluster. Set RAY_AUTH_MODE=disabled to opt out. For more information, see https://docs.ray.io/en/latest/ray-security/token-auth.html
+    2026-11-04 16:11:21,242	INFO worker.py:2033 -- Started a local Ray instance.
+
+    exp13_ansatz_benchmark:   0%|          | 0/900 [00:00<?, ?job/s][2026-11-04T16:58:38.947] error: *** JOB 113469 ON cbcn0065 CANCELLED AT 2026-11-04T16:58:38 DUE to SIGNAL Terminated ***

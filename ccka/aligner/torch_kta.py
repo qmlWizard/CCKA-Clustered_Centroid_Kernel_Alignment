@@ -128,11 +128,18 @@ class TorchExperimentKTA:
 
     @staticmethod
     def _tensor(value) -> torch.Tensor:
-        return torch.as_tensor(np.asarray(value), dtype=torch.float32)
+        return torch.as_tensor(np.array(value), dtype=torch.float32)
 
-    def _initialize_centroids(self, count: int, clustering: str):
+    def _initialize_centroids(self, count: int | None, clustering: str):
         X = self.xtrain.detach().cpu().numpy()
         y = self.ytrain.detach().cpu().numpy()
+        if count in (None, 0):
+            return (
+                torch.tensor(X, dtype=torch.float32),
+                torch.tensor(y, dtype=torch.float32),
+                torch.empty((0, X.shape[1]), dtype=torch.float32),
+                torch.empty((0,), dtype=torch.float32),
+            )
         classes = np.unique(y)
         mains, main_labels, subs, sub_labels = [], [], [], []
         for class_index, label in enumerate(classes):
