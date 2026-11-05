@@ -1,0 +1,76 @@
+==========================================
+SLURM_CLUSTER_NAME = rudra20pf-hpc
+SLURM_ARRAY_JOB_ID = 
+SLURM_ARRAY_TASK_ID = 
+SLURM_ARRAY_TASK_COUNT = 
+SLURM_ARRAY_TASK_MAX = 
+SLURM_ARRAY_TASK_MIN = 
+SLURM_JOB_ACCOUNT = cdacb
+SLURM_JOB_ID = 113615
+SLURM_JOB_NAME = ccka_all_experiments
+SLURM_JOB_NODELIST = cbcn[0091-0100,0259-0278,0454-0456,0460-0462,0577-0579,0845-0856,0860-0872,0989-0993,1508-1517,1583-1588,1590-1595,1819-1822,1825-1828,1839-1842,1963-1966,1975-1978,1991-1994,2071-2074,2095-2098,2113-2116,2266]
+SLURM_JOB_USER = digvijaysinha.cdacb
+SLURM_JOB_UID = 80064
+SLURM_JOB_PARTITION = shiwalik
+SLURM_TASK_PID = 350630
+SLURM_SUBMIT_DIR = /home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment
+SLURM_CPUS_ON_NODE = 48
+SLURM_NTASKS = 128
+SLURM_TASK_PID = 350630
+==========================================
+==========================================
+SLURM JOB ID      : 113615
+SLURM JOB NAME    : ccka_all_experiments
+NUMBER OF NODES   : 128
+CPUS PER NODE     : 48
+TOTAL CPUs        : 6144
+==========================================
+==========================================
+Starting experiment: configs/exp01_main_benchmark.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp02_multiclass.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp03_ablation_structure.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp04_ablation_lambda_grid.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp05_ablation_lr_grid.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp06_k_sweep.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp07_ntrain.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp08_label_noise.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp09_imbalance.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp10_feature_dim.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp11_noise.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp12_shots.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp13_ansatz_depth.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp14_optimizer_init.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp15_synthetic_claims.yaml
+==========================================
+==========================================
+Starting experiment: configs/exp16_decision_boundaries.yaml
+==========================================
+Completed all configured experiments; failures: 16

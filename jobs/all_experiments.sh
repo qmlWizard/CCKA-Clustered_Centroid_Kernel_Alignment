@@ -1,14 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=ccka_all_experiments
-#SBATCH --partition=shiwalik
-#SBATCH --nodes=8
+#SBATCH --job-name=compare_classical_vs_quantum
+#SBATCH --partition=himachal
+#SBATCH --nodes=257
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=48
-#SBATCH --time=7-00:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.out
 #SBATCH --error=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/error/%j.err
 
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# ============================================================
+# Environment
+# ============================================================
+
+source ~/.bashrc
 
 . /home/apps/spack/share/spack/setup-env.sh
 
@@ -16,13 +20,18 @@ spack load /oxmullt
 spack load /gaily2jw
 spack load /2wdhn7r
 
+# ============================================================
+# OpenBLAS
+# ============================================================
+
 export OPENBLAS_ROOT=$(spack location -i /geypa2)
-export LD_LIBRARY_PATH="$OPENBLAS_ROOT/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH=$OPENBLAS_ROOT/lib:$LD_LIBRARY_PATH
 
 export MPI_LIB=/home/apps/spack/opt/spack/linux-cascadelake/openmpi-4.1.8-gaily2jwc3klcubp55unnlgiaglqu7mf/lib
-export LD_LIBRARY_PATH="$MPI_LIB:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH=$MPI_LIB:$LD_LIBRARY_PATH
 
 conda activate py310
+
 
 echo "=========================================="
 echo "SLURM JOB ID      : $SLURM_JOB_ID"

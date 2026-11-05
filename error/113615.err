@@ -1,0 +1,144 @@
+[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
+[1;31m==>[0m Error: Unknown namespace: builtin
+[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
+[1;31m==>[0m Error: Unknown namespace: builtin
+[1;93m==>[0m Warning: Error constructing repository '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4': failed to read /home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml: [Errno 2] No such file or directory: '/home/cdacB/digvijaysinha.cdacb/.spack/package_repos/fncqgg4/spack-repo-index.yaml'
+[1;31m==>[0m Error: Unknown namespace: builtin
+Error while loading conda entry point: conda-pypi (/home/apps/miniconda/lib/python3.14/lib-dynload/_sqlite3.cpython-314-x86_64-linux-gnu.so: undefined symbol: sqlite3_deserialize)
+Error while loading conda entry point: conda-libmamba-solver (libxml2.so.16: cannot open shared object file: No such file or directory)
+Error while loading conda entry point: conda-pypi (/home/apps/miniconda/lib/python3.14/lib-dynload/_sqlite3.cpython-314-x86_64-linux-gnu.so: undefined symbol: sqlite3_deserialize)
+Error while loading conda entry point: conda-libmamba-solver (libxml2.so.16: cannot open shared object file: No such file or directory)
+
+# >>>>>>>>>>>>>>>>>>>>>> ERROR REPORT <<<<<<<<<<<<<<<<<<<<<<
+
+    Traceback (most recent call last):
+      File "/home/apps/miniconda/lib/python3.14/site-packages/conda/exception_handler.py", line 30, in __call__
+        return func(*args, **kwargs)
+      File "/home/apps/miniconda/lib/python3.14/site-packages/conda/cli/main.py", line 43, in main_subshell
+        parser = generate_parser(add_help=True)
+      File "/home/apps/miniconda/lib/python3.14/site-packages/conda/cli/conda_argparse.py", line 181, in generate_parser
+        configure_parser_plugins(sub_parsers)
+        ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+      File "/home/apps/miniconda/lib/python3.14/site-packages/conda/cli/conda_argparse.py", line 372, in configure_parser_plugins
+        plugin_subcommand.configure_parser(parser)
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+      File "/home/apps/miniconda/lib/python3.14/site-packages/conda_index/plugin.py", line 16, in configure_parser
+        import conda_index.cli
+      File "/home/apps/miniconda/lib/python3.14/site-packages/conda_index/cli/__init__.py", line 13, in <module>
+        from conda_index.index import MAX_THREADS_DEFAULT, ChannelIndex, logutil
+      File "/home/apps/miniconda/lib/python3.14/site-packages/conda_index/index/__init__.py", line 35, in <module>
+        from . import rss, sqlitecache
+      File "/home/apps/miniconda/lib/python3.14/site-packages/conda_index/index/sqlitecache.py", line 11, in <module>
+        import sqlite3
+      File "/home/apps/miniconda/lib/python3.14/sqlite3/__init__.py", line 57, in <module>
+        from sqlite3.dbapi2 import *
+      File "/home/apps/miniconda/lib/python3.14/sqlite3/dbapi2.py", line 27, in <module>
+        from _sqlite3 import *
+    ImportError: /home/apps/miniconda/lib/python3.14/lib-dynload/_sqlite3.cpython-314-x86_64-linux-gnu.so: undefined symbol: sqlite3_deserialize
+
+`$ /home/apps/miniconda/bin/conda activate py310`
+
+  environment variables:
+                 CIO_TEST=<not set>
+        CONDA_DEFAULT_ENV=base
+                CONDA_EXE=/home/apps/miniconda/bin/conda
+             CONDA_PREFIX=/home/apps/miniconda
+    CONDA_PROMPT_MODIFIER=(base)
+         CONDA_PYTHON_EXE=/home/apps/miniconda/bin/python
+               CONDA_ROOT=/home/apps/miniconda
+              CONDA_SHLVL=1
+           CURL_CA_BUNDLE=<not set>
+ DEBUGINFOD_IMA_CERT_PATH=/etc/keys/ima:
+                    FPATH=/usr/share/lmod/lmod/init/ksh_funcs
+          LD_LIBRARY_PATH=/home/apps/spack/opt/spack/linux-cascadelake/openmpi-4.1.8-
+                          gaily2jwc3klcubp55unnlgiaglqu7mf/lib:/home/apps/spack/opt/spack/linux-
+                          skylake_avx512/openblas-0.3.32-geypa2ffeg5bhuy3v6bhjysel5efwwod/lib:
+               LD_PRELOAD=<not set>
+                  MANPATH=/usr/share/lmod/lmod/share/man:
+               MODULEPATH=/etc/modulefiles:/home/apps/modulefiles:/home/apps/AIStack:/home/apps/
+                          modulefiles/:/etc/modulefiles/Linux:/etc/modulefiles/Core:/usr/share/l
+                          mod/lmod/modulefiles/Core
+                     PATH=/home/apps/spack/bin:/home/apps/miniconda/bin:/home/apps/miniconda/con
+                          dabin:/home/cdacB/digvijaysinha.cdacb/.local/bin:/home/cdacB/digvijays
+                          inha.cdacb/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+       REQUESTS_CA_BUNDLE=<not set>
+            SSL_CERT_FILE=<not set>
+
+     active environment : base
+    active env location : /home/apps/miniconda
+            shell level : 1
+       user config file : /home/cdacB/digvijaysinha.cdacb/.condarc
+ populated config files : /home/apps/miniconda/.condarc
+                          /home/apps/miniconda/condarc.d/anaconda-auth.yml
+          conda version : 26.7.1
+    conda-build version : not installed
+         python version : 3.14.6.final.0
+                 solver : libmamba (default)
+       virtual packages : __archspec=1=cascadelake
+                          __conda=26.7.1=0
+                          __glibc=2.34=0
+                          __linux=5.14.0=0
+                          __unix=0=0
+       base environment : /home/apps/miniconda  (read only)
+      conda av data dir : /home/apps/miniconda/etc/conda
+  conda av metadata url : None
+           channel URLs : https://repo.anaconda.com/pkgs/main/linux-64
+                          https://repo.anaconda.com/pkgs/main/noarch
+                          https://repo.anaconda.com/pkgs/r/linux-64
+                          https://repo.anaconda.com/pkgs/r/noarch
+          package cache : /home/apps/miniconda/pkgs
+                          /home/cdacB/digvijaysinha.cdacb/.conda/pkgs
+          notices cache : /home/cdacB/digvijaysinha.cdacb/.cache/conda/notices
+       envs directories : /home/cdacB/digvijaysinha.cdacb/.conda/envs
+                          /home/apps/miniconda/envs
+    temporary directory : /tmp
+               platform : linux-64
+             user-agent : conda/26.7.1 requests/2.34.2 CPython/3.14.6 Linux/5.14.0-570.17.1.el9_6.x86_64 rocky/9.6 glibc/2.34 solver/libmamba
+                UID:GID : 80064:80064
+             netrc file : None
+           offline mode : False
+
+
+An unexpected error has occurred. Conda has prepared the above report.
+If you suspect this error is being caused by a malfunctioning plugin,
+consider using the --no-plugins option to turn off plugins.
+
+Example: conda --no-plugins install <package>
+
+Alternatively, you can set the CONDA_NO_PLUGINS environment variable on
+the command line to run the command without plugins enabled.
+
+Example: CONDA_NO_PLUGINS=true conda install <package>
+
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp01_main_benchmark.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp02_multiclass.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp03_ablation_structure.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp04_ablation_lambda_grid.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp05_ablation_lr_grid.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp06_k_sweep.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp07_ntrain.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp08_label_noise.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp09_imbalance.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp10_feature_dim.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp11_noise.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp12_shots.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp13_ansatz_depth.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp14_optimizer_init.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp15_synthetic_claims.yaml
+python: can't open file '/var/share/slurm/d/main.py': [Errno 2] No such file or directory
+Experiment failed (status 2): configs/exp16_decision_boundaries.yaml
