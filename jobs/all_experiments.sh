@@ -8,10 +8,13 @@
 #SBATCH --output=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/output/%j.out
 #SBATCH --error=/home/cdacB/digvijaysinha.cdacb/CCKA-Clustered_Centroid_Kernel_Alignment/error/%j.err
 
+set -euo pipefail
+
 # ============================================================
 # Environment
 # ============================================================
 
+cd "${SLURM_SUBMIT_DIR:-$PWD}"
 source ~/.bashrc
 
 . /home/apps/spack/share/spack/setup-env.sh
@@ -77,18 +80,28 @@ configs=(
 
 failures=0
 for config in "${configs[@]}"; do
-    echo "=========================================="
-    echo "Starting experiment: $config"
-    echo "=========================================="
+    attempt=1
+    max_attempts=2
+    while (( attempt <= max_attempts )); do
+        echo "=========================================="
+        echo "Starting experiment: $config (attempt $attempt/$max_attempts)"
+        echo "=========================================="
 
-    cleanup_ray
-    if python main.py --config "$config"; then
-        echo "Completed experiment: $config"
-    else
-        status=$?
-        failures=$((failures + 1))
-        echo "Experiment failed (status $status): $config" >&2
-    fi
+        cleanup_ray
+        if python main.py --config "$config"; then
+            echo "Completed experiment: $config"
+            break
+        else
+            status=$?
+            if (( attempt < max_attempts )); then
+                echo "Experiment failed (status $status); retrying: $config" >&2
+            else
+                failures=$((failures + 1))
+                echo "Experiment failed after $max_attempts attempts (status $status): $config" >&2
+            fi
+        fi
+        attempt=$((attempt + 1))
+    done
     cleanup_ray
 done
 

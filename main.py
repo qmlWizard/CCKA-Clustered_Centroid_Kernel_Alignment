@@ -413,40 +413,54 @@ class ManagedCluster:
 # RAY DISTRIBUTION
 # ============================================================
 
-def _job_worker(job: dict[str, Any], data: Any) -> dict[str, Any]:
+def _job_worker(
+    job: dict[str, Any], data: Any, max_attempts: int = 2
+) -> dict[str, Any]:
     """Runs on a Ray worker; never raises so one bad job can't kill the sweep."""
     setup_logging()
     t0 = time.perf_counter()
-    try:
-        # Match thread counts to the CPUs Ray assigned; defaults oversubscribe parallel workers.
-        import ray
+    error_text = ""
+    for attempt in range(1, max_attempts + 1):
+        try:
+            # Match thread counts to the CPUs Ray assigned; defaults oversubscribe parallel workers.
+            import ray
 
-        cpus = ray.get_runtime_context().get_assigned_resources().get("CPU")
-        if cpus:
-            n = str(max(1, int(cpus)))
-            for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
-                os.environ[var] = n
-            try:
-                import torch
+            cpus = ray.get_runtime_context().get_assigned_resources().get("CPU")
+            if cpus:
+                n = str(max(1, int(cpus)))
+                for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+                    os.environ[var] = n
+                try:
+                    import torch
 
-                torch.set_num_threads(int(n))
-            except ImportError:
-                pass
-        result = run_experiment_job(job, data)
-        return {"ok": True, "result": result, "wall": time.perf_counter() - t0}
-    except Exception as e:
-        return {
-            "ok": False,
-            "error": f"{e!r}\n{traceback.format_exc()}",
-            "wall": time.perf_counter() - t0,
-        }
+                    torch.set_num_threads(int(n))
+                except ImportError:
+                    pass
+            result = run_experiment_job(job, data)
+            return {
+                "ok": True,
+                "result": result,
+                "wall": time.perf_counter() - t0,
+                "attempts": attempt,
+            }
+        except Exception as error:
+            error_text = f"{error!r}\n{traceback.format_exc()}"
+            if attempt < max_attempts:
+                LOGGER.warning(
+                    "Job for dataset %s, seed %s failed on attempt %d/%d; retrying: %r",
+                    job.get("dataset", "unknown"),
+                    job.get("seed", "unknown"),
+                    attempt,
+                    max_attempts,
+                    error,
+                )
 
-
-def _largest_divisor_leq(n: int, limit: int) -> int:
-    for d in range(min(n, max(1, limit)), 0, -1):
-        if n % d == 0:
-            return d
-    return 1
+    return {
+        "ok": False,
+        "error": error_text,
+        "wall": time.perf_counter() - t0,
+        "attempts": max_attempts,
+    }
 
 
 def _connect_existing(ray: Any, address: str, rcfg: dict[str, Any]) -> bool:
@@ -542,8 +556,7 @@ def run_distributed(
         if cpus_per_trial is None:
             cpus_per_trial = rcfg.get("num_cpus_per_trial")  # optional override in YAML
         if cpus_per_trial is None:
-            target = total_cpus // max(1, len(jobs))
-            cpus_per_trial = _largest_divisor_leq(node_cpus, target)
+            cpus_per_trial = node_cpus
         cpus_per_trial = max(1, min(int(cpus_per_trial), node_cpus))
 
         gpus_per_trial = rcfg.get("num_gpus_per_trial", 0) or 0
@@ -552,14 +565,23 @@ def run_distributed(
             gpus_per_trial = 0
 
         slots = max(1, total_cpus // cpus_per_trial)
-        max_in_flight = rcfg.get("max_in_flight") or slots * 2
+        max_in_flight = rcfg.get("max_in_flight") or slots
+        max_job_attempts = int(rcfg.get("max_job_attempts", 2))
+        max_ray_retries = int(rcfg.get("max_retries", 2))
+        max_in_flight = int(max_in_flight)
+        if max_in_flight < 1:
+            raise ValueError("ray.max_in_flight must be at least 1.")
+        if max_job_attempts < 1:
+            raise ValueError("ray.max_job_attempts must be at least 1.")
+        if max_ray_retries < 0:
+            raise ValueError("ray.max_retries must be non-negative.")
         LOGGER.info("%d jobs | %d CPU/job | %d parallel slots | max in flight %d",
                     len(jobs), cpus_per_trial, slots, max_in_flight)
 
         remote_job = ray.remote(
             num_cpus=cpus_per_trial,
             num_gpus=gpus_per_trial,
-            max_retries=rcfg.get("max_retries", 0),
+            max_retries=max_ray_retries,
         )(_job_worker)
 
         # ---- 3. run the sweep --------------------------------------------------
@@ -576,7 +598,7 @@ def run_distributed(
             if key not in data_refs:
                 data_refs[key] = ray.put(job["data"])
             job_cfg = {k: v for k, v in job.items() if k != "data"}
-            ref = remote_job.remote(job_cfg, data_refs[key])
+            ref = remote_job.remote(job_cfg, data_refs[key], max_job_attempts)
             pending.append(ref)
             meta[ref] = (i, job_cfg)
 
@@ -616,6 +638,7 @@ def run_distributed(
                         "trial_id": f"{i:05d}",
                         **{f"cfg_{k}": _scalar(v) for k, v in job_cfg.items()},
                         "error": out["error"],
+                        "attempts": out.get("attempts", "unknown"),
                     })
                     tqdm.write(f"Job {i} failed:\n{out['error']}")
 
@@ -637,6 +660,12 @@ def run_distributed(
         finally:
             if cluster is not None:
                 cluster.stop()
+
+    if failed:
+        raise RuntimeError(
+            f"{len(failed)} of {len(jobs)} job(s) failed after retries; "
+            f"see {output_dir / 'failed.csv'}."
+        )
 
     print(f"Results CSV: {csv_path.resolve()}  ({len(rows)}/{len(jobs)} jobs)")
     return rows

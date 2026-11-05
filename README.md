@@ -162,7 +162,11 @@ connects the remaining allocated nodes itself. Without Slurm or an existing
 `--address local` for an explicit single-machine Ray run.
 Results are written per trial and combined into a summary under
 `results/<run-name>/`.
-The runner uses JAX/Optax when available and falls back to PyTorch otherwise;
+The runner retries each experiment once and lets Ray retry worker failures up
+to twice. By default, it runs one trial per node to limit memory pressure.
+Unresolved job failures are saved to `failed.csv` and cause a nonzero exit.
+The runner uses JAX/Optax when available and falls back to PyTorch otherwise.
+Multiclass runs use the selected backend, including the PyTorch fallback;
 install a backend with `pip install .[jax]` or `pip install .[torch]`.
 
 ## Experiment suite

@@ -189,20 +189,28 @@ class TorchExperimentKTA:
         matrix[cols, rows] = values
         return matrix
 
-    def _nystrom_matrices(self, query: torch.Tensor | None = None):
+    def _nystrom_matrices(
+        self, query: torch.Tensor | None = None
+    ) -> tuple[np.ndarray, np.ndarray | None]:
+        train_kernel, query_kernels = self._nystrom_matrices_for_queries(
+            () if query is None else (query,)
+        )
+        return train_kernel, None if query is None else query_kernels[0]
+
+    def _nystrom_matrices_for_queries(
+        self, queries: tuple[torch.Tensor, ...]
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
         n = len(self.xtrain)
         if self.inference_landmarks == "all":
             train_kernel = self._matrix(self.xtrain)
-            query_kernel = None
-            if query is not None:
-                query_count = len(query)
-                query_kernel = self._kernel_vector(
+            query_kernels = tuple(
+                self._kernel_vector(
                     query.repeat_interleave(n, dim=0),
-                    self.xtrain.repeat(query_count, 1),
-                ).reshape(query_count, n)
-            return train_kernel.detach().numpy(), (
-                None if query_kernel is None else query_kernel.detach().numpy()
+                    self.xtrain.repeat(len(query), 1),
+                ).reshape(len(query), n).detach().numpy()
+                for query in queries
             )
+            return train_kernel.detach().numpy(), query_kernels
         count = min(self.inference_landmarks, n)
         generator = torch.Generator().manual_seed(self.seed)
         indices = torch.randperm(n, generator=generator)[:count]
@@ -218,17 +226,38 @@ class TorchExperimentKTA:
         landmark_kernel = (landmark_kernel + landmark_kernel.T) * 0.5
         landmark_inverse = torch.linalg.pinv(landmark_kernel)
         train_kernel = train_landmark @ landmark_inverse @ train_landmark.T
-        query_kernel = None
-        if query is not None:
-            query_count = len(query)
-            query_landmark = self._kernel_vector(
-                query.repeat_interleave(count, dim=0),
-                landmarks.repeat(query_count, 1),
-            ).reshape(query_count, count)
-            query_kernel = query_landmark @ landmark_inverse @ train_landmark.T
-        return train_kernel.detach().numpy(), (
-            None if query_kernel is None else query_kernel.detach().numpy()
+        query_kernels = tuple(
+            (
+                self._kernel_vector(
+                    query.repeat_interleave(count, dim=0),
+                    landmarks.repeat(len(query), 1),
+                ).reshape(len(query), count)
+                @ landmark_inverse
+                @ train_landmark.T
+            ).detach().numpy()
+            for query in queries
         )
+        return train_kernel.detach().numpy(), query_kernels
+
+    def _evaluation_kernel_matrices(
+        self,
+        weights: torch.Tensor,
+        xtrain: torch.Tensor,
+        xvalidation: np.ndarray,
+        xtest: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        if weights is not self.weights or xtrain is not self.xtrain:
+            raise ValueError(
+                "Evaluation matrices must use this aligner's trained weights and data."
+            )
+        train_kernel, query_kernels = self._nystrom_matrices_for_queries(
+            (
+                torch.as_tensor(xvalidation, dtype=torch.float32),
+                torch.as_tensor(xtest, dtype=torch.float32),
+            )
+        )
+        validation_kernel, test_kernel = query_kernels
+        return train_kernel, validation_kernel, test_kernel
 
     def _svm_metrics(self, *, evaluate_test: bool = False):
         y_train = self.ytrain.detach().numpy()

@@ -5,10 +5,11 @@ exp_name: exp13_ansatz_benchmark
 ray:
   address: auto            # auto | local | host:port   (CLI --address overrides)
   working_dir: .           # only used when connecting to a remote address
-  num_cpus_per_trial: null # null = all CPUs if single node, else 1
+  num_cpus_per_trial: null # null = all CPUs on each node, one trial per node
   num_gpus_per_trial: 0
-  max_retries: 0
-  max_in_flight: null      # null = submit everything
+  max_retries: 2           # retry Ray tasks lost to worker/node failures
+  max_job_attempts: 2      # retry experiment-level errors once
+  max_in_flight: null      # null = one pending task per available slot
   # expected_nodes, startup_timeout, port, num_cpus_per_node, local_num_cpus also accepted
 
 datasets: [corners, checkerboard]

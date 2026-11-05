@@ -512,10 +512,6 @@ def _run_one(
     n_classes = int(len(np.unique(data[3])))
     strategy = None
     if n_classes > 2:
-        if BACKEND != "jax":
-            raise NotImplementedError(
-                "Multiclass training requires the JAX backend."
-            )
         strategy = normalise_strategy(settings.get("multiclass_strategy", "ovr"))
         settings = {
             **settings,
